@@ -4,7 +4,7 @@ extern crate getopts;
 use getopts::{ optflag, reqopt, getopts, short_usage, usage, OptGroup };
 use std::os;
 use std::option::{ Option };
-use std::io::{ Command };
+use std::old_io::{ Command };
 use std::f64;
 
 fn print_usage (program: &str, opts: &[OptGroup]) {
@@ -126,10 +126,10 @@ fn check_last_update (rootfs: &str) -> String {
 
 	let current_stamp = String::from_utf8_lossy(current_time_output.output.as_slice()).to_string();
 
-	day_time = current_stamp.as_slice().split_str(": ").collect();
-	day_time = day_time[1].as_slice().split(' ').collect();
-	let current_date = day_time[1];
-	let current_time = day_time[2];
+	let mut day_time_aux: Vec<&str> = current_stamp.as_slice().split_str(": ").collect();
+	day_time_aux = day_time_aux[1].as_slice().split(' ').collect();
+	let current_date = day_time_aux[1];
+	let current_time = day_time_aux[2];
 		
 	let mut diffhours = datediff(current_date, update_date);
 	diffhours = diffhours + timediff(current_time, update_time);

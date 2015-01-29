@@ -3,9 +3,9 @@ extern crate getopts;
 
 use getopts::{ optflag, reqopt, getopts, short_usage, usage, OptGroup };
 use std::os;
-use std::io::{ Command };
-use std::io::BufferedReader;
-use std::io::File;
+use std::old_io::{ Command };
+use std::old_io::BufferedReader;
+use std::old_io::File;
 
 fn print_usage (program: &str, opts: &[OptGroup]) {
 	println! ("{}", short_usage (program, opts));

@@ -4,7 +4,7 @@ extern crate getopts;
 use getopts::{ optflag, getopts, short_usage, usage, OptGroup };
 use std::os;
 use std::option::{ Option };
-use std::io::{ Command };
+use std::old_io::{ Command };
 use std::f64;
 
 fn print_usage (program: &str, opts: &[OptGroup]) {
