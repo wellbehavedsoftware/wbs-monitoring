@@ -1,0 +1,63 @@
+[package]
+
+name = "icinga plugins"
+version = "0.0.1"
+authors = [ "Jose Luis <joseluis@wellbehavedsoftware.com>" ]
+
+[[bin]]
+
+name = "check_response"
+
+[[bin]]
+
+name = "check_memory"
+
+[[bin]]
+
+name = "check_disk"
+
+[[bin]]
+
+name = "check_apt"
+
+[[bin]]
+
+name = "check_apt_cache"
+
+[[bin]]
+
+name = "check_disk_quota"
+
+[[bin]]
+
+name = "check_mem_quota"
+
+[[bin]]
+
+name = "check_cpu_quota"
+
+[[bin]]
+
+name = "check_hd_data"
+
+[[bin]]
+
+name = "check_md_raid"
+
+[[bin]]
+
+name = "check_text"
+
+[[bin]]
+
+name = "check_authsmtp"
+
+[dependencies.getopts]
+getopts = "0.1.4"
+
+[dependencies.curl]
+name = "curl"
+path = "./curl-rust"
+
+[dependencies.chrono]
+chrono = "0.1.15"
