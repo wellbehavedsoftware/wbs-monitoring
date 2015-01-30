@@ -1,11 +1,13 @@
 #![allow(unstable)]
 extern crate getopts;
+extern crate chrono;
 
 use getopts::{ optflag, reqopt, getopts, short_usage, usage, OptGroup };
 use std::os;
 use std::option::{ Option };
 use std::old_io::{ Command };
 use std::f64;
+use chrono::{ UTC, Offset };
 
 fn print_usage (program: &str, opts: &[OptGroup]) {
 	println! ("{}", short_usage (program, opts));
@@ -114,73 +116,24 @@ fn check_last_update (rootfs: &str) -> String {
 	if day_time.len() == 1 { return "LAST UPDATE ERROR".to_string(); }
 
 	day_time =  day_time[0].as_slice().split(' ').collect();
-	let update_date = day_time[0];
-	let update_time = day_time[1];
 
-	let current_time_output =
-		match Command::new ("timedatectl")
-			.output () {
-		Ok (output) => { output }
-		Err (err) => { return format!("LAST UPDATE ERROR: {}.", err); }
-	};	
+	let date_array: Vec<&str> = day_time[0].as_slice().split('-').collect();
+	let time_array: Vec<&str> = day_time[1].as_slice().split(':').collect();
 
-	let current_stamp = String::from_utf8_lossy(current_time_output.output.as_slice()).to_string();
+	
+	let last_update_datetime = UTC.ymd(date_array[0].parse().unwrap(), date_array[1].parse().unwrap(), date_array[2].parse().unwrap())
+				      .and_hms(time_array[0].parse().unwrap(), time_array[1].parse().unwrap(), time_array[2].parse().unwrap());
 
-	let mut day_time_aux: Vec<&str> = current_stamp.as_slice().split_str(": ").collect();
-	day_time_aux = day_time_aux[1].as_slice().split(' ').collect();
-	let current_date = day_time_aux[1];
-	let current_time = day_time_aux[2];
-		
-	let mut diffhours = datediff(current_date, update_date);
-	diffhours = diffhours + timediff(current_time, update_time);
+	let current_datetime = UTC::now(); 
+
+	let diff = current_datetime - last_update_datetime;
+
+	let diffseconds = diff.num_seconds() as f64;
+	let diffhours = diffseconds / 3600.0;
 
 	return diffhours.to_string();
 }
 
-
-fn datediff(date_one: &str, date_two: &str) -> f64 {
-
-	let current_date: Vec<&str>  = date_one.as_slice().split('-').collect();
-	let update_date: Vec<&str>  = date_two.as_slice().split('-').collect();
-	
-	let current_year: f64 = current_date[0].parse().unwrap();
-	let update_year: f64 = update_date[0].parse().unwrap();
-	let diffyear = current_year - update_year;
-
-	let current_month: f64 = current_date[1].parse().unwrap();
-	let update_month: f64 = update_date[1].parse().unwrap();
-	let diffmonth = current_month - update_month;
-
-	let current_day: f64 = current_date[2].parse().unwrap();
-	let update_day: f64 = update_date[2].parse().unwrap();
-	let diffday = current_day - update_day;
-
-	let hours = (diffyear*365.0*24.0) + (diffmonth*30.0*24.0) + (diffday*24.0);
-
-	return hours;
-}
-
-fn timediff(time_one: &str, time_two: &str) -> f64 {
-
-	let current_time: Vec<&str> = time_one.as_slice().split(':').collect();
-	let update_time: Vec<&str> = time_two.as_slice().split(':').collect();
-	
-	let current_hour: f64 = current_time[0].parse().unwrap();
-	let update_hour: f64 = update_time[0].parse().unwrap();
-	let diffhour = current_hour - update_hour;
-
-	let current_min: f64 = current_time[1].parse().unwrap();
-	let update_min: f64 = update_time[1].parse().unwrap();
-	let diffmin = current_min - update_min;
-
-	let current_seg: f64 = current_time[2].parse().unwrap();
-	let update_seg: f64 = update_time[2].parse().unwrap();
-	let diffseg = current_seg - update_seg;
-
-	let hours = (diffhour) + (diffmin/60.0) + (diffseg/3600.0);
-
-	return hours;
-}
 
 fn check_reboot(rootfs: &str) -> String {
 
@@ -353,6 +306,7 @@ fn main () {
 		return;
 	}
 	let last_update: f64 = last_update_str.parse().unwrap();
+	let last_update_formated =  f64::to_str_exact(last_update, 2);
 
 	let reboot_needed = check_reboot(opts.rootfs.as_slice());
 	if reboot_needed.contains("CHECK REBOOT ERROR") {
@@ -369,7 +323,7 @@ fn main () {
 		return;
 	}
 
-	let mut last_update_msg = format!("OK: Last update: {} hours ago.", last_update);
+	let mut last_update_msg = format!("OK: Last update: {} hours ago.", last_update_formated);
 	let mut print_last_update = true;
 
 	let mut reboot_msg = format!("OK: System restart not required.");
@@ -381,7 +335,7 @@ fn main () {
 	os::set_exit_status(0);
 	
 	if last_update >= update_warning {
-		last_update_msg = format!("WARNING: Last update: {} hours ago.", f64::to_str_exact(last_update, 2));
+		last_update_msg = format!("WARNING: Last update: {} hours ago.", last_update_formated);
 		print_last_update = false;
 		println!("{}", last_update_msg);
 		os::set_exit_status(1);

@@ -60,4 +60,4 @@ name = "curl"
 path = "./curl-rust"
 
 [dependencies.chrono]
-chrono = "0.1.15"
+chrono = "0.1.17"
