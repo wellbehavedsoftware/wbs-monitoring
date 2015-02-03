@@ -1,5 +1,7 @@
 /*
 !/.gitignore
 !/Cargo.toml
+!/Cargo.lock
+!/README
 !/src/
 *~
