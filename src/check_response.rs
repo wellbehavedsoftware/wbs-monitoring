@@ -1,80 +1,75 @@
-#![allow(unstable)]
+//Rust file
+#![feature(env)]
+#![feature(core)]
+#![feature(io)]
+
 extern crate getopts;
 
-use getopts::{ optflag, reqopt, getopts, short_usage, usage, OptGroup };
-use std::os;
+use getopts::Options;
+use std::env;
 use std::option::{ Option };
 use std::old_io::{ Command };
 
-fn print_usage (program: &str, opts: &[OptGroup]) {
-	println! ("{}", short_usage (program, opts));
+fn print_usage (program: &str, opts: Options) {
+	let brief = format!("Usage: {} [options]", program);
+	println!("{}", opts.usage(brief.as_slice()));
 }
 
-fn print_help (program: &str, opts: &[OptGroup]) {
-	println! ("{}", usage (program, opts));
+fn print_help (program: &str, opts: Options) {
+	let brief = format!("Help: {} [options]", program);
+	println!("{}", opts.usage(brief.as_slice()));
 }
 
-struct Options {
+struct Opts {
 	hostname: String,
 	uri: String,
 	secure: bool,
 }
 
-fn parse_options () -> Option<Options> {
+fn parse_options () -> Option<Opts> {
 
-	let args: Vec<String> = os::args ();
+	let args = env::args ();
 
-	let program = args [0].clone ();
+	let mut opts = Options::new();
 
-	let opts = &[
-
-		optflag (
+	opts.optflag (	
 			"h",
 			"help",
-			"print this help menu"),
+			"print this help menu");
 
-		reqopt (
+	opts.reqopt (
 			"s",
 			"ssl",
 			"use https instead of http",
-			"<http-enabled>"),
+			"<http-enabled>");
 
-		reqopt (
+	opts.reqopt (
 			"H",
 			"host-name",
 			"name of the host",
-			"<host-name>"),
+			"<host-name>");
 
-		reqopt (
+	opts.reqopt (
 			"u",
 			"uri",
 			"uri where the request is sent",
-			"<uri>"),
+			"<uri>");
 
-	];
-
-	let matches = match getopts (args.tail (), opts) {
+	let matches = match opts.parse (args) {
 		Ok (m) => { m }
 		Err (_) => {
-			print_usage (program.as_slice (), opts);
-			os::set_exit_status(3);	
+			print_usage ("check_response", opts);
+			env::set_exit_status(3);	
 			return None;
 		}
 	};
 
 	if matches.opt_present ("help") {
-		print_help (program.as_slice (), opts);
-		os::set_exit_status(3);	
+		print_help ("check_response", opts);
+		env::set_exit_status(3);	
 		return None;
 	}
 
-	if ! matches.free.is_empty () {
-		print_usage (program.as_slice (), opts);
-		os::set_exit_status(3);	
-		return None;
-	}
-
-	
 	let hostname = matches.opt_str ("host-name").unwrap ();
 	let uri = matches.opt_str ("uri").unwrap ();
 	let secure_str = matches.opt_str ("ssl").unwrap ();
@@ -84,7 +79,7 @@ fn parse_options () -> Option<Options> {
 		secure = true;
 	}
 
-	return Some (Options {
+	return Some (Opts {
 		hostname: hostname,
 		uri: uri,
 		secure: secure,
@@ -92,7 +87,7 @@ fn parse_options () -> Option<Options> {
 
 }
 
-fn get_response (opts: Options) -> String {
+fn get_response (opts: Opts) -> String {
 
 	if opts.secure {
 
@@ -166,30 +161,34 @@ fn main () {
 	let server_error =	vec![500is, 501, 502, 503, 504, 505, 506, 507, 508, 509, 510,
 				511, 520, 521, 522, 523, 524, 598, 599];
 
-	
-	let aux: Option<isize> = response_vector[3].parse();
-	if aux.is_none() { panic! ("The check could not be performed. No response received."); }
-	let response_code: isize = aux.unwrap();
+	let response_code : isize = match response_vector[3].parse() {
+		Ok (isize) => { isize }
+		Err (_) => { 
+			println!("UNKNOWN: The check could not be performed. No response received."); 
+			env::set_exit_status(3);	
+			return;
+		}
+	};
 	
 
 	if in_array(response_code, informational) {
-		os::set_exit_status(3);
+		env::set_exit_status(3);
 		println!("{}", response);
 	}
 	else if in_array(response_code, success) {
-		os::set_exit_status(0);
+		env::set_exit_status(0);
 		println!("{}", response);
 	}
 	else if in_array(response_code, redirection) {
-		os::set_exit_status(1);
+		env::set_exit_status(1);
 		println!("{}", response);
 	}
 	else if in_array(response_code, client_error) || in_array(response_code, server_error) {
-		os::set_exit_status(2);
+		env::set_exit_status(2);
 		println!("{}", response);
 	}
 	else {
-		os::set_exit_status(3);
+		env::set_exit_status(3);
 		println!("UNKNOWN: Check_response failed.");
 	}
 

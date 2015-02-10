@@ -1,69 +1,68 @@
-#![allow(unstable)]
+//Rust file
+#![feature(env)]
+#![feature(core)]
+#![feature(io)]
+#![feature(collections)]
+#![feature(std_misc)]
+
 extern crate getopts;
 extern crate chrono;
 
-use getopts::{ optflag, reqopt, getopts, short_usage, usage, OptGroup };
-use std::os;
+use getopts::Options;
+use std::env;
 use std::option::{ Option };
 use std::old_io::{ Command };
 use std::f64;
 use chrono::{ UTC, Offset };
 
-fn print_usage (program: &str, opts: &[OptGroup]) {
-	println! ("{}", short_usage (program, opts));
+fn print_usage (program: &str, opts: Options) {
+	let brief = format!("Usage: {} [options]", program);
+	println!("{}", opts.usage(brief.as_slice()));
 }
 
-fn print_help (program: &str, opts: &[OptGroup]) {
-	println! ("{}", usage (program, opts));
+fn print_help (program: &str, opts: Options) {
+	let brief = format!("Help: {} [options]", program);
+	println!("{}", opts.usage(brief.as_slice()));
 }
 
-struct Options {
+struct Opts {
 	rootfs: String,
 	warning: String,
 }
 
-fn parse_options () -> Option<Options> {
+fn parse_options () -> Option<Opts> {
 
-	let args: Vec<String> = os::args ();
+	let args = env::args ();
 
-	let program = args [0].clone ();
+	let mut opts = Options::new();
 
-	let opts = &[
-
-		optflag (
+	opts.optflag (	
 			"h",
 			"help",
-			"print this help menu"),
+			"print this help menu");
 
-		reqopt (
+	opts.reqopt (
 			"r",
 			"rootfs",
 			"root of the file system in which the checks will be performed",
-			"<rootfs>"),
+			"<rootfs>");
 
-		reqopt (
+	opts.reqopt (
 			"w",
 			"warning",
 			"package update warning threshold in hours",
-			"<update-warning-threshold-hours>"),
+			"<update-warning-threshold-hours>");
 
-	];
-
-	let matches = match getopts (args.tail (), opts) {
+	let matches = match opts.parse (args) {
 		Ok (m) => { m }
 		Err (_) => {
-			print_usage (program.as_slice (), opts);
+			print_usage ("check_apt", opts);
 			return None;
 		}
 	};
 
 	if matches.opt_present ("help") {
-		print_help (program.as_slice (), opts);
-		return None;
-	}
-
-	if ! matches.free.is_empty () {
-		print_usage (program.as_slice (), opts);
+		print_help ("check_apt", opts);
 		return None;
 	}
 
@@ -71,7 +70,7 @@ fn parse_options () -> Option<Options> {
 	let rootfs = matches.opt_str ("rootfs").unwrap ();
 	let warning = matches.opt_str ("warning").unwrap ();
 
-	return Some (Options {
+	return Some (Opts {
 		rootfs: rootfs,
 		warning: warning,
 	});
@@ -289,20 +288,20 @@ fn main () {
 		Some (opts) => { opts }
 		None => { return }
 	};
-	
-	let update_warning = match opts.warning.as_slice().parse() {
-		Some (f64) => { f64 }
-		None => {
+
+	let update_warning : f64 = match opts.warning.as_slice().parse() {
+		Ok (f64) => { f64 }
+		Err (_) => {
 			println!("UNKNOWN: Warning level must be a value between 0.0 and 1.0."); 
-			os::set_exit_status(3);	
+			env::set_exit_status(3);	
 			return;
 		}
 	};
-
+	
 	let last_update_str = check_last_update(opts.rootfs.as_slice());
 	if last_update_str.contains("LAST UPDATE ERROR") {
 		println!("UNKNOWN: Could not last update check: {}.", last_update_str); 
-		os::set_exit_status(3);	
+		env::set_exit_status(3);	
 		return;
 	}
 	let last_update: f64 = last_update_str.parse().unwrap();
@@ -311,7 +310,7 @@ fn main () {
 	let reboot_needed = check_reboot(opts.rootfs.as_slice());
 	if reboot_needed.contains("CHECK REBOOT ERROR") {
 		println!("UNKNOWN: Could not execute reboot check: {}.", reboot_needed); 
-		os::set_exit_status(3);	
+		env::set_exit_status(3);	
 		return;
 	}
 
@@ -319,7 +318,7 @@ fn main () {
 	
 	if packages_update == "CHECK PACKAGES ERROR".to_string() {
 		println!("UNKNOWN: Could not execute packages check."); 
-		os::set_exit_status(3);	
+		env::set_exit_status(3);	
 		return;
 	}
 
@@ -332,25 +331,25 @@ fn main () {
 	let mut packages_msg = format!("OK: All packages are up to date.");
 	let mut print_packages = true;
 
-	os::set_exit_status(0);
+	env::set_exit_status(0);
 	
 	if last_update >= update_warning {
 		last_update_msg = format!("WARNING: Last update: {} hours ago.", last_update_formated);
 		print_last_update = false;
 		println!("{}", last_update_msg);
-		os::set_exit_status(1);
+		env::set_exit_status(1);
 	}
 	if reboot_needed == "YES" {
 		reboot_msg = format!("WARNING: System reboot required.");
 		print_reboot = false;
 		println!("{}", reboot_msg);
-		os::set_exit_status(1);
+		env::set_exit_status(1);
 	}
 	if packages_update.as_slice() != "KO" {
 		packages_msg = format!("WARNING: {} packages need to be updated.\n\n", num_packages) + packages_update.as_slice();
 		print_packages = false;
 		println!("{}", packages_msg);
-		os::set_exit_status(1);
+		env::set_exit_status(1);
 	}
 	
 	if print_last_update == true && print_reboot == true && print_packages == true { println!("APT is up to date."); }

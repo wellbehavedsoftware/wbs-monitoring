@@ -1,52 +1,48 @@
-#![allow(unstable)]
+//Rust file
+#![feature(env)]
+#![feature(core)]
+#![feature(io)]
+#![feature(std_misc)]
+
 extern crate getopts;
 
-use getopts::{ optflag, getopts, short_usage, usage, OptGroup };
-use std::os;
-use std::option::{ Option };
+use getopts::Options;
+use std::env;
 use std::old_io::{ Command };
 use std::f64;
 
-fn print_usage (program: &str, opts: &[OptGroup]) {
-	println! ("{}", short_usage (program, opts));
+fn print_usage (program: &str, opts: Options) {
+	let brief = format!("Usage: {} [options]", program);
+	println!("{}", opts.usage(brief.as_slice()));
 }
 
-fn print_help (program: &str, opts: &[OptGroup]) {
-	println! ("{}", usage (program, opts));
+fn print_help (program: &str, opts: Options) {
+	let brief = format!("Help: {} [options]", program);
+	println!("{}", opts.usage(brief.as_slice()));
 }
 
 fn parse_options () {
 
-	let args: Vec<String> = os::args ();
+	let args = env::args ();
 
-	let program = args [0].clone ();
+	let mut opts = Options::new();
 
-	let opts = &[
-
-		optflag (
+	opts.optflag (	
 			"h",
 			"help",
-			"print this help menu"),
+			"print this help menu");
 
-	];
-
-	let matches = match getopts (args.tail (), opts) {
+	let matches = match opts.parse (args) {
 		Ok (m) => { m }
 		Err (_) => {
-			print_usage (program.as_slice (), opts);
+			print_usage ("check_memory", opts);
 			panic!("");
 		}
 	};
 
 	if matches.opt_present ("help") {
-		print_help (program.as_slice (), opts);
-		os::set_exit_status(3);	
-		panic!("");
-	}
-
-	if ! matches.free.is_empty () {
-		print_usage (program.as_slice (), opts);
-		os::set_exit_status(3);	
+		print_help ("check_memory", opts);
+		env::set_exit_status(3);	
 		panic!("");
 	}
 
@@ -74,7 +70,7 @@ fn main () {
 
 	if state == "ERROR".to_string() {
 		println!("MEM UNKNOWN: Could not execute memory check command."); 
-		os::set_exit_status(3);	
+		env::set_exit_status(3);	
 		return;
 	}
 
@@ -86,16 +82,30 @@ fn main () {
 		index = index + 1;
 	}
 
-	let memory_used_aux: Option<f64> = state_vector[index].parse();
-	let memory_used: f64 = memory_used_aux.unwrap();
+	let memory_used : f64 = match state_vector[index].parse() {
+		Ok (f64) => { f64 }
+		Err (_) => { 
+			println!("UNKNOWN: The memory used data is incorrect."); 
+			env::set_exit_status(3);	
+			return;
+		}
+	};
 
 	index = index + 1;
 	while state_vector[index].as_slice().is_empty() {
 		index = index + 1;
 	}
 
-	let memory_limit_aux: Option<f64> = state_vector[index].parse();
-	let mut memory_limit: f64 = memory_limit_aux.unwrap();
+	let mut memory_limit : f64 = match state_vector[index].parse() {
+		Ok (f64) => { f64 }
+		Err (_) => { 
+			println!("UNKNOWN: The memory limit data is incorrect."); 
+			env::set_exit_status(3);	
+			return;
+		}
+	};
+
+
 	memory_limit = memory_limit + memory_used;
 
 	let memory_used_percentage = memory_used / memory_limit;
@@ -106,7 +116,7 @@ fn main () {
 
 	println!("MEM OK: {} GiB {}%, limit {} GiB.", mem_quota_used, mem_quota_percentage, mem_quota_limit);
 	
-	os::set_exit_status(0);
+	env::set_exit_status(0);
 	return;
 }
 

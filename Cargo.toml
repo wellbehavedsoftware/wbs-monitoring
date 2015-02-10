@@ -52,6 +52,10 @@ name = "check_text"
 
 name = "check_authsmtp"
 
+[[bin]]
+
+name = "check_git"
+
 [dependencies.getopts]
 getopts = "0.1.4"
 
@@ -61,3 +65,7 @@ path = "./curl-rust"
 
 [dependencies.chrono]
 chrono = "0.1.17"
+
+[dependencies.git2]
+git2 = "0.1.17"
+

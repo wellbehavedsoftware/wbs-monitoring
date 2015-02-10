@@ -1,97 +1,94 @@
 //Rust file
-#![allow(unstable)]
+#![feature(env)]
+#![feature(core)]
+#![feature(collections)]
+#![feature(std_misc)]
+
 extern crate getopts;
 extern crate curl;
 
-use getopts::{ optflag, reqopt, getopts, short_usage, usage, OptGroup };
-use std::os;
+use getopts::Options;
+use std::env;
 use std::option::{ Option };
 use curl::http;
 use std::f64;
 
 
-fn print_usage (program: &str, opts: &[OptGroup]) {
-	println! ("{}", short_usage (program, opts));
+fn print_usage (program: &str, opts: Options) {
+	let brief = format!("Usage: {} [options]", program);
+	println!("{}", opts.usage(brief.as_slice()));
 }
 
-fn print_help (program: &str, opts: &[OptGroup]) {
-	println! ("{}", usage (program, opts));
+fn print_help (program: &str, opts: Options) {
+	let brief = format!("Help: {} [options]", program);
+	println!("{}", opts.usage(brief.as_slice()));
 }
 
-struct Options {
+struct Opts {
 	data_level: String,
 	message_level: String,
 	username: String,
 	password: String,
 }
 
-fn parse_options () -> Option<Options> {
+fn parse_options () -> Option<Opts> {
 
-	let args: Vec<String> = os::args ();
+	let args = env::args ();
 
-	let program = args [0].clone ();
+	let mut opts = Options::new();
 
-	let opts = &[
+	opts.optflag (	
+			"h", 
+			"help", 
+			"print this help menu");
 
-		optflag (
-			"h",
-			"help",
-			"print this help menu"),
+	opts.reqopt (	
+			"d", 
+			"data-level", 
+			"maximum data level allowed", 
+			"<data-level>");
 
-		reqopt (
-			"d",
-			"data-level",
-			"maximum data level allowed",
-			"<data-level>"),
+	opts.reqopt (	
+			"m", 
+			"message-level", 
+			"maximum messages level allowed", 
+			"<message-level>");
 
-		reqopt (
-			"m",
-			"message-level",
-			"maximum messages level allowed",
-			"<message-level>"),
-
-		reqopt (
-			"u",
+	opts.reqopt (	
+			"u", 
 			"username",
 			"authsmtp api username",
-			"<username>"),
+			"<username>");
 
-		reqopt (
+	opts.reqopt (
 			"p",
 			"password",
 			"authsmtp api password",
-			"<password>"),
+			"<password>");
 
-	];
+	
 
-	let matches = match getopts (args.tail (), opts) {
+	let matches = match opts.parse (args) {
 		Ok (m) => { m }
 		Err (_) => {
-			print_usage (program.as_slice (), opts);
-			os::set_exit_status(3);	
+			print_usage ("Check_authsmtp", opts);
+			env::set_exit_status(3);	
 			return None;
 		}
 	};
 
 	if matches.opt_present ("help") {
-		print_help (program.as_slice (), opts);
-		os::set_exit_status(3);	
+		print_help ("check_authsmtp", opts);
+		env::set_exit_status(3);	
 		return None;
 	}
 
-	if ! matches.free.is_empty () {
-		print_usage (program.as_slice (), opts);
-		os::set_exit_status(3);	
-		return None;
-	}
-
-	
 	let data_level = matches.opt_str ("data-level").unwrap ();
 	let message_level = matches.opt_str ("message-level").unwrap ();
 	let username = matches.opt_str ("username").unwrap ();
 	let password = matches.opt_str ("password").unwrap ();
 
-	return Some (Options {
+	return Some (Opts {
 		data_level: data_level,
 		message_level: message_level,
 		username: username,
@@ -122,55 +119,61 @@ fn get_authsmtp_data (username: &str, password: &str, messages_level: f64, data_
 	messages_limit_array = messages_limit_array[1].split('<').collect();
 	let messages_limit_str = messages_limit_array[0];
 
-	let messages_limit_aux: Option<f64> = messages_limit_str.parse();
-	if messages_limit_aux.is_none() { return "AUTHSMTP ERROR".to_string(); }
-	let messages_limit: f64 = messages_limit_aux.unwrap();
+	let messages_limit : f64 = match messages_limit_str.parse() {
+		Ok (f64) => { f64 }
+		Err (_) => { return "AUTHSMTP ERROR".to_string(); }
+	};
 
 	//Messages sent
 	let mut messages_sent_array: Vec<&str> = response_lines[9].split('>').collect();
 	messages_sent_array = messages_sent_array[1].split('<').collect();
 	let messages_sent_str = messages_sent_array[0];
 
-	let messages_sent_aux: Option<f64> = messages_sent_str.parse();
-	if messages_sent_aux.is_none() { return "AUTHSMTP ERROR".to_string(); }
-	let messages_sent: f64 = messages_sent_aux.unwrap();
+	let messages_sent : f64 = match messages_sent_str.parse() {
+		Ok (f64) => { f64 }
+		Err (_) => { return "AUTHSMTP ERROR".to_string(); }
+	};
 
 	//Data limit
 	let mut data_limit_array: Vec<&str> = response_lines[8].split('>').collect();
 	data_limit_array = data_limit_array[1].split('<').collect();
 	let data_limit_str = data_limit_array[0];
 
-	let data_limit_aux: Option<f64> = data_limit_str.parse();
-	if data_limit_aux.is_none() { return "AUTHSMTP ERROR".to_string(); }
-	let data_limit: f64 = data_limit_aux.unwrap();
+	let data_limit : f64 = match data_limit_str.parse() {
+		Ok (f64) => { f64 }
+		Err (_) => { return "AUTHSMTP ERROR".to_string(); }
+	};
 
 	//Data sent
 	let mut data_sent_array: Vec<&str> = response_lines[10].split('>').collect();
 	data_sent_array = data_sent_array[1].split('<').collect();
 	let data_sent_str = data_sent_array[0];
 
-	let data_sent_aux: Option<f64> = data_sent_str.parse();
-	if data_sent_aux.is_none() { return "AUTHSMTP ERROR".to_string(); }
-	let data_sent: f64 = data_sent_aux.unwrap();
+	let data_sent : f64 = match data_sent_str.parse() {
+		Ok (f64) => { f64 }
+		Err (_) => { return "AUTHSMTP ERROR".to_string(); }
+	};
 
 	//From address
 	let mut from_address_array: Vec<&str> = response_lines[14].split('>').collect();
 	from_address_array = from_address_array[1].split('<').collect();
 	let from_address_str = from_address_array[0];
 
-	let from_address_aux: Option<f64> = from_address_str.parse();
-	if from_address_aux.is_none() { return "AUTHSMTP ERROR".to_string(); }
-	let from_address: f64 = from_address_aux.unwrap();
+	let from_address : f64 = match from_address_str.parse() {
+		Ok (f64) => { f64 }
+		Err (_) => { return "AUTHSMTP ERROR".to_string(); }
+	};
 
 	//From address used
 	let mut from_address_used_array: Vec<&str> = response_lines[15].split('>').collect();
 	from_address_used_array = from_address_used_array[1].split('<').collect();
 	let from_address_used_str = from_address_used_array[0];
 
-	let from_address_used_aux: Option<f64> = from_address_used_str.parse();
-	if from_address_used_aux.is_none() { return "AUTHSMTP ERROR".to_string(); }
-	let from_address_used: f64 = from_address_used_aux.unwrap();
-	
+	let from_address_used : f64 = match from_address_used_str.parse() {
+		Ok (f64) => { f64 }
+		Err (_) => { return "AUTHSMTP ERROR".to_string(); }
+	};
+
 	let messages_percentage = messages_sent / messages_limit;
 	let messages_percentage_format = f64::to_str_exact(messages_percentage * 100.0, 2);
 
@@ -217,38 +220,40 @@ fn main () {
 		None => { return }
 	};
 
-	let data_level_aux: Option<f64> = opts.data_level.as_slice().parse();
-	if data_level_aux.is_none() { 		
-		os::set_exit_status(3);
-		println!("UNKNOWN: data_level has an incorrect type (0.0 - 1.0)."); 	
-		return;
-	}
-	let data_level: f64 = data_level_aux.unwrap();
+	let data_level : f64 = match opts.data_level.as_slice().parse() {
+		Ok (f64) => { f64 }
+		Err (_) => { 		
+			env::set_exit_status(3);
+			println!("UNKNOWN: data_level has an incorrect type (0.0 - 1.0)."); 	
+			return;
+		}
+	};
 
-	let messages_level_aux: Option<f64> = opts.message_level.as_slice().parse();
-	if messages_level_aux.is_none() { 		
-		os::set_exit_status(3);
-		println!("UNKNOWN: message_level has an incorrect type (0.0 - 1.0)."); 
-		return;
-	}
-	let messages_level: f64 = messages_level_aux.unwrap();
+	let messages_level : f64 = match opts.message_level.as_slice().parse() {
+		Ok (f64) => { f64 }
+		Err (_) => { 		
+			env::set_exit_status(3);
+			println!("UNKNOWN: message_level has an incorrect type (0.0 - 1.0)."); 	
+			return;
+		}
+	};
 
 	let response = get_authsmtp_data (opts.username.as_slice(), opts.password.as_slice(), messages_level, data_level);		
 
 	if response.contains("AUTHSMTP ERROR") {
-		os::set_exit_status(3);
+		env::set_exit_status(3);
 		println!("{}", response);
 	}
 	else if response.contains("OK") {
-		os::set_exit_status(0);
+		env::set_exit_status(0);
 		println!("{}", response);
 	}
 	else if response.contains("CRITICAL") {
-		os::set_exit_status(2);
+		env::set_exit_status(2);
 		println!("{}", response);
 	}
 	else {
-		os::set_exit_status(3);
+		env::set_exit_status(3);
 		println!("UNKNOWN: Check_authsmtp failed.");
 	}
 

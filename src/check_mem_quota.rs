@@ -1,67 +1,64 @@
-#![allow(unstable)]
+//Rust file
+#![feature(env)]
+#![feature(core)]
+#![feature(io)]
+#![feature(std_misc)]
+
 extern crate getopts;
 
-use getopts::{ optflag, reqopt, getopts, short_usage, usage, OptGroup };
-use std::os;
+use getopts::Options;
+use std::env;
 use std::option::{ Option };
 use std::old_io::{ Command };
 use std::f64;
 
-fn print_usage (program: &str, opts: &[OptGroup]) {
-	println! ("{}", short_usage (program, opts));
+fn print_usage (program: &str, opts: Options) {
+	let brief = format!("Usage: {} [options]", program);
+	println!("{}", opts.usage(brief.as_slice()));
 }
 
-fn print_help (program: &str, opts: &[OptGroup]) {
-	println! ("{}", usage (program, opts));
+fn print_help (program: &str, opts: Options) {
+	let brief = format!("Help: {} [options]", program);
+	println!("{}", opts.usage(brief.as_slice()));
 }
 
-struct Options {
+struct Opts {
 	rootfs: String,
 }
 
-fn parse_options () -> Option<Options> {
+fn parse_options () -> Option<Opts> {
 
-	let args: Vec<String> = os::args ();
+	let args = env::args ();
 
-	let program = args [0].clone ();
+	let mut opts = Options::new();
 
-	let opts = &[
-
-		optflag (
+	opts.optflag (	
 			"h",
 			"help",
-			"print this help menu"),
+			"print this help menu");
 
-		reqopt (
+	opts.reqopt (
 			"r",
 			"rootfs",
 			"root of the file system in which the checks will be performed",
-			"<rootfs>"),
+			"<rootfs>");
 
-	];
-
-	let matches = match getopts (args.tail (), opts) {
+	let matches = match opts.parse (args) {
 		Ok (m) => { m }
 		Err (_) => {
-			print_usage (program.as_slice (), opts);
+			print_usage ("check_mem_quota", opts);
 			return None;
 		}
 	};
 
 	if matches.opt_present ("help") {
-		print_help (program.as_slice (), opts);
-		return None;
-	}
-
-	if ! matches.free.is_empty () {
-		print_usage (program.as_slice (), opts);
+		print_help ("check_mem_quota", opts);
 		return None;
 	}
 
 	let rootfs = matches.opt_str ("rootfs").unwrap ();
 
-
-	return Some (Options {
+	return Some (Opts {
 		rootfs: rootfs,
 	});
 
@@ -98,13 +95,15 @@ fn check_mem(rootfs: &str) -> String {
 		return "MEM ERROR".to_string();
 	}
 
-	let mem_used_aux: Option<f64> = usage_str.parse();
-	if mem_used_aux.is_none() { return "MEM ERROR".to_string(); }
-	let mem_used: f64 = mem_used_aux.unwrap();
+	let mem_used : f64 = match usage_str.parse() {
+		Ok (f64) => { f64 }
+		Err (_) => { return "MEM ERROR".to_string(); }
+	};
 
-	let mem_limit_aux: Option<f64> = limit_str.parse();
-	if mem_limit_aux.is_none() { return "MEM ERROR".to_string(); }
-	let mem_limit: f64 = mem_limit_aux.unwrap();
+	let mem_limit : f64 = match limit_str.parse() {
+		Ok (f64) => { f64 }
+		Err (_) => { return "MEM ERROR".to_string(); }
+	};
 
 	let mem_used_percentage = mem_used / mem_limit;
 
@@ -128,14 +127,14 @@ fn main () {
 	let mem_str = check_mem(opts.rootfs.as_slice());
 	if mem_str == "MEM ERROR" {
 		println!("MEM-Q UNKNOWN: Could not execute memory check. Shell commands failed to execute."); 
-		os::set_exit_status(3);	
+		env::set_exit_status(3);	
 	}
 	else if mem_str == "OK" {
-		os::set_exit_status(0);	
+		env::set_exit_status(0);	
 	}
 	else {
 		println!("MEM-Q UNKNOWN: Could not execute mem check. Unknown error."); 
-		os::set_exit_status(3);	
+		env::set_exit_status(3);	
 	}
 	
 	return;

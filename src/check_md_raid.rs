@@ -1,67 +1,65 @@
-#![allow(unstable)]
+//Rust file
+#![feature(env)]
+#![feature(core)]
+#![feature(path)]
+#![feature(io)]
+
 extern crate getopts;
 
-use getopts::{ optflag, reqopt, getopts, short_usage, usage, OptGroup };
-use std::os;
+use getopts::Options;
+use std::env;
 use std::old_io::{ Command };
 use std::old_io::BufferedReader;
 use std::old_io::File;
 
-fn print_usage (program: &str, opts: &[OptGroup]) {
-	println! ("{}", short_usage (program, opts));
+fn print_usage (program: &str, opts: Options) {
+	let brief = format!("Usage: {} [options]", program);
+	println!("{}", opts.usage(brief.as_slice()));
 }
 
-fn print_help (program: &str, opts: &[OptGroup]) {
-	println! ("{}", usage (program, opts));
+fn print_help (program: &str, opts: Options) {
+	let brief = format!("Help: {} [options]", program);
+	println!("{}", opts.usage(brief.as_slice()));
 }
 
-struct Options {
+struct Opts {
 	host: String,
 }
 
-fn parse_options () -> Option<Options> {
+fn parse_options () -> Option<Opts> {
 
-	let args: Vec<String> = os::args ();
+	let args = env::args ();
 
-	let program = args [0].clone ();
+	let mut opts = Options::new();
 
-	let opts = &[
-
-		optflag (
+	opts.optflag (	
 			"h",
 			"help",
-			"print this help menu"),
+			"print this help menu");
 
-		reqopt (
+	opts.reqopt (
 			"n",
 			"host",
 			"host name in which the check is performed",
-			"<host-name>"),
+			"<host-name>");
 
-	];
-
-	let matches = match getopts (args.tail (), opts) {
+	let matches = match opts.parse (args) {
 		Ok (m) => { m }
 		Err (_) => {
-			print_usage (program.as_slice (), opts);
+			print_usage ("check_md_raid", opts);
 			return None;
 		}
 	};
 
 	if matches.opt_present ("help") {
-		print_help (program.as_slice (), opts);
-		return None;
-	}
-
-	if ! matches.free.is_empty () {
-		print_usage (program.as_slice (), opts);
+		print_help ("check_md_raid", opts);
 		return None;
 	}
 
 
 	let host = matches.opt_str ("host").unwrap ();
 
-	return Some (Options {
+	return Some (Opts {
 		host: host,
 	});
 
@@ -177,23 +175,23 @@ fn main () {
 	
 	if md_raid_str.contains("MD RAID ERROR") {
 		println!("UNKNOWN: Could not execute MD raid check: {}.", md_raid_str); 
-		os::set_exit_status(3);	
+		env::set_exit_status(3);	
 	}
 	else if md_raid_str.contains("OK") {
 		println!("OK: MD raid status is OK.\n{}", md_raid_str); 
-		os::set_exit_status(0);	
+		env::set_exit_status(0);	
 	}
 	else if md_raid_str.contains("WARNING") {
 		println!("WARNING: MD raid status changed. Some blocks may be missing.\n{}", md_raid_str); 
-		os::set_exit_status(1);	
+		env::set_exit_status(1);	
 	}
 	else if md_raid_str.contains("CRITICAL") {
 		println!("CRITICAL:  MD raid status changed. A device stopped running or is missing.\n{}", md_raid_str); 
-		os::set_exit_status(2);	
+		env::set_exit_status(2);	
 	}
 	else {
 		println!("UNKNOWN: Could not execute MD raid check. Unknown error."); 
-		os::set_exit_status(3);	
+		env::set_exit_status(3);	
 	}
 	
 	return;

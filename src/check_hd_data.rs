@@ -1,43 +1,46 @@
-#![allow(unstable)]
+//Rust file
+#![feature(env)]
+#![feature(core)]
+#![feature(collections)]
+#![feature(io)]
+
 extern crate getopts;
 
-use getopts::{ optflag, getopts, short_usage, usage, OptGroup };
-use std::os;
+use getopts::Options;
+use std::env;
 use std::old_io::{ Command };
 
-fn print_usage (program: &str, opts: &[OptGroup]) {
-	println! ("{}", short_usage (program, opts));
+fn print_usage (program: &str, opts: Options) {
+	let brief = format!("Usage: {} [options]", program);
+	println!("{}", opts.usage(brief.as_slice()));
 }
 
-fn print_help (program: &str, opts: &[OptGroup]) {
-	println! ("{}", usage (program, opts));
+fn print_help (program: &str, opts: Options) {
+	let brief = format!("Help: {} [options]", program);
+	println!("{}", opts.usage(brief.as_slice()));
 }
 
 fn parse_options () -> String {
 
-	let args: Vec<String> = os::args ();
+	let args = env::args ();
 
-	let program = args [0].clone ();
+	let mut opts = Options::new();
 
-	let opts = &[
-
-		optflag (
+	opts.optflag (	
 			"h",
 			"help",
-			"print this help menu"),
+			"print this help menu");
 
-	];
-
-	let matches = match getopts (args.tail (), opts) {
+	let matches = match opts.parse (args) {
 		Ok (m) => { m }
 		Err (_) => {
-			print_usage (program.as_slice (), opts);
+			print_usage ("check_hd_data", opts);
 			return "USAGE".to_string();
 		}
 	};
 
 	if matches.opt_present ("help") {
-		print_help (program.as_slice (), opts);
+		print_help ("check_hd_data", opts);
 		return "HELP".to_string();
 	}
 
@@ -46,7 +49,7 @@ fn parse_options () -> String {
 
 }
 
-fn check_hd_data() -> (isize, String) {
+fn check_hd_data() -> (i32, String) {
 
 	let smartctl_output =
 		match Command::new ("sudo")
@@ -138,7 +141,7 @@ fn main () {
 
 	let options = parse_options ();
 	if options.as_slice() != "OK" {
-		os::set_exit_status(3);	
+		env::set_exit_status(3);	
 		return;
 	}
 	
@@ -147,6 +150,6 @@ fn main () {
 	if hd_message == "OK" { println!("OK: HD status is OK."); }
 	else { println!("{}", hd_message); }
 
-	os::set_exit_status(exit_status);
+	env::set_exit_status(exit_status);
 	return;
 }

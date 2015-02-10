@@ -1,74 +1,72 @@
-#![allow(unstable)]
+//Rust file
+#![feature(env)]
+#![feature(core)]
+#![feature(io)]
+#![feature(std_misc)]
+
 extern crate getopts;
 
-use getopts::{ optflag, reqopt, getopts, short_usage, usage, OptGroup };
-use std::os;
+use getopts::Options;
+use std::env;
 use std::option::{ Option };
 use std::old_io::{ Command };
 use std::f64;
 
-fn print_usage (program: &str, opts: &[OptGroup]) {
-	println! ("{}", short_usage (program, opts));
+fn print_usage (program: &str, opts: Options) {
+	let brief = format!("Usage: {} [options]", program);
+	println!("{}", opts.usage(brief.as_slice()));
 }
 
-fn print_help (program: &str, opts: &[OptGroup]) {
-	println! ("{}", usage (program, opts));
+fn print_help (program: &str, opts: Options) {
+	let brief = format!("Help: {} [options]", program);
+	println!("{}", opts.usage(brief.as_slice()));
 }
 
-struct Options {
+struct Opts {
 	root: String,
 	warning: String,
 	critical: String,
 }
 
-fn parse_options () -> Option<Options> {
+fn parse_options () -> Option<Opts> {
 
-	let args: Vec<String> = os::args ();
+	let args = env::args ();
 
-	let program = args [0].clone ();
+	let mut opts = Options::new();
 
-	let opts = &[
-
-		optflag (
+	opts.optflag (	
 			"h",
 			"help",
-			"print this help menu"),
+			"print this help menu");
 
-		reqopt (
+	opts.reqopt (
 			"r",
 			"root",
 			"root of the filesystem to check",
-			"<fs-root>"),
+			"<fs-root>");
 
-		reqopt (
+	opts.reqopt (
 			"w",
 			"warning",
 			"warning memory usage threshold",
-			"<warning-threshold>"),
+			"<warning-threshold>");
 
-		reqopt (
+	opts.reqopt (
 			"c",
 			"critical",
 			"critical memory usage threshold",
-			"<critical-threshold>"),
+			"<critical-threshold>");
 
-	];
-
-	let matches = match getopts (args.tail (), opts) {
+	let matches = match opts.parse (args) {
 		Ok (m) => { m }
 		Err (_) => {
-			print_usage (program.as_slice (), opts);
+			print_usage ("check_disk", opts);
 			return None;
 		}
 	};
 
 	if matches.opt_present ("help") {
-		print_help (program.as_slice (), opts);
-		return None;
-	}
-
-	if ! matches.free.is_empty () {
-		print_usage (program.as_slice (), opts);
+		print_help ("check_disk", opts);
 		return None;
 	}
 
@@ -76,7 +74,7 @@ fn parse_options () -> Option<Options> {
 	let warning = matches.opt_str ("warning").unwrap ();
 	let critical = matches.opt_str ("critical").unwrap ();
 
-	return Some (Options {
+	return Some (Opts {
 		root: root,
 		warning: warning,
 		critical: critical,
@@ -108,26 +106,27 @@ fn main () {
 
 	if state == "DISK ERROR".to_string() {
 		println!("DISK UNKNOWN: Could not execute memory check command."); 
-		os::set_exit_status(3);	
+		env::set_exit_status(3);	
 		return;
 	}
 
 	let to_check: String = opts.root;
 
-	let warning_level: f64 = match opts.warning.as_slice().parse() {
-		Some (f64) => { f64 }
-		None => {
-			println!("DISK UNKNOWN: Warning level must be a value between 0.0 and 1.0."); 
-			os::set_exit_status(3);	
+
+	let warning_level : f64 = match opts.warning.as_slice().parse() {
+		Ok (f64) => { f64 }
+		Err (_) => { 
+			println!("UNKNOWN: Warning level must be a value between 0.0 and 1.0."); 
+			env::set_exit_status(3);	
 			return;
 		}
 	};
 
-	let critical_level: f64 = match opts.critical.as_slice().parse() {
-		Some (f64) => { f64 }
-		None => {
-			println!("DISK UNKNOWN: Critical level must be a value between 0.0 and 1.0."); 
-			os::set_exit_status(3);	
+	let critical_level : f64 = match opts.critical.as_slice().parse() {
+		Ok (f64) => { f64 }
+		Err (_) => { 
+			println!("UNKNOWN: Critical level must be a value between 0.0 and 1.0."); 
+			env::set_exit_status(3);	
 			return;
 		}
 	};
@@ -152,7 +151,7 @@ fn main () {
 
 	if !found { 
 		println!("DISK UNKNOWN: The {} volume does not exist.", to_check); 
-		os::set_exit_status(3);	
+		env::set_exit_status(3);	
 		return;
 	}
 
@@ -160,14 +159,27 @@ fn main () {
 	let percentage_vector: Vec<&str> = line_vector[line_vector.len()-2].as_slice().split('%').collect();
 
 	let disk_quota_percentage = percentage_vector[0];
-	let percentage_aux: Option<f64> = disk_quota_percentage.parse();
-	let mut disk_used_percentage: f64 = percentage_aux.unwrap();
+	let mut disk_used_percentage : f64 = match disk_quota_percentage.parse() {
+		Ok (f64) => { f64 }
+		Err (_) => { 
+			println!("UNKNOWN: The used disk limit is incorrect."); 
+			env::set_exit_status(3);	
+			return;
+		}
+	};
 	disk_used_percentage = disk_used_percentage / 100.0;
+
 	let mut index = 1;
 	while line_vector[index].is_empty() { index = index + 1; }
 
-	let disk_limit_aux: Option<f64> = line_vector[index].parse();
-	let disk_limit: f64 = disk_limit_aux.unwrap();
+	let disk_limit : f64 = match line_vector[index].parse() {
+		Ok (f64) => { f64 }
+		Err (_) => { 
+			println!("UNKNOWN: The disk limit is incorrect."); 
+			env::set_exit_status(3);	
+			return;
+		}
+	};
 	let disk_quota_limit = f64::to_str_exact(disk_limit / 1048576.0, 2);
 
 	let disk_used = disk_used_percentage * disk_limit;
@@ -178,15 +190,15 @@ fn main () {
 
 	if disk_used_percentage < warning_level {
 		println!("DISK OK: {} GiB {}%, limit {} GiB, warning {}%.", disk_quota_used, disk_quota_percentage, disk_quota_limit, warning_quota_level);
-		os::set_exit_status(0);
+		env::set_exit_status(0);
 	}
 	else if disk_used_percentage >= warning_level && disk_used_percentage < critical_level {
 		println!("DISK WARNING: {} GiB {}%, limit {} GiB, critical {}%.", disk_quota_used, disk_quota_percentage, disk_quota_limit, critical_quota_level);
-		os::set_exit_status(1);
+		env::set_exit_status(1);
 	}
 	else {
 		println!("DISK CRITICAL: {} GiB {}%, limit {} GiB, critical {}%.", disk_quota_used, disk_quota_percentage, disk_quota_limit, critical_quota_level);
-		os::set_exit_status(2);
+		env::set_exit_status(2);
 	}
 
 	return;

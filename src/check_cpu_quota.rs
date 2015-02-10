@@ -1,73 +1,72 @@
-#![allow(unstable)]
+//Rust file
+#![feature(env)]
+#![feature(core)]
+#![feature(io)]
+#![feature(std_misc)]
+
 extern crate getopts;
 
-use getopts::{ optflag, reqopt, getopts, short_usage, usage, OptGroup };
-use std::os;
+use getopts::Options;
+use std::env;
 use std::option::{ Option };
 use std::old_io::{ Command };
 use std::f64;
 
-fn print_usage (program: &str, opts: &[OptGroup]) {
-	println! ("{}", short_usage (program, opts));
+fn print_usage (program: &str, opts: Options) {
+	let brief = format!("Usage: {} [options]", program);
+	println!("{}", opts.usage(brief.as_slice()));
 }
 
-fn print_help (program: &str, opts: &[OptGroup]) {
-	println! ("{}", usage (program, opts));
+fn print_help (program: &str, opts: Options) {
+	let brief = format!("Help: {} [options]", program);
+	println!("{}", opts.usage(brief.as_slice()));
 }
 
-struct Options {
+struct Opts {
 	warning: String,
 	critical: String,
 }
 
-fn parse_options () -> Option<Options> {
+fn parse_options () -> Option<Opts> {
 
-	let args: Vec<String> = os::args ();
+	let args = env::args ();
 
-	let program = args [0].clone ();
+	let mut opts = Options::new();
 
-	let opts = &[
-
-		optflag (
+	opts.optflag (	
 			"h",
 			"help",
-			"print this help menu"),
+			"print this help menu");
 
-		reqopt (
+	opts.reqopt (
 			"w",
 			"warning",
 			"warning usage quota level",
-			"<warning-level>"),
+			"<warning-level>");
 
-		reqopt (
+	opts.reqopt (
 			"c",
 			"critical",
 			"critical usage quota level",
-			"<critical-level>"),
-	];
+			"<critical-level>");
 
-	let matches = match getopts (args.tail (), opts) {
+	let matches = match opts.parse (args) {
 		Ok (m) => { m }
 		Err (_) => {
-			print_usage (program.as_slice (), opts);
+			print_usage ("check_cpu_quota", opts);
 			return None;
 		}
 	};
 
 	if matches.opt_present ("help") {
-		print_help (program.as_slice (), opts);
-		return None;
-	}
-
-	if ! matches.free.is_empty () {
-		print_usage (program.as_slice (), opts);
+		print_help ("check_cpu_quota", opts);
 		return None;
 	}
 
 	let warning = matches.opt_str ("warning").unwrap ();
 	let critical = matches.opt_str ("critical").unwrap ();
 
-	return Some (Options {
+	return Some (Opts {
 		warning: warning,
 		critical: critical,
 	});
@@ -87,20 +86,23 @@ fn check_cpu(warning_level: f64, critical_level: f64) -> String {
 	let stat = String::from_utf8_lossy(stat_output.output.as_slice()).to_string();
 	let stat_lines: Vec<&str> = stat.as_slice().split('\n').collect();
 	let stat_cpu: Vec<&str> = stat_lines[0].as_slice().split(' ').collect();
-	
-	let user_option: Option<f64> = stat_cpu[2].parse();
-	if user_option.is_none() { return "CPU ERROR".to_string(); }
-	let user: f64 = user_option.unwrap();
 
-	let kernel_option: Option<f64> = stat_cpu[4].parse();
-	if kernel_option.is_none() { return "CPU ERROR".to_string(); }
-	let kernel: f64 = kernel_option.unwrap();
+	let user : f64 = match stat_cpu[2].parse() {
+		Ok (f64) => { f64 }
+		Err (_) => { return "CPU ERROR".to_string(); }
+	};
+	
+	let kernel : f64 = match stat_cpu[4].parse() {
+		Ok (f64) => { f64 }
+		Err (_) => { return "CPU ERROR".to_string(); }
+	};
 
 	let busy = user + kernel;
 
-	let iddle_option: Option<f64> = stat_cpu[5].parse();
-	if iddle_option.is_none() { return "CPU ERROR".to_string(); }
-	let iddle: f64 = iddle_option.unwrap();
+	let iddle : f64 = match stat_cpu[5].parse() {
+		Ok (f64) => { f64 }
+		Err (_) => { return "CPU ERROR".to_string(); }
+	};
 
 	let cpu_quota = busy / (busy + iddle);
 	let cpu_quota_used = f64::to_str_exact(cpu_quota * 100.0, 2);
@@ -129,21 +131,21 @@ fn main () {
 		Some (opts) => { opts }
 		None => { return }
 	};
-	
-	let cpu_warning = match opts.warning.as_slice().parse() {
-		Some (f64) => { f64 }
-		None => {
+
+	let cpu_warning : f64 = match opts.warning.as_slice().parse() {
+		Ok (f64) => { f64 }
+		Err (_) => {
 			println!("UNKNOWN: Warning level must be a value between 0.0 and 1.0."); 
-			os::set_exit_status(3);	
+			env::set_exit_status(3);	
 			return;
 		}
 	};
-
-	let cpu_critical = match opts.critical.as_slice().parse() {
-		Some (f64) => { f64 }
-		None => {
+	
+	let cpu_critical : f64 = match opts.critical.as_slice().parse() {
+		Ok (f64) => { f64 }
+		Err (_) => {
 			println!("UNKNOWN: Critical level must be a value between 0.0 and 1.0."); 
-			os::set_exit_status(3);	
+			env::set_exit_status(3);	
 			return;
 		}
 	};
@@ -151,20 +153,20 @@ fn main () {
 	let cpu_str = check_cpu(cpu_warning, cpu_critical);
 	if cpu_str.contains("CPU ERROR") {
 		println!("CPU UNKNOWN: Could not execute CPU check: {}.", cpu_str); 
-		os::set_exit_status(3);	
+		env::set_exit_status(3);	
 	}
 	else if cpu_str == "OK" {
-		os::set_exit_status(0);	
+		env::set_exit_status(0);	
 	}
 	else if cpu_str == "WARNING" {
-		os::set_exit_status(1);	
+		env::set_exit_status(1);	
 	}
 	else if cpu_str == "CRITICAL" {
-		os::set_exit_status(2);	
+		env::set_exit_status(2);	
 	}
 	else {
 		println!("CPU UNKNOWN: Could not execute disk check. Unknown error."); 
-		os::set_exit_status(3);	
+		env::set_exit_status(3);	
 	}
 	
 	return;
