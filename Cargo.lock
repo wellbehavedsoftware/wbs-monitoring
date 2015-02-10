@@ -3,7 +3,7 @@ name = "icinga plugins"
 version = "0.0.1"
 dependencies = [
  "chrono 0.1.18 (registry+https://github.com/rust-lang/crates.io-index)",
- "curl 0.1.14",
+ "curl 0.1.14 (git+https://github.com/wellbehavedsoftware/curl-rust.git)",
  "getopts 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "git2 0.1.17 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -24,8 +24,9 @@ dependencies = [
 [[package]]
 name = "curl"
 version = "0.1.14"
+source = "git+https://github.com/wellbehavedsoftware/curl-rust.git#9181ea8f4ea2c7eb60224b5ebf464751165e2881"
 dependencies = [
- "curl-sys 0.1.8",
+ "curl-sys 0.1.8 (git+https://github.com/wellbehavedsoftware/curl-rust.git)",
  "libc 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "openssl-sys 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "url 0.2.20 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -34,6 +35,7 @@ dependencies = [
 [[package]]
 name = "curl-sys"
 version = "0.1.8"
+source = "git+https://github.com/wellbehavedsoftware/curl-rust.git#9181ea8f4ea2c7eb60224b5ebf464751165e2881"
 dependencies = [
  "libc 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "libz-sys 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",

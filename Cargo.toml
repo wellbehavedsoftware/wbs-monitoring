@@ -60,8 +60,8 @@ name = "check_git"
 getopts = "0.1.4"
 
 [dependencies.curl]
-name = "curl"
-path = "./curl-rust"
+git = "https://github.com/wellbehavedsoftware/curl-rust.git"
+branch = "handle-new-options"
 
 [dependencies.chrono]
 chrono = "0.1.17"
