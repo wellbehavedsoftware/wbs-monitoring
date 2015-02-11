@@ -9,7 +9,7 @@ extern crate git2;
 use getopts::Options;
 use std::env;
 use std::option::{ Option };
-use git2::{ Repository, StatusOptions };
+use git2::{ Repository, StatusOptions, Direction, RemoteCallbacks };
 
 fn print_usage (program: &str, opts: Options) {
 	let brief = format!("Usage: {} [options]", program);
@@ -24,6 +24,9 @@ fn print_help (program: &str, opts: Options) {
 struct Opts {
 	local: String,
 	remote: String,
+	untracked: bool,	
+	ignored: bool,
+	submodules: bool,
 }
 
 fn parse_options () -> Option<Opts> {
@@ -37,6 +40,22 @@ fn parse_options () -> Option<Opts> {
 			"help",
 			"print this help menu");
 
+	opts.optflag (	
+			"u",
+			"untracked",
+			"includes untracked files when looking for changes");
+
+	opts.optflag (	
+			"i",
+			"ignored",
+			"includes ignored files when looking for changes");
+
+
+	opts.optflag (	
+			"s",
+			"submodules",
+			"includes submodules when looking for changes");
+
 	opts.reqopt (
 			"l",
 			"local",
@@ -48,6 +67,7 @@ fn parse_options () -> Option<Opts> {
 			"remote",
 			"remote repository ssh",
 			"<remote-repository-ssh>");
+
 
 	let matches = match opts.parse (args) {
 		Ok (m) => { m }
@@ -62,12 +82,32 @@ fn parse_options () -> Option<Opts> {
 		return None;
 	}
 
+
+	let mut untracked = false;
+	let mut ignored = false;
+	let mut submodules = false;	
+
+	if matches.opt_present ("untracked") {
+		untracked = true;
+	}
+
+	if matches.opt_present ("ignored") {
+		ignored = true;
+	}
+
+	if matches.opt_present ("submodules") {
+		submodules = true;
+	}
+
 	let local = matches.opt_str ("local").unwrap ();
 	let remote = matches.opt_str ("remote").unwrap ();
 
 	return Some (Opts {
 		local: local,
 		remote: remote,
+		untracked: untracked,
+		ignored: ignored,
+		submodules: submodules,
 	});
 
 }
@@ -221,26 +261,40 @@ fn git_status(statuses: git2::Statuses) -> String {
 	}
 }
 
-/*fn check_git_sync(local: &str, remote: &str) -> String {
+fn check_git_sync(local: &str, remote_route: &str) -> String {
 
-	let changes_output =
-		match Command::new ("git")
-			.arg ("-C".to_string ())
-			.arg (local.to_string ())
-			.arg ("fetch".to_string ())
-			.arg (remote.to_string ())
-			.arg ("--dry-run".to_string ())
-			.output () {
-		Ok (output) => { output }
-		Err (_) => { return "GIT ERROR".to_string(); }
+	let path = Path::new(local);
+	let repo = match Repository::open(&path) {
+	    Ok (repo) => repo,
+	    Err (e) => panic!("failed to open `{}`: {}", path.display(), e),
 	};
 
-	let changes = String::from_utf8_lossy(changes_output.output.as_slice()).to_string();
+	let mut remote = match repo.find_remote(remote_route).or_else(|_| {repo.remote_anonymous(remote_route, None)}) {
+	    Ok (rem) => rem,
+	    Err (e) => panic!("failed to connecto to `{}`: {}", remote_route, e),
+	};
+
+	/*let mut callbacks = RemoteCallbacks::new();
+	remote.set_callbacks(&mut callbacks);*/
+
+	let connection = match remote.connect(Direction::Fetch) {
+	    Ok (conn) => conn,
+	    Err (e) => panic!("failed to connect to {}: {}", remote_route, e),
+	};
+
+	let list = match remote.list() {
+	    Ok (li) => li,
+	    Err (e) => panic!("failed to get the remote list: {}", e),
+	};
+	
+	for head in list.iter() {
+		println!("{}\t{}", head.oid(), head.name());
+	}
 	
 	return "CHANGES".to_string();
 }
 
-fn check_checkout(local: &str, compare_to: &str) -> String {
+/*fn check_checkout(local: &str, compare_to: &str) -> String {
 
 	let changes_output =
 		match Command::new ("git")
@@ -265,20 +319,25 @@ fn main () {
 		None => { return }
 	};
 
-	let changes = check_git_changes(opts.local.as_slice(), true, false, false);
+	let local = opts.local.as_slice();
+	let remote = opts.remote.as_slice();
+
+	let changes = check_git_changes(local, opts.untracked, opts.submodules, opts.ignored);
 
 	if changes.contains("CHECK GIT STATUS ERROR") {
 		println!("GIT-UNKNOWN: Could not git status check:\n{}.", changes); 
 		env::set_exit_status(3);	
 	}
 	else if changes.contains("OK") {
-		println!("GIT-OK: Git repo \"{}\" is up to date.\n", opts.local.as_slice()); 
+		println!("GIT-OK: Git repo \"{}\" is up to date.\n", local); 
 		env::set_exit_status(0);	
 	}
 	else {
-		println!("GIT-WARNING: Git repo \"{}\" has been modified:\n{}", opts.local.as_slice(), changes); 
+		println!("GIT-WARNING: Git repo \"{}\" has been modified:\n{}", local, changes); 
 		env::set_exit_status(1);
-	}	
+	}
+
+	//let sync = check_git_sync(local, remote);
 	
 	return;
 }
