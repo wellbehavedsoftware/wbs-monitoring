@@ -54,6 +54,10 @@ name = "check_authsmtp"
 
 [[bin]]
 
+name = "check_site"
+
+[[bin]]
+
 name = "check_git"
 
 [dependencies.getopts]

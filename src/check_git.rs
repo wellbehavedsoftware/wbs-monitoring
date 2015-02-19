@@ -10,6 +10,8 @@ use getopts::Options;
 use std::env;
 use std::option::{ Option };
 use git2::{ Repository, StatusOptions, Direction, RemoteCallbacks };
+use std::old_io::stdio;
+use std::str;
 
 fn print_usage (program: &str, opts: Options) {
 	let brief = format!("Usage: {} [options]", program);
@@ -274,9 +276,6 @@ fn check_git_sync(local: &str, remote_route: &str) -> String {
 	    Err (e) => panic!("failed to connecto to `{}`: {}", remote_route, e),
 	};
 
-	/*let mut callbacks = RemoteCallbacks::new();
-	remote.set_callbacks(&mut callbacks);*/
-
 	let connection = match remote.connect(Direction::Fetch) {
 	    Ok (conn) => conn,
 	    Err (e) => panic!("failed to connect to {}: {}", remote_route, e),
@@ -337,7 +336,7 @@ fn main () {
 		env::set_exit_status(1);
 	}
 
-	//let sync = check_git_sync(local, remote);
+	let sync = check_git_sync(local, remote);
 	
 	return;
 }
