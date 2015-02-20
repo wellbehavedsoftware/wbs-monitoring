@@ -199,13 +199,24 @@ fn check_text (host: &str, uri: &str, text: &str, secure: bool) -> String {
 	let url = prefix + host + uri;
 	
    	let resp = http::handle()
-		    .get(url)
-		    .exec().unwrap();
+			.get(url)
+			.header("Accept-Language", "en")
+			.exec().unwrap();
 
 	let url_code = String::from_utf8_lossy(resp.get_body());
 
- 	if url_code.contains(text) { return "SITE-OK: Text found.".to_string(); } 
-	else { return "SITE-WARNING: Text not found.".to_string(); } 	
+ 	if url_code.contains(text) && url_code.contains("<body") && url_code.contains("</body>") 
+		&& url_code.contains("<head") && url_code.contains("</head>") && url_code.contains("<html") 
+		&& url_code.contains("</html>") { 
+	
+		return "SITE-OK: Correct HTML structure and text found.".to_string();
+
+	 } 
+	else { 
+
+		return "SITE-WARNING: Incorrect HTML structure or text not found.".to_string(); 
+
+	} 	
 }
 
 fn main () {
