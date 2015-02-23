@@ -167,7 +167,7 @@ fn check_cow (rootfs: &str, file: &str, directory: &str) -> String {
 
 	if result.contains("WARNING") {
 
-		result = "COW-WARNING: Some of the next files have COW disabled.\n".to_string() + result.as_slice();
+		result = "COW-WARNING: Some of the next files have COW enabled.\n".to_string() + result.as_slice();
 
 	}
 
