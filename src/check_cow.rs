@@ -26,7 +26,7 @@ fn print_help (program: &str, opts: Options) {
 struct Opts {
 	rootfs: String,
 	file: String,
-	directory: bool,
+	directory: String,
 }
 
 fn parse_options () -> Option<Opts> {
@@ -40,11 +40,11 @@ fn parse_options () -> Option<Opts> {
 			"help",
 			"print this help menu");
 
-	opts.optflag (	
+	opts.reqopt (	
 			"d",
 			"directory",
-			"The specified file is a directory");
-
+			"The specified file is a directory",
+			"<directory>");
 	opts.reqopt (
 			"r",
 			"rootfs",
@@ -73,11 +73,7 @@ fn parse_options () -> Option<Opts> {
 
 	let rootfs = matches.opt_str ("rootfs").unwrap ();
 	let file = matches.opt_str ("file").unwrap ();
-	let mut directory: bool = false;
-
-	if matches.opt_present ("directory") {
-		directory = true;
-	}
+	let directory = matches.opt_str ("directory").unwrap ();
 
 	return Some (Opts {
 		rootfs: rootfs,
@@ -87,7 +83,7 @@ fn parse_options () -> Option<Opts> {
 
 }
 
-fn check_cow (rootfs: &str, file: &str, directory: bool) -> String {
+fn check_cow (rootfs: &str, file: &str, directory: &str) -> String {
 
 	let path = Path::new(file);
 	let mut file_content = BufferedReader::new(File::open(&path));
@@ -95,61 +91,73 @@ fn check_cow (rootfs: &str, file: &str, directory: bool) -> String {
 
 	let mut result: String = "".to_string();
 
-	for line in file_lines.iter() {			
+	for line in file_lines.iter() {	
 
-		let mut output: String;
-		let full_route = "/var/lib/lxc/".to_string() + rootfs + "/rootfs" + line;
+		let chars_to_trim: &[char] = &[' ', '\n'];
+	   	let trimmed_line: &str = line.as_slice().trim_matches(chars_to_trim);		
 
-		if directory {
+		let mut out: String;
+
+		if directory == "true" {
+
 
 			let cow_output =
-				match Command::new ("lsattr")
-					.arg ("-d".to_string ())
-					.arg (full_route.clone())
-					.output () {
-				Ok (output) => { output }
-				Err (err) => { panic! ("Error calling lsattr: {}", err) }
+				match Command::new ("sudo")
+				.arg ("lxc-attach".to_string ())
+				.arg ("--name".to_string ())
+				.arg (rootfs.to_string ())
+				.arg ("--".to_string ())
+				.arg ("lsattr".to_string ())
+				.arg ("-d".to_string ())
+				.arg (trimmed_line.to_string ())
+				.output () {
+			Ok (output) => { output }
+			Err (err) => { return format!("Check CoW: {}.", err); }
 			};
 
-			output = String::from_utf8_lossy(cow_output.output.as_slice()).to_string()
+			out = String::from_utf8_lossy(cow_output.output.as_slice()).to_string();
+
 		}
 		else {
-	
+
 			let cow_output =
-				match Command::new ("lsattr")
-					.arg (full_route.clone())
-					.output () {
-				Ok (output) => { output }
-				Err (err) => { panic! ("Error calling lsattr: {}", err) }
+				match Command::new ("sudo")
+				.arg ("lxc-attach".to_string ())
+				.arg ("--name".to_string ())
+				.arg (rootfs.to_string ())
+				.arg ("--".to_string ())
+				.arg ("lsattr".to_string ())
+				.arg (trimmed_line.to_string ())
+				.output () {
+			Ok (output) => { output }
+			Err (err) => { return format!("Check CoW: {}.", err); }
 			};
 
-			output = String::from_utf8_lossy(cow_output.output.as_slice()).to_string()
+			out = String::from_utf8_lossy(cow_output.output.as_slice()).to_string();
 
 		}
 
-println!("OUTPUT: {}\n", output);
-
-		if output.contains("No such file or directory") {
+		if out.contains("No such file or directory") || out.is_empty() {
 	
-			result = result + format!("COW-OK: The file {} does not exist in {}.\n", full_route, rootfs).as_slice();
+			result = result + format!("COW-OK: The file {} does not exist in {}.\n", trimmed_line, rootfs).as_slice();
 
 		}
-		else if output.contains("Permission denied") {
+		else if out.contains("Permission denied") {
 			return "COW-UNKNOWN: No enough permissions".to_string();
 		}
 		else {
 
-			let output_vector: Vec<&str> = output.as_slice().split(' ').collect();
+			let output_vector: Vec<&str> = out.as_slice().split(' ').collect();
 			let file_attr = output_vector[0];
-println!("ATTRIBUTES: {}\n", file_attr);
+
 			if file_attr.contains("C") {
 
-				result = result + format!("COW-WARNING: The file {} exist in {} with COW disabled.\n", full_route, rootfs).as_slice();
+				result = result + format!("COW-OK: The file {} exist in {} with COW disabled.\n", trimmed_line, rootfs).as_slice();
 
 			}
 			else {
 
-				result = result + format!("COW-OK: The file {} exist in {} with COW enabled.\n", full_route, rootfs).as_slice();
+				result = result + format!("COW-WARNING: The file {} exist in {} with COW enabled.\n", trimmed_line, rootfs).as_slice();
 
 			}
 
@@ -181,7 +189,7 @@ fn main () {
 
 	let rootfs = opts.rootfs.as_slice();
 	let file = opts.file.as_slice();
-	let directory = opts.directory;
+	let directory = opts.directory.as_slice();
 
 	let result = check_cow (rootfs, file, directory);
 
