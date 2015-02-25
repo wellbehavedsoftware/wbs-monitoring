@@ -62,6 +62,10 @@ name = "check_cow"
 
 [[bin]]
 
+name = "check_email"
+
+[[bin]]
+
 name = "check_git"
 
 [dependencies.getopts]
