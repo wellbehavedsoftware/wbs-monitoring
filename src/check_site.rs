@@ -168,7 +168,6 @@ fn get_response (host: &str, uri: &str, secure: bool) -> String {
 		return format!("SITE-CRITICAL: {}", response);
 	}
 	else {
-		env::set_exit_status(3);
 		return "SITE-UNKNOWN: Check_response failed.".to_string();
 	}
 	
@@ -239,7 +238,14 @@ fn main () {
 	let response_res = get_response(hostname, uri, secure);
 	let text_res = check_text(hostname, uri, text, secure);
 
-	if response_res.contains("CRITICAL") {
+
+	if response_res.contains("UNKNOWN") || text_res.contains("UNKNOWN") {
+
+		env::set_exit_status(3);
+		println!("{}\n{}", response_res, text_res);
+
+	}
+	else if response_res.contains("CRITICAL") {
 
 		env::set_exit_status(2);
 		println!("{}\n{}", response_res, text_res);

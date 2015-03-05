@@ -82,7 +82,7 @@ fn main () {
 		index = index + 1;
 	}
 
-	let memory_used : f64 = match state_vector[index].parse() {
+	let mut memory_used : f64 = match state_vector[index].parse() {
 		Ok (f64) => { f64 }
 		Err (_) => { 
 			println!("UNKNOWN: The memory used data is incorrect."); 
@@ -90,6 +90,7 @@ fn main () {
 			return;
 		}
 	};
+	memory_used = memory_used / 1073741824.0;
 
 	index = index + 1;
 	while state_vector[index].as_slice().is_empty() {
@@ -107,12 +108,17 @@ fn main () {
 
 
 	memory_limit = memory_limit + memory_used;
+	memory_limit = memory_limit / 1073741824.0;
 
 	let memory_used_percentage = memory_used / memory_limit;
 
-	let mem_quota_used = f64::to_str_exact(memory_used / 1073741824.0, 2);
-	let mem_quota_limit = f64::to_str_exact(memory_limit / 1073741824.0, 2);
-	let mem_quota_percentage = f64::to_str_exact(memory_used_percentage * 100.0, 2);
+	let mut num_decimals = 0;
+	if memory_limit < 10.0 { num_decimals = 2; }
+	else if memory_limit < 100.0 { num_decimals = 1; }
+
+	let mem_quota_used = f64::to_str_exact(memory_used, num_decimals);
+	let mem_quota_limit = f64::to_str_exact(memory_limit, num_decimals);
+	let mem_quota_percentage = f64::to_str_exact(memory_used_percentage * 100.0, 0);
 
 	println!("MEM OK: {} GiB {}%, limit {} GiB.", mem_quota_used, mem_quota_percentage, mem_quota_limit);
 	

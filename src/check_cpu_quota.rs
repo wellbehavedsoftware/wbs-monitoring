@@ -105,10 +105,10 @@ fn check_cpu(warning_level: f64, critical_level: f64) -> String {
 	};
 
 	let cpu_quota = busy / (busy + iddle);
-	let cpu_quota_used = f64::to_str_exact(cpu_quota * 100.0, 2);
+	let cpu_quota_used = f64::to_str_exact(cpu_quota * 100.0, 1);
 
-	let warning_level_quota = f64::to_str_exact(warning_level * 100.0, 2);
-	let critical_level_quota = f64::to_str_exact(critical_level * 100.0, 2);
+	let warning_level_quota = f64::to_str_exact(warning_level * 100.0, 1);
+	let critical_level_quota = f64::to_str_exact(critical_level * 100.0, 1);
 
 	if cpu_quota < warning_level {
 		println!("CPU OK: used {}%, warning {}%.", cpu_quota_used, warning_level_quota);

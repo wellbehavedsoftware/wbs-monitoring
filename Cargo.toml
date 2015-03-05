@@ -62,6 +62,10 @@ name = "check_cow"
 
 [[bin]]
 
+name = "ssh_command_handler"
+
+[[bin]]
+
 name = "check_email"
 
 [[bin]]

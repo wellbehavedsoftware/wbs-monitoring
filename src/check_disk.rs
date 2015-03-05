@@ -172,7 +172,7 @@ fn main () {
 	let mut index = 1;
 	while line_vector[index].is_empty() { index = index + 1; }
 
-	let disk_limit : f64 = match line_vector[index].parse() {
+	let mut disk_limit : f64 = match line_vector[index].parse() {
 		Ok (f64) => { f64 }
 		Err (_) => { 
 			println!("UNKNOWN: The disk limit is incorrect."); 
@@ -180,13 +180,22 @@ fn main () {
 			return;
 		}
 	};
-	let disk_quota_limit = f64::to_str_exact(disk_limit / 1048576.0, 2);
 
+
+	disk_limit = disk_limit / 1048576.0;
 	let disk_used = disk_used_percentage * disk_limit;
-	let disk_quota_used = f64::to_str_exact(disk_used / 1048576.0, 2);
 
-	let warning_quota_level = f64::to_str_exact(warning_level * 100.0, 2);
-	let critical_quota_level = f64::to_str_exact(critical_level * 100.0, 2);
+	let mut num_decimals = 0;
+	if disk_limit < 10.0 { num_decimals = 2; }
+	else if disk_limit < 100.0 { num_decimals = 1; }
+
+	let disk_quota_limit = f64::to_str_exact(disk_limit, num_decimals);
+
+	
+	let disk_quota_used = f64::to_str_exact(disk_used, num_decimals);
+
+	let warning_quota_level = f64::to_str_exact(warning_level * 100.0, 0);
+	let critical_quota_level = f64::to_str_exact(critical_level * 100.0, 0);
 
 	if disk_used_percentage < warning_level {
 		println!("DISK OK: {} GiB {}%, limit {} GiB, warning {}%.", disk_quota_used, disk_quota_percentage, disk_quota_limit, warning_quota_level);

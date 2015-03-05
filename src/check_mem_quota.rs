@@ -95,21 +95,27 @@ fn check_mem(rootfs: &str) -> String {
 		return "MEM ERROR".to_string();
 	}
 
-	let mem_used : f64 = match usage_str.parse() {
+	let mut mem_used : f64 = match usage_str.parse() {
 		Ok (f64) => { f64 }
 		Err (_) => { return "MEM ERROR".to_string(); }
 	};
+	mem_used = mem_used / 1073741824.0;
 
-	let mem_limit : f64 = match limit_str.parse() {
+	let mut mem_limit : f64 = match limit_str.parse() {
 		Ok (f64) => { f64 }
 		Err (_) => { return "MEM ERROR".to_string(); }
 	};
+	mem_limit = mem_limit / 1073741824.0;
 
 	let mem_used_percentage = mem_used / mem_limit;
 
-	let mem_used_quota = f64::to_str_exact(mem_used / 1073741824.0, 2);
-	let mem_limit_quota = f64::to_str_exact(mem_limit / 1073741824.0, 2);
-	let mem_used_percentage_quota = f64::to_str_exact(mem_used_percentage * 100.0, 2);
+	let mut num_decimals = 0;
+	if mem_limit < 10.0 { num_decimals = 2; }
+	else if mem_limit < 100.0 { num_decimals = 1; }
+
+	let mem_used_quota = f64::to_str_exact(mem_used, num_decimals);
+	let mem_limit_quota = f64::to_str_exact(mem_limit, num_decimals);
+	let mem_used_percentage_quota = f64::to_str_exact(mem_used_percentage * 100.0, 0);
 
 	println!("MEM-Q OK: {} GiB {}%, limit {} GiB.", mem_used_quota, mem_used_percentage_quota, mem_limit_quota);
 	return "OK".to_string();

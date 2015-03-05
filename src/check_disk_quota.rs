@@ -177,24 +177,30 @@ fn check_disk(rootfs: &str, warning_level: f64, critical_level: f64) -> String {
 
 	if !found { return "DISK ERROR".to_string(); }
 
-	let disk_used : f64 = match disk_used_str.parse() {
+	let mut disk_used : f64 = match disk_used_str.parse() {
 		Ok (f64) => { f64 }
 		Err (_) => { return "MEM ERROR".to_string(); }
 	};
+	disk_used = disk_used / 1073741824.0;
 
-	let disk_limit : f64 = match disk_limit_str.parse() {
+	let mut disk_limit : f64 = match disk_limit_str.parse() {
 		Ok (f64) => { f64 }
 		Err (_) => { return "MEM ERROR".to_string(); }
 	};
-
+	disk_limit = disk_limit / 1073741824.0;
+	
 	let disk_used_percentage = disk_used / disk_limit;
 
-	let disk_used_quota = f64::to_str_exact(disk_used / 1073741824.0, 2);
-	let disk_limit_quota = f64::to_str_exact(disk_limit / 1073741824.0, 2);
-	let disk_used_percentage_quota = f64::to_str_exact(disk_used_percentage * 100.0, 2);
+	let mut num_decimals = 0;
+	if disk_limit < 10.0 { num_decimals = 2; }
+	else if disk_limit < 100.0 { num_decimals = 1; }
 
-	let warning_quota_level = f64::to_str_exact(warning_level * 100.0, 2);
-	let critical_quota_level = f64::to_str_exact(critical_level * 100.0, 2);
+	let disk_used_quota = f64::to_str_exact(disk_used, num_decimals);
+	let disk_limit_quota = f64::to_str_exact(disk_limit, num_decimals);
+	let disk_used_percentage_quota = f64::to_str_exact(disk_used_percentage * 100.0, 0);
+
+	let warning_quota_level = f64::to_str_exact(warning_level * 100.0, 0);
+	let critical_quota_level = f64::to_str_exact(critical_level * 100.0, 0);
 
 	if disk_limit == 0.0 {
 		println!("DISK-Q OK: {} GiB used, no limit.", disk_used_quota);

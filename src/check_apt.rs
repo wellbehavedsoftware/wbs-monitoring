@@ -322,40 +322,49 @@ fn main () {
 		return;
 	}
 
-	let mut last_update_msg = format!("OK: Last update: {} hours ago.", last_update_formated);
 	let mut print_last_update = true;
-
-	let mut reboot_msg = format!("OK: System restart not required.");
 	let mut print_reboot = true;
-
-	let mut packages_msg = format!("OK: All packages are up to date.");
 	let mut print_packages = true;
 
 	env::set_exit_status(0);
-	
+
 	if last_update >= update_warning {
-		last_update_msg = format!("WARNING: Last update: {} hours ago.", last_update_formated);
 		print_last_update = false;
-		println!("{}", last_update_msg);
-		env::set_exit_status(1);
-	}
-	if reboot_needed == "YES" {
-		reboot_msg = format!("WARNING: System reboot required.");
-		print_reboot = false;
-		println!("{}", reboot_msg);
 		env::set_exit_status(1);
 	}
 	if packages_update.as_slice() != "KO" {
-		packages_msg = format!("WARNING: {} packages need to be updated.\n\n", num_packages) + packages_update.as_slice();
 		print_packages = false;
-		println!("{}", packages_msg);
 		env::set_exit_status(1);
 	}
-	
-	if print_last_update == true && print_reboot == true && print_packages == true { println!("APT is up to date."); }
-	if print_last_update == true { println!("{}", last_update_msg); }
-	if print_reboot == true { println!("{}", reboot_msg); }
-	if print_packages == true { println!("{}", packages_msg); }
+	if reboot_needed == "YES" {
+		print_reboot = false;
+		env::set_exit_status(1);
+	}	
+
+	if print_last_update == true && print_reboot == true && print_packages == true {
+		 println!("APT-OK: APT is up to date: Last update: {} hours ago, all packages up to date, reboot not required.", last_update_formated);
+	}
+	else if print_last_update == false && print_reboot == false && print_packages == false {
+		println!("APT-WARNING: Last update {} hours ago, {} packages need update, reboot needed.", last_update_formated, num_packages); 
+	}
+	else if print_last_update == false && print_reboot == false && print_packages == true {
+		println!("APT-WARNING: Last update {} hours ago, reboot needed.", last_update_formated); 
+	}
+	else if print_last_update == false && print_reboot == true && print_packages == false {
+		println!("APT-WARNING: Last update {} hours ago, {} packages need update.", last_update_formated, num_packages); 
+	}
+	else if print_last_update == true && print_reboot == false && print_packages == false {
+		println!("APT-WARNING: {} packages need update, reboot needed.", num_packages); 
+	}
+	else if print_last_update == true && print_reboot == true && print_packages == false {
+		println!("APT-WARNING: {} packages need update.", num_packages); 
+	}
+	else if print_last_update == true && print_reboot == false && print_packages == true {
+		println!("APT-WARNING: Reboot needed."); 
+	}
+	else if print_last_update == false && print_reboot == true && print_packages == true {
+		println!("APT-WARNING: Last update {} hours ago.", last_update_formated); 
+	}
 	
 	return;
 }
