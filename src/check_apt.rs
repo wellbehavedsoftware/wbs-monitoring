@@ -304,8 +304,13 @@ fn main () {
 		env::set_exit_status(3);	
 		return;
 	}
+
 	let last_update: f64 = last_update_str.parse().unwrap();
-	let last_update_formated =  f64::to_str_exact(last_update, 2);
+
+	let mut num_decimals = 0;
+	if last_update < 10.0 { num_decimals = 1; }
+
+	let last_update_formated =  f64::to_str_exact(last_update, num_decimals);
 
 	let reboot_needed = check_reboot(opts.rootfs.as_slice());
 	if reboot_needed.contains("CHECK REBOOT ERROR") {
