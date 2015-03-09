@@ -117,7 +117,7 @@ fn main () {
 
 	let mut command_result: String = "UNKNOWN".to_string();
 
-	if state.contains("CRITICAL") {
+	if !state.contains("0") {
 		command_result = exec_command (host, command);
 	}
 
