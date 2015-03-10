@@ -9,6 +9,7 @@ use getopts::Options;
 use std::env;
 use std::option::{ Option };
 use std::old_io::{ Command };
+use std::old_io::{File, Open, Read, Write, ReadWrite};
 
 fn print_usage (program: &str, opts: Options) {
 	let brief = format!("Usage: {} [options]", program);
@@ -23,7 +24,9 @@ fn print_help (program: &str, opts: Options) {
 struct Opts {
 	host: String,
 	state: String,
+	state_type: String,
 	command: String,
+	service: String,
 }
 
 fn parse_options () -> Option<Opts> {
@@ -44,16 +47,28 @@ fn parse_options () -> Option<Opts> {
 			"<host>");
 
 	opts.reqopt (
-			"s",
+			"S",
 			"state",
-			"Command that will be executed in the host",
-			"<command>");
+			"state of the check that triggers the event",
+			"<state>");
+
+	opts.reqopt (
+			"t",
+			"state-type",
+			"state type of the check that triggers the event",
+			"<state-trype>");
 
 	opts.reqopt (
 			"c",
 			"command",
 			"Command that will be executed in the host if the state is critical",
 			"<command>");
+
+	opts.reqopt (
+			"s",
+			"service",
+			"Service that will be executed in the host if the state is critical",
+			"<service>");
 
 
 
@@ -72,24 +87,26 @@ fn parse_options () -> Option<Opts> {
 
 	let host = matches.opt_str ("host").unwrap ();
 	let state = matches.opt_str ("state").unwrap ();
+	let state_type = matches.opt_str ("state-type").unwrap ();
 	let command = matches.opt_str ("command").unwrap ();
+	let service = matches.opt_str ("service").unwrap ();
 
 	return Some (Opts {
 		host: host,
 		state: state,
+		state_type: state_type,
 		command: command,
+		service: service,
 	});
 
 }
 
-fn exec_command (host: &str, command: &str) -> String {
-
-	let host_dir = "ubuntu@".to_string() + host + ".vpn.wbsoft.co";
+fn exec_command (host: &str, command: &str, service: &str) -> String {
 
 	let command_output =
-		match Command::new ("ssh")
-			.arg (host_dir)
-			.arg (command.to_string ())
+		match Command::new (command.to_string())
+			.arg (host.to_string())
+			.arg (service.to_string())
 			.output () {
 		Ok (output) => { output }
 		Err (err) => { return format!("SSH COMMAND ERROR: {}.", err); }
@@ -113,15 +130,29 @@ fn main () {
 
 	let host = opts.host.as_slice();
 	let state = opts.state.as_slice();
+	let state_type = opts.state_type.as_slice();
 	let command = opts.command.as_slice();
+	let service = opts.service.as_slice();
 
 	let mut command_result: String = "UNKNOWN".to_string();
 
-	if !state.contains("0") {
-		command_result = exec_command (host, command);
+	let fname = "/home/nagios/ssh_command_output.txt";
+	let p = Path::new(fname);
+
+	let mut f = match File::open_mode(&p, Open, Write) {
+	    Ok(f) => f,
+	    Err(e) => panic!("file error: {}", e),
+	};
+
+	f.write_line(state_type);
+	f.write_line(state);
+
+	if state_type.contains("HARD") && (state.contains("2") || state.contains("3")) {
+		f.write_line("entro if");
+		command_result = exec_command (host, command, service);
 	}
 
-	println!("{}", command_result);
+	f.write_line(command_result.as_slice());
 
 	return;
 }
