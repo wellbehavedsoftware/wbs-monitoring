@@ -66,6 +66,10 @@ name = "ssh_command_handler"
 
 [[bin]]
 
+name = "check_subvolumes"
+
+[[bin]]
+
 name = "check_email"
 
 [[bin]]
