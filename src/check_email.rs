@@ -2,7 +2,6 @@
 #![feature(env)]
 #![feature(core)]
 #![feature(io)]
-#![feature(path)]
 
 extern crate getopts;
 
@@ -10,8 +9,6 @@ use getopts::Options;
 use std::env;
 use std::option::{ Option };
 use std::old_io::{ Command };
-use std::old_io::BufferedReader;
-use std::old_io::File;
 
 fn print_usage (program: &str, opts: Options) {
 	let brief = format!("Usage: {} [options]", program);
@@ -46,26 +43,28 @@ fn parse_options () -> Option<Opts> {
 			"root of the file system in which the checks will be performed",
 			"<rootfs>");
 
-	opts.optflag (
-			"d",
-			"deferred",
-			"the deferred queue is also checked");
-
-	opts.optflag (
+	opts.reqopt (
 			"c",
 			"container",
-			"the specified rootfs is a container");
+			"the specified rootfs is a container",
+			"<container>");
+
+	opts.reqopt (
+			"d",
+			"deferred",
+			"the deferred queue is also checked",
+			"<deferred>");
 
 	let matches = match opts.parse (args) {
 		Ok (m) => { m }
 		Err (_) => {
-			print_usage ("check_cow", opts);
+			print_usage ("check_email", opts);
 			return None;
 		}
 	};
 
 	if matches.opt_present ("help") {
-		print_help ("check_cow", opts);
+		print_help ("check_email", opts);
 		return None;
 	}
 
@@ -81,6 +80,16 @@ fn parse_options () -> Option<Opts> {
 	}
 
 	let rootfs = matches.opt_str ("rootfs").unwrap ();
+	let cont = matches.opt_str ("container").unwrap ();
+	let mut container = false;
+	if cont == "true" {
+		container = true;
+	}
+	let def = matches.opt_str ("deferred").unwrap ();
+	let mut deferred = false;
+	if def == "true" {
+		deferred = true;
+	}
 
 	return Some (Opts {
 		rootfs: rootfs,
@@ -165,7 +174,7 @@ fn check_email_output (mail_output: String, deferred: bool) -> String {
 		return format!("MAIL-WARNING: The deferred emails queue is not empty.\n{}", mail_output);
 	}
 	else {
-		return "MAIL-OK: The emails queue is empty {}".to_string();
+		return "MAIL-OK: The emails queue is empty.\n".to_string();
 	}
 	
 }
@@ -181,7 +190,6 @@ fn main () {
 		}
 	};
 
-
 	let rootfs = opts.rootfs.as_slice();
 	let deferred = opts.deferred;
 	let container = opts.container;
@@ -191,7 +199,7 @@ fn main () {
 
 	if deferred {
 		command_output = check_email (rootfs, true, container);
-		result = check_email_output (command_output, true);
+		result = result + "\n\n -- Deferred queue -- \n\n" + check_email_output (command_output, true).as_slice();
 	}
 
 	if result.contains("UNKNOWN") {
