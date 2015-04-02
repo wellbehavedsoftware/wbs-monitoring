@@ -68,17 +68,6 @@ fn parse_options () -> Option<Opts> {
 		return None;
 	}
 
-	let mut deferred = false;
-	let mut container = false;
-
-	if matches.opt_present ("deferred") {
-		deferred = true;
-	}
-
-	if matches.opt_present ("container") {
-		container = true;
-	}
-
 	let rootfs = matches.opt_str ("rootfs").unwrap ();
 	let cont = matches.opt_str ("container").unwrap ();
 	let mut container = false;
@@ -108,13 +97,14 @@ fn check_email (rootfs: &str, deferred: bool, container: bool) -> String {
 				.arg ("lxc-attach".to_string ())
 				.arg ("--name".to_string ())
 				.arg (rootfs.to_string ())
+				.arg ("--".to_string ())
 				.arg ("qshape".to_string ())
 				.arg ("deferred".to_string ())				
 				.output () {
 			Ok (output) => { output }
 			Err (err) => { return format!("Check email: {}.", err); }
 			};
-
+			
 			return String::from_utf8_lossy(email_output.output.as_slice()).to_string();
 		}
 		else {
@@ -123,6 +113,7 @@ fn check_email (rootfs: &str, deferred: bool, container: bool) -> String {
 				.arg ("lxc-attach".to_string ())
 				.arg ("--name".to_string ())
 				.arg (rootfs.to_string ())
+				.arg ("--".to_string ())
 				.arg ("qshape".to_string ())
 				.output () {
 			Ok (output) => { output }
@@ -166,12 +157,18 @@ fn check_email_output (mail_output: String, deferred: bool) -> String {
 	}
 
 	let lines: Vec<&str> = mail_output.as_slice().split('\n').collect();
+	let total_mails_line: Vec<&str> = lines[1].as_slice().split(' ').collect();
+
+	let mut total_mails = "";
+	for token in total_mails_line {
+		if !token.is_empty() && token != "TOTAL" { total_mails = token; break; }
+	}
 
 	if !deferred && lines.len() > 3 {
-		return format!("MAIL-WARNING: The emails queue is not empty.\n{}", mail_output);
+		return format!("MAIL-WARNING: {} at emails queue.\n{}", total_mails, mail_output);
 	}
-	else if deferred && lines.len() > 4 {
-		return format!("MAIL-WARNING: The deferred emails queue is not empty.\n{}", mail_output);
+	else if deferred && lines.len() > 3 {
+		return format!("MAIL-WARNING: {} emails at the deferred emails queue.\n{}", total_mails, mail_output);
 	}
 	else {
 		return "MAIL-OK: The emails queue is empty.\n".to_string();
@@ -196,19 +193,40 @@ fn main () {
 
 	let mut command_output = check_email (rootfs, false, container);
 	let mut result = check_email_output (command_output, false);
+	let mut deferred_result: String = "".to_string();
 
 	if deferred {
 		command_output = check_email (rootfs, true, container);
-		result = result + "\n\n -- Deferred queue -- \n\n" + check_email_output (command_output, true).as_slice();
+		deferred_result = check_email_output (command_output, true);
 	}
 
 	if result.contains("UNKNOWN") {
+
+		result = result + "\n -- Deferred queue -- \n\n" + deferred_result.as_slice(); 
+
+		env::set_exit_status(3);
+		println!("{}", result);
+
+	}
+	else if deferred_result.contains("UNKNOWN") {
+
+		result = deferred_result + "\n -- Queue -- \n\n" + result.as_slice(); 
 
 		env::set_exit_status(3);
 		println!("{}", result);
 
 	}
 	else if result.contains("WARNING") {
+
+		result = result + "\n -- Deferred queue -- \n\n" + deferred_result.as_slice(); 
+
+		env::set_exit_status(1);
+		println!("{}", result);
+
+	}
+	else if deferred_result.contains("WARNING") {
+
+		result = deferred_result + "\n -- Queue -- \n\n" + result.as_slice(); 
 
 		env::set_exit_status(1);
 		println!("{}", result);

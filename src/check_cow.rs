@@ -100,7 +100,6 @@ fn check_cow (rootfs: &str, file: &str, directory: &str) -> String {
 
 		if directory == "true" {
 
-
 			let cow_output =
 				match Command::new ("sudo")
 				.arg ("lxc-attach".to_string ())
