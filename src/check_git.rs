@@ -1,26 +1,22 @@
 //Rust file
-#![feature(env)]
-#![feature(core)]
-#![feature(path)]
-
 extern crate getopts;
 extern crate git2;
 
 use getopts::Options;
 use std::env;
+use std::process;
 use std::option::{ Option };
-use git2::{ Repository, StatusOptions, Direction, RemoteCallbacks };
-use std::old_io::stdio;
-use std::str;
+use git2::{ Repository, StatusOptions, Direction };
+use std::path::Path;
 
 fn print_usage (program: &str, opts: Options) {
 	let brief = format!("Usage: {} [options]", program);
-	println!("{}", opts.usage(brief.as_slice()));
+	println!("{}", opts.usage(&brief));
 }
 
 fn print_help (program: &str, opts: Options) {
 	let brief = format!("Help: {} [options]", program);
-	println!("{}", opts.usage(brief.as_slice()));
+	println!("{}", opts.usage(&brief));
 }
 
 struct Opts {
@@ -173,10 +169,10 @@ fn git_status(statuses: git2::Statuses) -> String {
 
 		match (old_path, new_path) {
 			(Some(ref old), Some(ref new)) if old != new => {
-				status = status + format!("->\t{} {} -> {}\n", istatus, old.display(), new.display()).as_slice();
+				status = status + &format!("->\t{} {} -> {}\n", istatus, old.display(), new.display());
 				}
 			(old, new) => {
-				status = status + format!("->\t{} {}\n", istatus, old.or(new).unwrap().display()).as_slice();
+				status = status + &format!("->\t{} {}\n", istatus, old.or(new).unwrap().display());
 			}
 		}
 	}
@@ -203,7 +199,7 @@ fn git_status(statuses: git2::Statuses) -> String {
 		};
 
 		if !header {
-			status = status + format!("Changes not staged for commit: (use \"git add{} <file>...\" to update what will be committed) (use \"git checkout -- <file>...\" to discard changes in working directory)\n", if rm_in_workdir {"/rm"} else {""}).as_slice();
+			status = status + &format!("Changes not staged for commit: (use \"git add{} <file>...\" to update what will be committed) (use \"git checkout -- <file>...\" to discard changes in working directory)\n", if rm_in_workdir {"/rm"} else {""});
 			header = true;
 		}
 
@@ -212,10 +208,10 @@ fn git_status(statuses: git2::Statuses) -> String {
 
 		match (old_path, new_path) {
 			(Some(ref old), Some(ref new)) if old != new => {
-				status = status + format!("->\t{} {} -> {}\n", istatus, old.display(), new.display()).as_slice();
+				status = status + &format!("->\t{} {} -> {}\n", istatus, old.display(), new.display());
 			}
 			(old, new) => {
-				status = status + format!("->\t{} {}\n", istatus, old.or(new).unwrap().display()).as_slice();
+				status = status + &format!("->\t{} {}\n", istatus, old.or(new).unwrap().display());
 			}
 		}
 	}
@@ -234,7 +230,7 @@ fn git_status(statuses: git2::Statuses) -> String {
 		}
 
 		let file = entry.index_to_workdir().unwrap().old_file().path().unwrap();
-		status = status + format!("->\t{}\n", file.display()).as_slice();
+		status = status + &format!("->\t{}\n", file.display());
 	}
 
 	header = false;
@@ -247,7 +243,7 @@ fn git_status(statuses: git2::Statuses) -> String {
 		}
 
 		let file = entry.index_to_workdir().unwrap().old_file().path().unwrap();
-		status = status + format!("->\t{}\n", file.display()).as_slice();
+		status = status + &format!("->\t{}\n", file.display());
 	}
 
 	if !changes_in_index && changed_in_workdir {
@@ -318,26 +314,24 @@ fn main () {
 		None => { return }
 	};
 
-	let local = opts.local.as_slice();
-	let remote = opts.remote.as_slice();
+	let local = &opts.local;
+	let remote = &opts.remote;
 
 	let changes = check_git_changes(local, opts.untracked, opts.submodules, opts.ignored);
 
+	let sync = check_git_sync(local, remote);
+
 	if changes.contains("CHECK GIT STATUS ERROR") {
 		println!("GIT-UNKNOWN: Could not git status check:\n{}.", changes); 
-		env::set_exit_status(3);	
+		process::exit(3);	
 	}
 	else if changes.contains("OK") {
 		println!("GIT-OK: Git repo \"{}\" is up to date.\n", local); 
-		env::set_exit_status(0);	
+		process::exit(0);	
 	}
 	else {
 		println!("GIT-WARNING: Git repo \"{}\" has been modified:\n{}", local, changes); 
-		env::set_exit_status(1);
+		process::exit(1);
 	}
-
-	let sync = check_git_sync(local, remote);
-	
-	return;
 }
 

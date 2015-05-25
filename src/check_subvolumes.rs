@@ -1,17 +1,13 @@
 //Rust file
-#![feature(env)]
-#![feature(core)]
-#![feature(io)]
-
 extern crate getopts;
 
 use getopts::Options;
 use std::env;
-use std::old_io::{ Command };
+use std::process;
 
 fn print_help (program: &str, opts: Options) {
 	let brief = format!("Help: {} [options]", program);
-	println!("{}", opts.usage(brief.as_slice()));
+	println!("{}", opts.usage(&brief));
 }
 
 fn parse_options () {
@@ -36,7 +32,7 @@ fn parse_options () {
 fn check_subvolumes() -> String {
 
 	let subvolume_list_output =
-		match Command::new ("sudo")
+		match process::Command::new ("sudo")
 			.arg ("btrfs".to_string ())
 			.arg ("subvolume".to_string ())
 			.arg ("list".to_string ())
@@ -46,14 +42,14 @@ fn check_subvolumes() -> String {
 		Err (err) => { return format!("SUBVOLUME ERROR: {}.", err); }
 	};
 	
-	let subvolume_list = String::from_utf8_lossy(subvolume_list_output.output.as_slice()).to_string();
-	let subvolume_list_lines: Vec<&str> = subvolume_list.as_slice().split('\n').collect();
+	let subvolume_list = String::from_utf8_lossy(&subvolume_list_output.stdout).to_string();
+	let subvolume_list_lines: Vec<&str> = subvolume_list.split('\n').collect();
 
 	let mut warning_msgs: String = "".to_string();
 	let mut ok_msgs: String = "".to_string();
 
 	for subvolume in subvolume_list_lines.iter() {
-		let subvolume_tokens: Vec<&str> = subvolume.as_slice().split('/').collect();		
+		let subvolume_tokens: Vec<&str> = subvolume.split('/').collect();		
 	
 		if subvolume_tokens.len() > 5 {
 
@@ -67,7 +63,7 @@ fn check_subvolumes() -> String {
 
 			}
 
-			warning_msgs = warning_msgs + format!("SUBVOLUME-WARNING: The container {} has an inner subvolume in {}.\n", subvolume_tokens[3], subvolume_path).as_slice();
+			warning_msgs = warning_msgs + &format!("SUBVOLUME-WARNING: The container {} has an inner subvolume in {}.\n", subvolume_tokens[3], subvolume_path);
 
 		}
 		else if subvolume_tokens.len() == 5 {
@@ -78,7 +74,7 @@ fn check_subvolumes() -> String {
 		}
 	}
 
-	let message: String = warning_msgs + ok_msgs.as_slice();
+	let message: String = warning_msgs + &ok_msgs;
 
 	return message;
 	
@@ -92,21 +88,20 @@ fn main () {
 	
 	if result.contains("SUBVOLUME ERROR") {
 		println!("SUBVOLUME-UNKNOWN: Subvolumes check failed: {}.", result); 
-		env::set_exit_status(3);	
+		process::exit(3);	
 	}
 	else if result.contains("WARNING") {
-		println!("SUBVOLUME-WARNING: {}", result); 
-		env::set_exit_status(1);	
+		println!("{}", result); 
+		process::exit(1);	
 	}
 	else if result.contains("OK") {
 		println!("SUBVOLUME-OK: Containers don't have inner subvolumes.\n{}", result); 
-		env::set_exit_status(0);	
+		process::exit(0);	
 	}
 	else {
 		println!("SUBVOLUME-UNKNOWN: Could not execute subvolumes check. Error.\n{}", result); 
-		env::set_exit_status(3);	
+		process::exit(3);	
 	}
 	
-	return;
 }
 

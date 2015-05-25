@@ -1,25 +1,19 @@
 //Rust file
-#![feature(env)]
-#![feature(core)]
-#![feature(io)]
-#![feature(std_misc)]
-
 extern crate getopts;
 
 use getopts::Options;
 use std::env;
 use std::option::{ Option };
-use std::old_io::{ Command };
-use std::f64;
+use std::process;
 
 fn print_usage (program: &str, opts: Options) {
 	let brief = format!("Usage: {} [options]", program);
-	println!("{}", opts.usage(brief.as_slice()));
+	println!("{}", opts.usage(&brief));
 }
 
 fn print_help (program: &str, opts: Options) {
 	let brief = format!("Help: {} [options]", program);
-	println!("{}", opts.usage(brief.as_slice()));
+	println!("{}", opts.usage(&brief));
 }
 
 struct Opts {
@@ -77,15 +71,15 @@ fn parse_options () -> Option<Opts> {
 fn check_cpu(warning_level: f64, critical_level: f64) -> String {
 
 	let stat_output =
-		match Command::new ("cat")
+		match process::Command::new ("cat")
 			.arg ("/proc/stat".to_string ())
 			.output () {
 		Ok (output) => { output }
 		Err (err) => { return format!("CPU ERROR: {}.", err); }
 	};	
-	let stat = String::from_utf8_lossy(stat_output.output.as_slice()).to_string();
-	let stat_lines: Vec<&str> = stat.as_slice().split('\n').collect();
-	let stat_cpu: Vec<&str> = stat_lines[0].as_slice().split(' ').collect();
+	let stat = String::from_utf8_lossy(&stat_output.stdout).to_string();
+	let stat_lines: Vec<&str> = stat.split('\n').collect();
+	let stat_cpu: Vec<&str> = stat_lines[0].split(' ').collect();
 
 	let user : f64 = match stat_cpu[2].parse() {
 		Ok (f64) => { f64 }
@@ -105,10 +99,10 @@ fn check_cpu(warning_level: f64, critical_level: f64) -> String {
 	};
 
 	let cpu_quota = busy / (busy + iddle);
-	let cpu_quota_used = f64::to_str_exact(cpu_quota * 100.0, 1);
+	let cpu_quota_used = format!("{0:.1$}", cpu_quota * 100.0, 1);
 
-	let warning_level_quota = f64::to_str_exact(warning_level * 100.0, 1);
-	let critical_level_quota = f64::to_str_exact(critical_level * 100.0, 1);
+	let warning_level_quota = format!("{0:.1$}", warning_level * 100.0, 1);
+	let critical_level_quota = format!("{0:.1$}", critical_level * 100.0, 1);
 
 	if cpu_quota < warning_level {
 		println!("CPU OK: used {}%, warning {}%.", cpu_quota_used, warning_level_quota);
@@ -132,43 +126,39 @@ fn main () {
 		None => { return }
 	};
 
-	let cpu_warning : f64 = match opts.warning.as_slice().parse() {
+	let cpu_warning : f64 = match opts.warning.parse() {
 		Ok (f64) => { f64 }
 		Err (_) => {
 			println!("UNKNOWN: Warning level must be a value between 0.0 and 1.0."); 
-			env::set_exit_status(3);	
-			return;
+			process::exit(3);
 		}
 	};
 	
-	let cpu_critical : f64 = match opts.critical.as_slice().parse() {
+	let cpu_critical : f64 = match opts.critical.parse() {
 		Ok (f64) => { f64 }
 		Err (_) => {
 			println!("UNKNOWN: Critical level must be a value between 0.0 and 1.0."); 
-			env::set_exit_status(3);	
-			return;
+			process::exit(3);
 		}
 	};
 
 	let cpu_str = check_cpu(cpu_warning, cpu_critical);
 	if cpu_str.contains("CPU ERROR") {
 		println!("CPU UNKNOWN: Could not execute CPU check: {}.", cpu_str); 
-		env::set_exit_status(3);	
+		process::exit(3);	
 	}
 	else if cpu_str == "OK" {
-		env::set_exit_status(0);	
+		process::exit(0);	
 	}
 	else if cpu_str == "WARNING" {
-		env::set_exit_status(1);	
+		process::exit(1);	
 	}
 	else if cpu_str == "CRITICAL" {
-		env::set_exit_status(2);	
+		process::exit(2);	
 	}
 	else {
 		println!("CPU UNKNOWN: Could not execute disk check. Unknown error."); 
-		env::set_exit_status(3);	
+		process::exit(3);	
 	}
-	
-	return;
 }
 

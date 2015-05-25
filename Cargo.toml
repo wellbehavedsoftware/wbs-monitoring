@@ -77,15 +77,15 @@ name = "check_email"
 name = "check_git"
 
 [dependencies.getopts]
-getopts = "0.1.4"
+getopts = "0.2.11"
 
 [dependencies.curl]
 git = "https://github.com/wellbehavedsoftware/curl-rust.git"
 branch = "handle-new-options"
 
 [dependencies.chrono]
-chrono = "0.1.17"
+chrono = "0.2.14"
 
 [dependencies.git2]
-git2 = "0.1.17"
+git2 = "0.2.11"
 

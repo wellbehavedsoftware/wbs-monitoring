@@ -1,25 +1,19 @@
 //Rust file
-#![feature(env)]
-#![feature(core)]
-#![feature(io)]
-#![feature(std_misc)]
-
 extern crate getopts;
 
 use getopts::Options;
 use std::env;
 use std::option::{ Option };
-use std::old_io::{ Command };
-use std::f64;
+use std::process;
 
 fn print_usage (program: &str, opts: Options) {
 	let brief = format!("Usage: {} [options]", program);
-	println!("{}", opts.usage(brief.as_slice()));
+	println!("{}", opts.usage(&brief));
 }
 
 fn print_help (program: &str, opts: Options) {
 	let brief = format!("Help: {} [options]", program);
-	println!("{}", opts.usage(brief.as_slice()));
+	println!("{}", opts.usage(&brief));
 }
 
 struct Opts {
@@ -88,7 +82,7 @@ fn parse_options () -> Option<Opts> {
 fn check_disk(rootfs: &str, warning_level: f64, critical_level: f64) -> String {
 
 	let list_output =
-		match Command::new ("sudo")
+		match process::Command::new ("sudo")
 			.arg ("btrfs".to_string ())
 			.arg ("subvolume".to_string())
 			.arg ("list".to_string())
@@ -98,21 +92,21 @@ fn check_disk(rootfs: &str, warning_level: f64, critical_level: f64) -> String {
 		Err (err) => { return format!("DISK ERROR: {}.", err); }
 	};
 
-	let subvolume = String::from_utf8_lossy(list_output.output.as_slice()).to_string();
+	let subvolume = String::from_utf8_lossy(&list_output.stdout).to_string();
 
-	let subvolume_lines: Vec<&str> = subvolume.as_slice().split('\n').collect(); 
+	let subvolume_lines: Vec<&str> = subvolume.split('\n').collect(); 
 
 	let mut rootfs_id = "0/".to_string();	
 	let mut found = false;
 
-	let mut to_search: String = "lxc/".to_string() +rootfs.as_slice();
+	let mut to_search: String = "lxc/".to_string() + &rootfs;
 	to_search = to_search + "/rootfs\n";
 
 	for line in subvolume_lines.iter() { 
 
 		let str_line: String = line.to_string() + "\n";
-		if str_line.contains(to_search.as_slice()) { 
-			let rootfs_info: Vec<&str> = line.as_slice().split(' ').collect();
+		if str_line.contains(&to_search) { 
+			let rootfs_info: Vec<&str> = line.split(' ').collect();
 			rootfs_id = rootfs_id.to_string() + rootfs_info[1];
 			found = true;
 			break;
@@ -122,7 +116,7 @@ fn check_disk(rootfs: &str, warning_level: f64, critical_level: f64) -> String {
 	if !found { return "DISK ERROR".to_string(); }
 
 	let qgroup_output = 
-		match Command::new ("sudo")
+		match process::Command::new ("sudo")
 			.arg ("btrfs".to_string ())
 			.arg ("qgroup".to_string())
 			.arg ("show".to_string())
@@ -134,9 +128,9 @@ fn check_disk(rootfs: &str, warning_level: f64, critical_level: f64) -> String {
 		Err (err) => { return format!("DISK ERROR: {}.", err); }
 	};
 
-	let qgroup = String::from_utf8_lossy(qgroup_output.output.as_slice()).to_string(); 
+	let qgroup = String::from_utf8_lossy(&qgroup_output.stdout).to_string(); 
 
-	let qgroup_lines: Vec<&str> = qgroup.as_slice().split('\n').collect();
+	let qgroup_lines: Vec<&str> = qgroup.split('\n').collect();
 
 	if qgroup_lines.len() == 1 { return "DISK ERROR".to_string(); }
 
@@ -146,25 +140,25 @@ fn check_disk(rootfs: &str, warning_level: f64, critical_level: f64) -> String {
 
 	for line in qgroup_lines.iter() { 
 
-		if line.contains(rootfs_id.as_slice()) {
+		if line.contains(&rootfs_id) {
 
-			let disk_info: Vec<&str> = line.as_slice().split(' ').collect();
+			let disk_info: Vec<&str> = line.split(' ').collect();
 
 
 			let mut index = 1; 
-			while disk_info[index].as_slice().is_empty() {
+			while disk_info[index].is_empty() {
 				index = index + 1; 
 			}
 
 			disk_used_str = disk_info[index].to_string();
 
 			index = index + 1;
-			while disk_info[index].as_slice().is_empty() {
+			while disk_info[index].is_empty() {
 				index = index + 1; 
 			}
 			index = index + 1; 
 
-			while disk_info[index].as_slice().is_empty() {
+			while disk_info[index].is_empty() {
 				index = index + 1; 
 			}
 
@@ -195,12 +189,12 @@ fn check_disk(rootfs: &str, warning_level: f64, critical_level: f64) -> String {
 	if disk_limit < 10.0 { num_decimals = 2; }
 	else if disk_limit < 100.0 { num_decimals = 1; }
 
-	let disk_used_quota = f64::to_str_exact(disk_used, num_decimals);
-	let disk_limit_quota = f64::to_str_exact(disk_limit, num_decimals);
-	let disk_used_percentage_quota = f64::to_str_exact(disk_used_percentage * 100.0, 0);
+	let disk_used_quota = format!("{0:.1$}", disk_used, num_decimals);
+	let disk_limit_quota = format!("{0:.1$}", disk_limit, num_decimals);
+	let disk_used_percentage_quota = format!("{0:.1$}", disk_used_percentage * 100.0, 0);
 
-	let warning_quota_level = f64::to_str_exact(warning_level * 100.0, 0);
-	let critical_quota_level = f64::to_str_exact(critical_level * 100.0, 0);
+	let warning_quota_level = format!("{0:.1$}", warning_level * 100.0, 0);
+	let critical_quota_level = format!("{0:.1$}", critical_level * 100.0, 0);
 
 	if disk_limit == 0.0 {
 		println!("DISK-Q OK: {} GiB used, no limit.", disk_used_quota);
@@ -228,44 +222,41 @@ fn main () {
 		None => { return }
 	};
 
-	let disk_warning : f64 = match opts.warning.as_slice().parse() {
+	let disk_warning : f64 = match opts.warning.parse() {
 		Ok (f64) => { f64 }
 		Err (_) => { 
 			println!("UNKNOWN: Warning level must be a value between 0.0 and 1.0."); 
-			env::set_exit_status(3);	
-			return;
+			process::exit(3);	
 		}
 	};
 	
-	let disk_critical : f64 = match opts.critical.as_slice().parse() {
+	let disk_critical : f64 = match opts.critical.parse() {
 		Ok (f64) => { f64 }
 		Err (_) => { 
 			println!("UNKNOWN: Critical level must be a value between 0.0 and 1.0."); 
-			env::set_exit_status(3);	
-			return;
+			process::exit(3);	
 		}
 	};
 
-	let disk_str = check_disk(opts.rootfs.as_slice(), disk_warning, disk_critical);
+	let disk_str = check_disk(&opts.rootfs, disk_warning, disk_critical);
 	if disk_str.contains("DISK ERROR") {
 		println!("DISK-Q UNKNOWN: Could not execute disk check: {}.", disk_str); 
-		env::set_exit_status(3);	
+		process::exit(3);	
 	}
 	else if disk_str == "OK" {
-		env::set_exit_status(0);	
+		process::exit(0);	
 	}
 	else if disk_str == "WARNING" {
-		env::set_exit_status(1);	
+		process::exit(1);	
 	}
 	else if disk_str == "CRITICAL" {
-		env::set_exit_status(2);	
+		process::exit(2);	
 	}
 	else {
 		println!("DISK-Q UNKNOWN: Could not execute disk check. Unknown error."); 
-		env::set_exit_status(3);	
+		process::exit(3);	
 	}
-	
-	return;
+
 }
 
 

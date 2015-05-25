@@ -1,25 +1,19 @@
 //Rust file
-#![feature(env)]
-#![feature(core)]
-#![feature(io)]
-#![feature(std_misc)]
-
 extern crate getopts;
 
 use getopts::Options;
 use std::env;
 use std::option::{ Option };
-use std::old_io::{ Command };
-use std::f64;
+use std::process;
 
 fn print_usage (program: &str, opts: Options) {
 	let brief = format!("Usage: {} [options]", program);
-	println!("{}", opts.usage(brief.as_slice()));
+	println!("{}", opts.usage(&brief));
 }
 
 fn print_help (program: &str, opts: Options) {
 	let brief = format!("Help: {} [options]", program);
-	println!("{}", opts.usage(brief.as_slice()));
+	println!("{}", opts.usage(&brief));
 }
 
 struct Opts {
@@ -67,7 +61,7 @@ fn parse_options () -> Option<Opts> {
 fn check_mem(rootfs: &str) -> String {
 
 	let usage_output =
-		match Command::new ("sudo")
+		match process::Command::new ("sudo")
 			.arg ("/usr/bin/lxc-cgroup".to_string ())
 			.arg ("--name".to_string())
 			.arg (rootfs.to_string())
@@ -78,7 +72,7 @@ fn check_mem(rootfs: &str) -> String {
 	};
 
 	let limit_output =
-		match Command::new ("sudo")
+		match process::Command::new ("sudo")
 			.arg ("/usr/bin/lxc-cgroup".to_string ())
 			.arg ("--name".to_string())
 			.arg (rootfs.to_string())
@@ -88,8 +82,8 @@ fn check_mem(rootfs: &str) -> String {
 		Err (_) => { return "MEM ERROR".to_string(); }
 	};
 
-	let usage_str = String::from_utf8_lossy(usage_output.output.as_slice()).trim().to_string();
-	let limit_str = String::from_utf8_lossy(limit_output.output.as_slice()).trim().to_string();
+	let usage_str = String::from_utf8_lossy(&usage_output.stdout).trim().to_string();
+	let limit_str = String::from_utf8_lossy(&limit_output.stdout).trim().to_string();
 
 	if usage_str.contains("is not running")	|| limit_str.contains("is not running") {
 		return "MEM ERROR".to_string();
@@ -113,9 +107,9 @@ fn check_mem(rootfs: &str) -> String {
 	if mem_limit < 10.0 { num_decimals = 2; }
 	else if mem_limit < 100.0 { num_decimals = 1; }
 
-	let mem_used_quota = f64::to_str_exact(mem_used, num_decimals);
-	let mem_limit_quota = f64::to_str_exact(mem_limit, num_decimals);
-	let mem_used_percentage_quota = f64::to_str_exact(mem_used_percentage * 100.0, 0);
+	let mem_used_quota = format!("{0:.1$}", mem_used, num_decimals);
+	let mem_limit_quota = format!("{0:.1$}", mem_limit, num_decimals);
+	let mem_used_percentage_quota = format!("{0:.1$}", mem_used_percentage * 100.0, 0);
 
 	println!("MEM-Q OK: {} GiB {}%, limit {} GiB.", mem_used_quota, mem_used_percentage_quota, mem_limit_quota);
 	return "OK".to_string();
@@ -130,20 +124,19 @@ fn main () {
 		None => { return }
 	};
 	
-	let mem_str = check_mem(opts.rootfs.as_slice());
+	let mem_str = check_mem(&opts.rootfs);
 	if mem_str == "MEM ERROR" {
 		println!("MEM-Q UNKNOWN: Could not execute memory check. Shell commands failed to execute."); 
-		env::set_exit_status(3);	
+		process::exit(3);	
 	}
 	else if mem_str == "OK" {
-		env::set_exit_status(0);	
+		process::exit(0);	
 	}
 	else {
 		println!("MEM-Q UNKNOWN: Could not execute mem check. Unknown error."); 
-		env::set_exit_status(3);	
+		process::exit(3);	
 	}
-	
-	return;
+
 }
 
 

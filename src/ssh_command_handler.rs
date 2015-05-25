@@ -1,24 +1,23 @@
 //Rust file
-#![feature(env)]
-#![feature(core)]
-#![feature(io)]
-
 extern crate getopts;
 
 use getopts::Options;
 use std::env;
 use std::option::{ Option };
-use std::old_io::{ Command };
-use std::old_io::{File, Open, Read, Write, ReadWrite};
+use std::process;
+use std::fs::OpenOptions;
+use std::io::BufWriter;
+use std::io::Write;
+use std::path::Path;
 
 fn print_usage (program: &str, opts: Options) {
 	let brief = format!("Usage: {} [options]", program);
-	println!("{}", opts.usage(brief.as_slice()));
+	println!("{}", opts.usage(&brief));
 }
 
 fn print_help (program: &str, opts: Options) {
 	let brief = format!("Help: {} [options]", program);
-	println!("{}", opts.usage(brief.as_slice()));
+	println!("{}", opts.usage(&brief));
 }
 
 struct Opts {
@@ -104,7 +103,7 @@ fn parse_options () -> Option<Opts> {
 fn exec_command (host: &str, command: &str, service: &str) -> String {
 
 	let command_output =
-		match Command::new (command.to_string())
+		match process::Command::new (command.to_string())
 			.arg (host.to_string())
 			.arg (service.to_string())
 			.output () {
@@ -112,7 +111,7 @@ fn exec_command (host: &str, command: &str, service: &str) -> String {
 		Err (err) => { return format!("SSH COMMAND ERROR: {}.", err); }
 		};
 
-	return String::from_utf8_lossy(command_output.output.as_slice()).to_string();
+	return String::from_utf8_lossy(&command_output.stdout).to_string();
 
 }
 
@@ -121,38 +120,43 @@ fn main () {
 	let opts = match parse_options () {
 		Some (opts) => { opts }
 		None => { 
-			env::set_exit_status(3);
 			println!("UNKNOWN: Wrong arguments.");
-			return;
+			process::exit(3);
 		}
 	};
 
 
-	let host = opts.host.as_slice();
-	let state = opts.state.as_slice();
-	let state_type = opts.state_type.as_slice();
-	let command = opts.command.as_slice();
-	let service = opts.service.as_slice();
+	let host = &opts.host;
+	let state = &opts.state;
+	let state_type = &opts.state_type;
+	let command = &opts.command;
+	let service = &opts.service;
 
 	let mut command_result: String = "UNKNOWN".to_string();
 
 	let fname = "/home/nagios/ssh_command_output.txt";
 	let p = Path::new(fname);
 
-	let mut f = match File::open_mode(&p, Open, Write) {
+	let f = match OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .open(&p) {
+
 	    Ok(f) => f,
 	    Err(e) => panic!("file error: {}", e),
 	};
 
-	f.write_line(state_type);
-	f.write_line(state);
+	let mut writer = BufWriter::new(&f);
+
+	writer.write(state_type.as_bytes());
+	writer.write(state.as_bytes());
 
 	if state_type.contains("HARD") && (state.contains("2") || state.contains("3")) {
-		f.write_line("entro if");
 		command_result = exec_command (host, command, service);
 	}
 
-	f.write_line(command_result.as_slice());
+	writer.write_all(&command_result.as_bytes());
 
 	return;
 }

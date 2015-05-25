@@ -1,26 +1,23 @@
 //Rust file
-#![feature(env)]
-#![feature(core)]
-#![feature(io)]
-#![feature(path)]
-
 extern crate getopts;
 
 use getopts::Options;
 use std::env;
+use std::process;
 use std::option::{ Option };
-use std::old_io::{ Command };
-use std::old_io::BufferedReader;
-use std::old_io::File;
+use std::io::BufReader as BR;
+use std::io::BufRead;
+use std::fs::File;
+use std::path::Path;
 
 fn print_usage (program: &str, opts: Options) {
 	let brief = format!("Usage: {} [options]", program);
-	println!("{}", opts.usage(brief.as_slice()));
+	println!("{}", opts.usage(&brief));
 }
 
 fn print_help (program: &str, opts: Options) {
 	let brief = format!("Help: {} [options]", program);
-	println!("{}", opts.usage(brief.as_slice()));
+	println!("{}", opts.usage(&brief));
 }
 
 struct Opts {
@@ -86,22 +83,27 @@ fn parse_options () -> Option<Opts> {
 fn check_cow (rootfs: &str, file: &str, directory: &str) -> String {
 
 	let path = Path::new(file);
-	let mut file_content = BufferedReader::new(File::open(&path));
-	let file_lines: Vec<String> = file_content.lines().map(|x| x.unwrap()).collect();
+
+	let file = match File::open(&path) {
+	    Ok(file) => file,
+	    Err(..)  => panic!("I/O Error!"),
+	};
+
+	let file_lines: Vec<String> = BR::new(&file).lines().map(|x| x.unwrap()).collect();
 
 	let mut result: String = "".to_string();
 
 	for line in file_lines.iter() {	
 
 		let chars_to_trim: &[char] = &[' ', '\n'];
-	   	let trimmed_line: &str = line.as_slice().trim_matches(chars_to_trim);		
+	   	let trimmed_line: &str = line.trim_matches(chars_to_trim);		
 
 		let mut out: String;
 
 		if directory == "true" {
 
 			let cow_output =
-				match Command::new ("sudo")
+				match process::Command::new ("sudo")
 				.arg ("lxc-attach".to_string ())
 				.arg ("--name".to_string ())
 				.arg (rootfs.to_string ())
@@ -114,13 +116,13 @@ fn check_cow (rootfs: &str, file: &str, directory: &str) -> String {
 			Err (err) => { return format!("Check CoW: {}.", err); }
 			};
 
-			out = String::from_utf8_lossy(cow_output.output.as_slice()).to_string();
+			out = String::from_utf8_lossy(&cow_output.stdout).to_string();
 
 		}
 		else {
 
 			let cow_output =
-				match Command::new ("sudo")
+				match process::Command::new ("sudo")
 				.arg ("lxc-attach".to_string ())
 				.arg ("--name".to_string ())
 				.arg (rootfs.to_string ())
@@ -132,13 +134,13 @@ fn check_cow (rootfs: &str, file: &str, directory: &str) -> String {
 			Err (err) => { return format!("Check CoW: {}.", err); }
 			};
 
-			out = String::from_utf8_lossy(cow_output.output.as_slice()).to_string();
+			out = String::from_utf8_lossy(&cow_output.stdout).to_string();
 
 		}
 
 		if out.contains("No such file or directory") || out.is_empty() {
 	
-			result = result + format!("COW-OK: The file {} does not exist in {}.\n", trimmed_line, rootfs).as_slice();
+			result = result + &format!("COW-OK: The file {} does not exist in {}.\n", trimmed_line, rootfs);
 
 		}
 		else if out.contains("Permission denied") {
@@ -146,17 +148,17 @@ fn check_cow (rootfs: &str, file: &str, directory: &str) -> String {
 		}
 		else {
 
-			let output_vector: Vec<&str> = out.as_slice().split(' ').collect();
+			let output_vector: Vec<&str> = out.split(' ').collect();
 			let file_attr = output_vector[0];
 
 			if file_attr.contains("C") {
 
-				result = result + format!("COW-OK: The file {} exist in {} with COW disabled.\n", trimmed_line, rootfs).as_slice();
+				result = result + &format!("COW-OK: The file {} exist in {} with COW disabled.\n", trimmed_line, rootfs);
 
 			}
 			else {
 
-				result = result + format!("COW-WARNING: The file {} exist in {} with COW enabled.\n", trimmed_line, rootfs).as_slice();
+				result = result + &format!("COW-WARNING: The file {} exist in {} with COW enabled.\n", trimmed_line, rootfs);
 
 			}
 
@@ -166,7 +168,7 @@ fn check_cow (rootfs: &str, file: &str, directory: &str) -> String {
 
 	if result.contains("WARNING") {
 
-		result = "COW-WARNING: Some of the next files have COW enabled.\n".to_string() + result.as_slice();
+		result = "COW-WARNING: Some of the next files have COW enabled.\n".to_string() + &result;
 
 	}
 
@@ -179,36 +181,34 @@ fn main () {
 	let opts = match parse_options () {
 		Some (opts) => { opts }
 		None => { 
-			env::set_exit_status(3);
 			println!("UNKNOWN: Wrong arguments.");
-			return;
+			process::exit(3);
 		}
 	};
 
 
-	let rootfs = opts.rootfs.as_slice();
-	let file = opts.file.as_slice();
-	let directory = opts.directory.as_slice();
+	let rootfs = &opts.rootfs;
+	let file = &opts.file;
+	let directory = &opts.directory;
 
 	let result = check_cow (rootfs, file, directory);
 
 	if result.contains("UNKNOWN") {
 
-		env::set_exit_status(3);
 		println!("{}", result);
+		process::exit(3);
 
 	}
 	else if result.contains("WARNING") {
 
-		env::set_exit_status(1);
 		println!("{}", result);
+		process::exit(1);
 
 	} else {
 
-		env::set_exit_status(0);
 		println!("{}", result);
+		process::exit(0);
 
 	}
 	
-	return;
 }

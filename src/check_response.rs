@@ -1,23 +1,19 @@
 //Rust file
-#![feature(env)]
-#![feature(core)]
-#![feature(io)]
-
 extern crate getopts;
 
 use getopts::Options;
 use std::env;
 use std::option::{ Option };
-use std::old_io::{ Command };
+use std::process;
 
 fn print_usage (program: &str, opts: Options) {
 	let brief = format!("Usage: {} [options]", program);
-	println!("{}", opts.usage(brief.as_slice()));
+	println!("{}", opts.usage(&brief));
 }
 
 fn print_help (program: &str, opts: Options) {
 	let brief = format!("Help: {} [options]", program);
-	println!("{}", opts.usage(brief.as_slice()));
+	println!("{}", opts.usage(&brief));
 }
 
 struct Opts {
@@ -59,15 +55,13 @@ fn parse_options () -> Option<Opts> {
 		Ok (m) => { m }
 		Err (_) => {
 			print_usage ("check_response", opts);
-			env::set_exit_status(3);	
-			return None;
+			process::exit(3);
 		}
 	};
 
 	if matches.opt_present ("help") {
 		print_help ("check_response", opts);
-		env::set_exit_status(3);	
-		return None;
+		process::exit(3);
 	}
 
 	let hostname = matches.opt_str ("host-name").unwrap ();
@@ -75,7 +69,7 @@ fn parse_options () -> Option<Opts> {
 	let secure_str = matches.opt_str ("ssl").unwrap ();
 
 	let mut secure: bool = false;
-	if secure_str.as_slice() == "true" {
+	if &secure_str == "true" {
 		secure = true;
 	}
 
@@ -92,7 +86,7 @@ fn get_response (opts: Opts) -> String {
 	if opts.secure {
 
 		let list_output =
-			match Command::new ("/usr/lib/nagios/plugins/check_http")
+			match process::Command::new ("/usr/lib/nagios/plugins/check_http")
 				.arg ("-H".to_string ())
 				.arg (opts.hostname.to_string ())
 				.arg ("-u".to_string ())
@@ -103,13 +97,13 @@ fn get_response (opts: Opts) -> String {
 			Err (err) => { panic! ("Error calling check_http: {}", err) }
 		};
 
-		String::from_utf8_lossy(list_output.output.as_slice()).to_string()
+		String::from_utf8_lossy(&list_output.stdout).to_string()
 	}
 
 	else {
 	
 		let list_output =
-			match Command::new ("/usr/lib/nagios/plugins/check_http")
+			match process::Command::new ("/usr/lib/nagios/plugins/check_http")
 				.arg ("-H".to_string ())
 				.arg (opts.hostname.to_string ())
 				.arg ("-u".to_string ())
@@ -119,7 +113,7 @@ fn get_response (opts: Opts) -> String {
 			Err (err) => { panic! ("Error calling check_http: {}", err) }
 		};
 
-		String::from_utf8_lossy(list_output.output.as_slice()).to_string()
+		String::from_utf8_lossy(&list_output.stdout).to_string()
 
 	}
 
@@ -149,50 +143,48 @@ fn main () {
 	};
 
 	let response = get_response (opts);
-	let response_vector: Vec<&str> = response.as_slice().split(' ').collect();
+	let response_vector: Vec<&str> = response.split(' ').collect();
 
-	let informational = 	vec![100is, 101, 102];
-	let success = 		vec![200is, 201, 202, 203, 204, 205, 206, 208, 226];
-	let redirection = 	vec![300is, 301, 302, 303, 304, 305, 306, 308];
-	let client_error = 	vec![400is, 401, 402, 403, 404, 405, 406, 407, 408, 409, 410, 
+	let informational = 	vec![100isize, 101, 102];
+	let success = 		vec![200isize, 201, 202, 203, 204, 205, 206, 208, 226];
+	let redirection = 	vec![300isize, 301, 302, 303, 304, 305, 306, 308];
+	let client_error = 	vec![400isize, 401, 402, 403, 404, 405, 406, 407, 408, 409, 410, 
 				411, 412, 413, 414, 415, 416, 417, 418, 419, 420, 422,
 				423, 424, 426, 428, 429, 431, 440, 444, 450, 451, 494, 
 				495, 496, 497, 498, 499];
-	let server_error =	vec![500is, 501, 502, 503, 504, 505, 506, 507, 508, 509, 510,
+	let server_error =	vec![500isize, 501, 502, 503, 504, 505, 506, 507, 508, 509, 510,
 				511, 520, 521, 522, 523, 524, 598, 599];
 
 	let response_code : isize = match response_vector[3].parse() {
 		Ok (isize) => { isize }
 		Err (_) => { 
 			println!("UNKNOWN: The check could not be performed. No response received."); 
-			env::set_exit_status(3);	
-			return;
+			process::exit(3);
 		}
 	};
 	
 
 	if in_array(response_code, informational) {
-		env::set_exit_status(3);
 		println!("{}", response);
+		process::exit(3);
 	}
 	else if in_array(response_code, success) {
-		env::set_exit_status(0);
 		println!("{}", response);
+		process::exit(0);
 	}
 	else if in_array(response_code, redirection) {
-		env::set_exit_status(1);
 		println!("{}", response);
+		process::exit(1);
 	}
 	else if in_array(response_code, client_error) || in_array(response_code, server_error) {
-		env::set_exit_status(2);
 		println!("{}", response);
+		process::exit(2);
 	}
 	else {
-		env::set_exit_status(3);
 		println!("UNKNOWN: Check_response failed.");
+		process::exit(3);
 	}
 
-	return;
 }
 
 

@@ -1,23 +1,19 @@
 //Rust file
-#![feature(env)]
-#![feature(core)]
-#![feature(io)]
-
 extern crate getopts;
 
 use getopts::Options;
 use std::env;
+use std::process;
 use std::option::{ Option };
-use std::old_io::{ Command };
 
 fn print_usage (program: &str, opts: Options) {
 	let brief = format!("Usage: {} [options]", program);
-	println!("{}", opts.usage(brief.as_slice()));
+	println!("{}", opts.usage(&brief));
 }
 
 fn print_help (program: &str, opts: Options) {
 	let brief = format!("Help: {} [options]", program);
-	println!("{}", opts.usage(brief.as_slice()));
+	println!("{}", opts.usage(&brief));
 }
 
 struct Opts {
@@ -93,7 +89,7 @@ fn check_email (rootfs: &str, deferred: bool, container: bool) -> String {
 	if container {
 		if deferred {
 			let email_output =
-				match Command::new ("sudo")
+				match process::Command::new ("sudo")
 				.arg ("lxc-attach".to_string ())
 				.arg ("--name".to_string ())
 				.arg (rootfs.to_string ())
@@ -105,11 +101,11 @@ fn check_email (rootfs: &str, deferred: bool, container: bool) -> String {
 			Err (err) => { return format!("Check email: {}.", err); }
 			};
 			
-			return String::from_utf8_lossy(email_output.output.as_slice()).to_string();
+			return String::from_utf8_lossy(&email_output.stdout).to_string();
 		}
 		else {
 			let email_output =
-				match Command::new ("sudo")
+				match process::Command::new ("sudo")
 				.arg ("lxc-attach".to_string ())
 				.arg ("--name".to_string ())
 				.arg (rootfs.to_string ())
@@ -120,13 +116,13 @@ fn check_email (rootfs: &str, deferred: bool, container: bool) -> String {
 			Err (err) => { return format!("Check email: {}.", err); }
 			};
 
-			return String::from_utf8_lossy(email_output.output.as_slice()).to_string();
+			return String::from_utf8_lossy(&email_output.stdout).to_string();
 		}
 	}
 	else {
 		if deferred {
 			let email_output =
-				match Command::new ("sudo")
+				match process::Command::new ("sudo")
 				.arg ("qshape".to_string ())
 				.arg ("deferred".to_string ())
 				.output () {
@@ -134,18 +130,18 @@ fn check_email (rootfs: &str, deferred: bool, container: bool) -> String {
 			Err (err) => { return format!("Check email: {}.", err); }
 			};
 
-			return String::from_utf8_lossy(email_output.output.as_slice()).to_string();
+			return String::from_utf8_lossy(&email_output.stdout).to_string();
 		}
 		else {
 			let email_output =
-				match Command::new ("sudo")
+				match process::Command::new ("sudo")
 				.arg ("qshape".to_string ())
 				.output () {
 			Ok (output) => { output }
 			Err (err) => { return format!("Check email: {}.", err); }
 			};
 
-			return String::from_utf8_lossy(email_output.output.as_slice()).to_string();
+			return String::from_utf8_lossy(&email_output.stdout).to_string();
 		}
 	}
 }
@@ -156,8 +152,8 @@ fn check_email_output (mail_output: String, deferred: bool) -> String {
 		return format!("MAIL-UNKNOWN: Unable to perform the check: {}", mail_output);
 	}
 
-	let lines: Vec<&str> = mail_output.as_slice().split('\n').collect();
-	let total_mails_line: Vec<&str> = lines[1].as_slice().split(' ').collect();
+	let lines: Vec<&str> = mail_output.split('\n').collect();
+	let total_mails_line: Vec<&str> = lines[1].split(' ').collect();
 
 	let mut total_mails = "";
 	for token in total_mails_line {
@@ -181,13 +177,12 @@ fn main () {
 	let opts = match parse_options () {
 		Some (opts) => { opts }
 		None => { 
-			env::set_exit_status(3);
 			println!("UNKNOWN: Wrong arguments.");
-			return;
+			process::exit(3);
 		}
 	};
 
-	let rootfs = opts.rootfs.as_slice();
+	let rootfs = &opts.rootfs;
 	let deferred = opts.deferred;
 	let container = opts.container;
 
@@ -202,41 +197,38 @@ fn main () {
 
 	if result.contains("UNKNOWN") {
 
-		result = result + "\n -- Deferred queue -- \n\n" + deferred_result.as_slice(); 
+		result = result + "\n -- Deferred queue -- \n\n" + &deferred_result; 
 
-		env::set_exit_status(3);
 		println!("{}", result);
+		process::exit(3);
 
 	}
 	else if deferred_result.contains("UNKNOWN") {
 
-		result = deferred_result + "\n -- Queue -- \n\n" + result.as_slice(); 
+		result = deferred_result + "\n -- Queue -- \n\n" + &result; 
 
-		env::set_exit_status(3);
 		println!("{}", result);
+		process::exit(3);
 
 	}
 	else if result.contains("WARNING") {
 
-		result = result + "\n -- Deferred queue -- \n\n" + deferred_result.as_slice(); 
+		result = result + "\n -- Deferred queue -- \n\n" + &deferred_result; 
 
-		env::set_exit_status(1);
 		println!("{}", result);
+		process::exit(1);
 
 	}
 	else if deferred_result.contains("WARNING") {
 
-		result = deferred_result + "\n -- Queue -- \n\n" + result.as_slice(); 
+		result = deferred_result + "\n -- Queue -- \n\n" + &result; 
 
-		env::set_exit_status(1);
 		println!("{}", result);
+		process::exit(1);
 
 	} else {
-
-		env::set_exit_status(0);
 		println!("{}", result);
-
+		process::exit(0);
 	}
 	
-	return;
 }

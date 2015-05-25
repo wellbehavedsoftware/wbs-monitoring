@@ -1,23 +1,21 @@
 //Rust file
-#![feature(env)]
-#![feature(core)]
-
 extern crate getopts;
 extern crate curl;
 
 use getopts::Options;
 use std::env;
+use std::process;
 use std::option::{ Option };
 use curl::http;
 
 fn print_usage (program: &str, opts: Options) {
 	let brief = format!("Usage: {} [options]", program);
-	println!("{}", opts.usage(brief.as_slice()));
+	println!("{}", opts.usage(&brief));
 }
 
 fn print_help (program: &str, opts: Options) {
 	let brief = format!("Help: {} [options]", program);
-	println!("{}", opts.usage(brief.as_slice()));
+	println!("{}", opts.usage(&brief));
 }
 
 struct Opts {
@@ -101,27 +99,26 @@ fn main () {
 		None => { return }
 	};
 
-	let text = opts.text.as_slice();
-	let result = check_text (opts.hostname.as_slice(), opts.uri.as_slice(), text);
+	let text = &opts.text;
+	let result = check_text (&opts.hostname, &opts.uri, text);
 
 	if result.contains("TEXT ERROR") {
 		println!("UNKNOWN: Could not execute text check: {}.", result); 
-		env::set_exit_status(3);	
+		process::exit(3);	
 	}
 	else if result == "OK" {
 		println!("OK: The text \"{}\" is on the specified site.", text);
-		env::set_exit_status(0);	
+		process::exit(0);	
 	}
 	else if result == "CRITICAL" {
 		println!("CRITICAL: Could not find the text \"{}\" on the specified site.", text);
-		env::set_exit_status(2);	
+		process::exit(2);	
 	}
 	else {
 		println!("UNKNOWN: Could not execute text check. Unknown error."); 
-		env::set_exit_status(3);	
+		process::exit(3);	
 	}
 
-	return;
 }
 
 

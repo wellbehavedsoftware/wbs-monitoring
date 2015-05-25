@@ -1,27 +1,21 @@
 //Rust file
-#![feature(env)]
-#![feature(core)]
-#![feature(collections)]
-#![feature(std_misc)]
-
 extern crate getopts;
 extern crate curl;
 
 use getopts::Options;
 use std::env;
+use std::process;
 use std::option::{ Option };
 use curl::http;
-use std::f64;
-
 
 fn print_usage (program: &str, opts: Options) {
 	let brief = format!("Usage: {} [options]", program);
-	println!("{}", opts.usage(brief.as_slice()));
+	println!("{}", opts.usage(&brief));
 }
 
 fn print_help (program: &str, opts: Options) {
 	let brief = format!("Help: {} [options]", program);
-	println!("{}", opts.usage(brief.as_slice()));
+	println!("{}", opts.usage(&brief));
 }
 
 struct Opts {
@@ -72,15 +66,13 @@ fn parse_options () -> Option<Opts> {
 		Ok (m) => { m }
 		Err (_) => {
 			print_usage ("Check_authsmtp", opts);
-			env::set_exit_status(3);	
-			return None;
+			process::exit(3);	
 		}
 	};
 
 	if matches.opt_present ("help") {
 		print_help ("check_authsmtp", opts);
-		env::set_exit_status(3);	
-		return None;
+		process::exit(3);	
 	}
 
 	let data_level = matches.opt_str ("data-level").unwrap ();
@@ -106,13 +98,13 @@ fn get_authsmtp_data (username: &str, password: &str, messages_level: f64, data_
 		  	.connect_timeout(30000)
 			.ssl_verifypeer(false)
 			.follow_location(1)
-			.userpwd(userpass.as_slice())
+			.userpwd(&userpass)
 		  	.get(url)
 		  	.exec().unwrap();
 
 	let url_code = String::from_utf8_lossy(resp.get_body());
 
-	let response_lines: Vec<&str> = url_code.as_slice().split_str("\n").collect();
+	let response_lines: Vec<&str> = url_code.split("\n").collect();
 	
 	//Messages limit
 	let mut messages_limit_array: Vec<&str> = response_lines[7].split('>').collect();
@@ -175,13 +167,13 @@ fn get_authsmtp_data (username: &str, password: &str, messages_level: f64, data_
 	};
 
 	let messages_percentage = messages_sent / messages_limit;
-	let messages_percentage_format = f64::to_str_exact(messages_percentage * 100.0, 2);
+	let messages_percentage_format = format!("{0:.1$}", messages_percentage * 100.0, 2);
 
 	let data_percentage = data_sent / data_limit;
-	let data_percentage_format = f64::to_str_exact(data_percentage * 100.0, 2);
+	let data_percentage_format = format!("{0:.1$}", data_percentage * 100.0, 2);
 
-	let messages_level_format = f64::to_str_exact(messages_level * 100.0, 2);
-	let data_level_format = f64::to_str_exact(data_level * 100.0, 2);
+	let messages_level_format = format!("{0:.1$}", messages_level * 100.0, 2);
+	let data_level_format = format!("{0:.1$}", data_level * 100.0, 2);
 	
 	let mut message: String = "".to_string();
 	let mut messages_msg: String = format!("AUTHSMTP-OK: Messages quota OK. {}% out of {}%.\n", messages_percentage_format, messages_level_format);  
@@ -205,9 +197,9 @@ fn get_authsmtp_data (username: &str, password: &str, messages_level: f64, data_
 	}
 
 	
-	if !data_bool { message = message + data_msg.as_slice() + messages_msg.as_slice() + address_msg.as_slice(); }
-	else if !address_bool { message = message + address_msg.as_slice() + messages_msg.as_slice() + data_msg.as_slice() }	
-	else { message = message + messages_msg.as_slice() + data_msg.as_slice() + address_msg.as_slice(); }
+	if !data_bool { message = message + &data_msg + &messages_msg + &address_msg; }
+	else if !address_bool { message = message + &address_msg + &messages_msg + &data_msg; }	
+	else { message = message + &messages_msg + &data_msg + &address_msg; }
 
 	return message;
 
@@ -220,44 +212,41 @@ fn main () {
 		None => { return }
 	};
 
-	let data_level : f64 = match opts.data_level.as_slice().parse() {
+	let data_level : f64 = match opts.data_level.parse() {
 		Ok (f64) => { f64 }
-		Err (_) => { 		
-			env::set_exit_status(3);
+		Err (_) => { 
 			println!("UNKNOWN: data_level has an incorrect type (0.0 - 1.0)."); 	
-			return;
+			process::exit(3);
 		}
 	};
 
-	let messages_level : f64 = match opts.message_level.as_slice().parse() {
+	let messages_level : f64 = match opts.message_level.parse() {
 		Ok (f64) => { f64 }
 		Err (_) => { 		
-			env::set_exit_status(3);
 			println!("UNKNOWN: message_level has an incorrect type (0.0 - 1.0)."); 	
-			return;
+			process::exit(3);
 		}
 	};
 
-	let response = get_authsmtp_data (opts.username.as_slice(), opts.password.as_slice(), messages_level, data_level);		
+	let response = get_authsmtp_data (&opts.username, &opts.password, messages_level, data_level);		
 
 	if response.contains("AUTHSMTP ERROR") {
-		env::set_exit_status(3);
 		println!("{}", response);
+		process::exit(3);
 	}
 	else if response.contains("OK") {
-		env::set_exit_status(0);
 		println!("{}", response);
+		process::exit(0);
 	}
 	else if response.contains("CRITICAL") {
-		env::set_exit_status(2);
 		println!("{}", response);
+		process::exit(2);
 	}
 	else {
-		env::set_exit_status(3);
 		println!("UNKNOWN: Check_authsmtp failed.");
+		process::exit(3);
 	}
 
-	return;
 }
 
 
