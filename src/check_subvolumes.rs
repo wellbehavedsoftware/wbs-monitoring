@@ -2,15 +2,26 @@
 extern crate getopts;
 
 use getopts::Options;
+use std::option::{ Option };
 use std::env;
 use std::process;
+
+fn print_usage (program: &str, opts: Options) {
+	let brief = format!("Usage: {} [options]", program);
+	println!("{}", opts.usage(&brief));
+}
+
 
 fn print_help (program: &str, opts: Options) {
 	let brief = format!("Help: {} [options]", program);
 	println!("{}", opts.usage(&brief));
 }
 
-fn parse_options () {
+struct Opts {
+	rootfs: String,
+}
+
+fn parse_options () -> Option<Opts> {
 
 	let args = env::args ();
 
@@ -21,15 +32,36 @@ fn parse_options () {
 			"help",
 			"print this help menu");
 
-	let matches = opts.parse (args);
+	opts.reqopt (
+			"r",
+			"rootfs",
+			"root of the file system in which the checks will be performed",
+			"<rootfs>");
 
-	if matches.unwrap().opt_present ("help") {
+
+	let matches = match opts.parse (args) {
+		Ok (m) => { m }
+		Err (_) => {
+			print_usage ("check_subvolumes", opts);
+			return None;
+		}
+	};
+
+
+	if matches.opt_present ("help") {
 		print_help ("check_subvolumes", opts);
+		return None;
 	}
+
+	let rootfs = matches.opt_str ("rootfs").unwrap ();
+
+	return Some (Opts {
+		rootfs: rootfs,
+	});
 
 }
 
-fn check_subvolumes() -> String {
+fn check_subvolumes(rootfs: &str) -> String {
 
 	let subvolume_list_output =
 		match process::Command::new ("sudo")
@@ -49,32 +81,54 @@ fn check_subvolumes() -> String {
 	let mut ok_msgs: String = "".to_string();
 
 	for subvolume in subvolume_list_lines.iter() {
-		let subvolume_tokens: Vec<&str> = subvolume.split('/').collect();		
-	
-		if subvolume_tokens.len() > 5 {
 
-			let mut index = 5;		
-			let mut subvolume_path: String = "".to_string();
+		if !subvolume.contains("rootfs") || 
+		   !subvolume.contains(rootfs) {
+			continue;
+		}
 
-			while index < subvolume_tokens.len() {
+		let subvolume_tokens: Vec<&str> = subvolume.split('/').collect();
 
-				subvolume_path = subvolume_path + "/" + subvolume_tokens[index];
-				index = index + 1;
+		let mut index = 0;		
+
+		while index < subvolume_tokens.len() {
+
+			if subvolume_tokens[index] == "rootfs" {
+
+				if index == subvolume_tokens.len() - 1 {
+
+					ok_msgs = ok_msgs + &format!("SUBVOLUME-OK: The container {} does not have inner subvolumes.\n", rootfs);
+
+				}
+				else {
+
+					let mut subvolume_path: String = "".to_string();
+
+					while index < subvolume_tokens.len() {
+					
+						subvolume_path = subvolume_path + "/" + subvolume_tokens[index];
+						index = index + 1;
+
+					}
+
+					warning_msgs = warning_msgs + &format!("SUBVOLUME-WARNING: The container {} has an inner subvolume in {}.\n", rootfs, subvolume_path);
+				}
 
 			}
+			index = index + 1;
 
-			warning_msgs = warning_msgs + &format!("SUBVOLUME-WARNING: The container {} has an inner subvolume in {}.\n", subvolume_tokens[3], subvolume_path);
+		}
 
-		}
-		else if subvolume_tokens.len() == 5 {
-			ok_msgs = ok_msgs + "SUBVOLUME-OK: The container " + subvolume_tokens[3] + " does not have inner subvolumes.\n";
-		}
-		else if subvolume_tokens.len() == 2 {
-			ok_msgs = ok_msgs + "SUBVOLUME-OK: The container " + subvolume_tokens[1] + " does not have inner subvolumes.\n";
-		}
 	}
 
-	let message: String = warning_msgs + &ok_msgs;
+	let message: String;
+
+	if warning_msgs.is_empty() && ok_msgs.is_empty() {
+		message = format!("SUBVOLUME-OK: The container {} does not have inner subvolumes.\n", rootfs);
+	}
+	else {
+		message = warning_msgs + &ok_msgs;
+	}
 
 	return message;
 	
@@ -82,9 +136,12 @@ fn check_subvolumes() -> String {
 
 fn main () {
 
-	parse_options ();
-	
-	let result = check_subvolumes();
+	let opts = match parse_options () {
+		Some (opts) => { opts }
+		None => { process::exit(0); }
+	};
+
+	let result = check_subvolumes(&opts.rootfs);
 	
 	if result.contains("SUBVOLUME ERROR") {
 		println!("SUBVOLUME-UNKNOWN: Subvolumes check failed: {}.", result); 
@@ -95,7 +152,7 @@ fn main () {
 		process::exit(1);	
 	}
 	else if result.contains("OK") {
-		println!("SUBVOLUME-OK: Containers don't have inner subvolumes.\n{}", result); 
+		println!("SUBVOLUME-OK: {} doesn't have inner subvolumes.\n{}", opts.rootfs, result); 
 		process::exit(0);	
 	}
 	else {
