@@ -23,6 +23,7 @@ struct Opts {
 	mails: String,
 	quota: String,
 	age: String,
+	complete: String,
 }
 
 fn parse_options () -> Option<Opts> {
@@ -60,6 +61,12 @@ fn parse_options () -> Option<Opts> {
 			"maximum age (in days) that mails are allowed to stay in the queue",
 			"<age>");
 
+	opts.reqopt (
+			"c",
+			"complete",
+			"names of the containers that will perform all the checks separated by comma",
+			"<complete>");
+
 	let matches = match opts.parse (args) {
 		Ok (m) => { m }
 		Err (_) => {
@@ -77,12 +84,14 @@ fn parse_options () -> Option<Opts> {
 	let mails = matches.opt_str ("mails").unwrap ();
 	let quota = matches.opt_str ("quota").unwrap ();
 	let age = matches.opt_str ("age").unwrap ();
+	let complete = matches.opt_str ("complete").unwrap ();
 
 	return Some (Opts {
 		rootfs: rootfs,
 		mails: mails,
 		quota: quota,
 		age: age,
+		complete: complete,
 	});
 
 }
@@ -428,9 +437,19 @@ fn main () {
 		}
 	};
 
+	let complete_hosts: Vec<&str> = (&opts.complete).split(',').collect();
+
+	let mut complete_check = false;
+
+	for host in complete_hosts {	
+		if rootfs.contains(host) {
+			complete_check = true;
+		}
+	}
+
 	let mut result = "".to_string();
 
-	if rootfs.contains("mail") || rootfs.contains("dovecot") {
+	if complete_check && !(&opts.complete).is_empty() {
 
 		result = check_email_queue(rootfs, mails);
 
