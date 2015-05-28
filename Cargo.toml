@@ -74,6 +74,10 @@ name = "check_email"
 
 [[bin]]
 
+name = "check_postfix"
+
+[[bin]]
+
 name = "check_git"
 
 [dependencies.getopts]
