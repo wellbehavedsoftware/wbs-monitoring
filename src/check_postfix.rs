@@ -220,10 +220,8 @@ fn check_email_queue (rootfs: &str, max_mails: i32) -> String {
 
 }
 
+fn get_mailq_output(rootfs: &str) -> String {
 
-fn check_emails_age (rootfs: &str, max_age: i32) -> String {
-
-	let now = UTC::now();
 	let mut mailq_data: String = "".to_string();
 
 	if !rootfs.is_empty() {
@@ -261,20 +259,27 @@ fn check_emails_age (rootfs: &str, max_age: i32) -> String {
 
 	}
 
+	return mailq_data;
+}
+
+
+fn check_emails_age (mailq_data: String, max_age: i32) -> String {
+
+	let now = UTC::now();
 	let mailq_lines: Vec<&str> = mailq_data.split('\n').collect();
 	let mut index = 1;
 
 	let mut warnings: i32 = 0;
 	let mut warning_messages: String = "".to_string();
 
-	while ((index + 2) < mailq_lines.len()) {
+	while (index + 2) < mailq_lines.len() {
 
 		// obtaining the mail arrival datetime
 
 		let mailq_line_tokens: Vec<&str> = mailq_lines[index].split(' ').collect();
 
 		let mut i = 1;
-		while (mailq_line_tokens[i].is_empty()) { i = i + 1; }
+		while mailq_line_tokens[i].is_empty() { i = i + 1; }
 		i = i + 1;
 
 		let date_string = format!("{} {} {} {}", mailq_line_tokens[i], mailq_line_tokens[i+1], mailq_line_tokens[i+2], mailq_line_tokens[i+3]);
@@ -324,6 +329,71 @@ fn check_emails_age (rootfs: &str, max_age: i32) -> String {
 }
 
 
+fn check_emails_per_hour (mailq_data: String, max_quota: i32) -> String {
+
+
+	let now = UTC::now();
+	let mailq_lines: Vec<&str> = mailq_data.split('\n').collect();
+	let mut index = 1;
+
+	let mut warnings: i32 = 0;
+	let mut warning_messages: String = "".to_string();
+
+	while (index + 2) < mailq_lines.len() {
+
+		// obtaining the mail arrival datetime
+
+		let mailq_line_tokens: Vec<&str> = mailq_lines[index].split(' ').collect();
+
+		let mut i = 1;
+		while mailq_line_tokens[i].is_empty() { i = i + 1; }
+		i = i + 1;
+
+		let date_string = format!("{} {} {} {}", mailq_line_tokens[i], mailq_line_tokens[i+1], mailq_line_tokens[i+2], mailq_line_tokens[i+3]);
+
+		// add year to datetime in order to perform arithmetic operations
+
+		let mut complete_date = format!("{} {}", date_string, now.year());
+
+		let date_object = UTC.datetime_from_str(&complete_date, "%a %b %e %T %Y");
+
+		let date = match date_object {
+
+			Ok (date) => { date }
+			Err (_) => {
+
+				// fix the problem if the resultin datetime is from the future
+
+				complete_date = format!("{} {}", date_string, now.year() - 1);
+				UTC.datetime_from_str(&complete_date, "%a %b %e %T %Y").unwrap()	
+			}
+		};
+
+		let date_dif = now - date;
+
+		let diffseconds = date_dif.num_seconds() as f64;
+		let diffhours = (diffseconds / 3600.0) as f64;
+
+		if diffhours < 1.0 {
+
+			warnings = warnings + 1;
+
+		}
+
+		index = index + 4;
+	}
+
+	if warnings > max_quota {
+
+		return format!("POSTFIX-WARNING: {} emails arrived in the last hour. {} allowed.", warnings, max_quota);
+
+	}
+	else {
+		return format!("POSTFIX-OK: {} emails arrived in the last hour. {} allowed.", warnings, max_quota);
+	}
+
+}
+
 fn main () {
 
 	let opts = match parse_options () {
@@ -364,13 +434,27 @@ fn main () {
 
 		result = check_email_queue(rootfs, mails);
 
-		let mailq_result = check_emails_age (rootfs, age);
+		let mailq_output = get_mailq_output (rootfs);
+		let mailq_age_result = check_emails_age (mailq_output.clone(), age);
+		let mailq_quota_result = check_emails_per_hour (mailq_output.clone(), quota);
 		
-		if result.contains("OK") && !mailq_result.contains("OK") {
-			result = format!("{}\n{}", mailq_result, result);
+		if result.contains("OK") && !mailq_age_result.contains("OK") && mailq_quota_result.contains("OK") {
+			result = format!("{}\n{}\n{}", mailq_age_result, result, mailq_quota_result);
+		}
+		else if result.contains("OK") && mailq_age_result.contains("OK") && !mailq_quota_result.contains("OK") {
+			result = format!("{}\n{}\n{}", mailq_quota_result, result, mailq_age_result);
+		}
+		else if result.contains("OK") && !mailq_age_result.contains("OK") && !mailq_quota_result.contains("OK") {
+			result = format!("{}\n{}\n{}", mailq_age_result, mailq_quota_result, result);
+		}
+		else if !result.contains("OK") && mailq_age_result.contains("OK") && !mailq_quota_result.contains("OK") {
+			result = format!("{}\n{}\n{}", result, mailq_quota_result, mailq_age_result);
+		}
+		else if !result.contains("OK") && !mailq_age_result.contains("OK") && mailq_quota_result.contains("OK") {
+			result = format!("{}\n{}\n{}", result, mailq_age_result, mailq_quota_result);
 		}
 		else {
-			result = format!("{}\n{}", result, mailq_result);
+			result = format!("{}\n{}\n{}", result, mailq_age_result, mailq_quota_result);
 		}
 	}
 	else {
