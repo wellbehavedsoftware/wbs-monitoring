@@ -111,7 +111,7 @@ fn check_mem(rootfs: &str) -> String {
 	let mem_limit_quota = format!("{0:.1$}", mem_limit, num_decimals);
 	let mem_used_percentage_quota = format!("{0:.1$}", mem_used_percentage * 100.0, 0);
 
-	println!("MEM-Q OK: {} GiB {}%, limit {} GiB.", mem_used_quota, mem_used_percentage_quota, mem_limit_quota);
+	println!("MEM-Q OK: {} GiB {}%, limit {} GiB. | memory={}%;;;;", mem_used_quota, mem_used_percentage_quota, mem_limit_quota, mem_used_percentage_quota);
 	return "OK".to_string();
 	
 }

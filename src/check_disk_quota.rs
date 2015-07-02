@@ -201,15 +201,15 @@ fn check_disk(rootfs: &str, warning_level: f64, critical_level: f64) -> String {
 		return "OK".to_string();
 	}
 	else if disk_used_percentage < warning_level {
-		println!("DISK-Q OK: {} GiB {}%, limit {} GiB, warning {}%.", disk_used_quota, disk_used_percentage_quota, disk_limit_quota, warning_quota_level);
+		println!("DISK-Q OK: {} GiB {}%, limit {} GiB, warning {}%. | disk={}%;50.0;75.0;;", disk_used_quota, disk_used_percentage_quota, disk_limit_quota, warning_quota_level, disk_used_percentage_quota);
 		return "OK".to_string();
 	}
 	else if disk_used_percentage >= warning_level && disk_used_percentage < critical_level {
-		println!("DISK-Q WARNING: {} GiB {}%, limit {} GiB, critical {}%.", disk_used_quota, disk_used_percentage_quota, disk_limit_quota, critical_quota_level);
+		println!("DISK-Q WARNING: {} GiB {}%, limit {} GiB, critical {}%. | disk={}%;50.0;75.0;;", disk_used_quota, disk_used_percentage_quota, disk_limit_quota, critical_quota_level, disk_used_percentage_quota);
 		return "WARNING".to_string();
 	}
 	else {
-		println!("DISK-Q CRITICAL: {} GiB {}%, limit {} GiB, critical {}%.", disk_used_quota, disk_used_percentage_quota, disk_limit_quota, critical_quota_level);
+		println!("DISK-Q CRITICAL: {} GiB {}%, limit {} GiB, critical {}%. | disk={}%;50.0;75.0;;", disk_used_quota, disk_used_percentage_quota, disk_limit_quota, critical_quota_level, disk_used_percentage_quota);
 		return "CRITICAL".to_string();
 	}
 }

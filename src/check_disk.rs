@@ -185,15 +185,15 @@ fn main () {
 	let critical_quota_level = format!("{0:.1$}", critical_level * 100.0, 0);
 
 	if disk_used_percentage < warning_level {
-		println!("DISK OK: {} GiB {}%, limit {} GiB, warning {}%.", disk_quota_used, disk_quota_percentage, disk_quota_limit, warning_quota_level);
+		println!("DISK OK: {} GiB {}%, limit {} GiB, warning {}%. | disk={}%;50.0;75.0;;", disk_quota_used, disk_quota_percentage, disk_quota_limit, warning_quota_level, disk_quota_percentage);
 		process::exit(0);
 	}
 	else if disk_used_percentage >= warning_level && disk_used_percentage < critical_level {
-		println!("DISK WARNING: {} GiB {}%, limit {} GiB, critical {}%.", disk_quota_used, disk_quota_percentage, disk_quota_limit, critical_quota_level);
+		println!("DISK WARNING: {} GiB {}%, limit {} GiB, critical {}%. | disk={}%;50.0;75.0;;", disk_quota_used, disk_quota_percentage, disk_quota_limit, critical_quota_level, disk_quota_percentage);
 		process::exit(1);
 	}
 	else {
-		println!("DISK CRITICAL: {} GiB {}%, limit {} GiB, critical {}%.", disk_quota_used, disk_quota_percentage, disk_quota_limit, critical_quota_level);
+		println!("DISK CRITICAL: {} GiB {}%, limit {} GiB, critical {}%. | disk={}%;50.0;75.0;;", disk_quota_used, disk_quota_percentage, disk_quota_limit, critical_quota_level, disk_quota_percentage);
 		process::exit(2);
 	}
 

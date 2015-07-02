@@ -110,7 +110,7 @@ fn main () {
 	let mem_quota_limit = format!("{0:.1$}", memory_limit, num_decimals);
 	let mem_quota_percentage = format!("{0:.1$}", memory_used_percentage * 100.0, 0);
 
-	println!("MEM OK: {} GiB {}%, limit {} GiB.", mem_quota_used, mem_quota_percentage, mem_quota_limit);
+	println!("MEM OK: {} GiB {}%, limit {} GiB. | memory={}%;;;;", mem_quota_used, mem_quota_percentage, mem_quota_limit, mem_quota_percentage);
 	
 	process::exit(0);
 }

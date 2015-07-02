@@ -105,15 +105,15 @@ fn check_cpu(warning_level: f64, critical_level: f64) -> String {
 	let critical_level_quota = format!("{0:.1$}", critical_level * 100.0, 1);
 
 	if cpu_quota < warning_level {
-		println!("CPU OK: used {}%, warning {}%.", cpu_quota_used, warning_level_quota);
+		println!("CPU OK: used {}%, warning {}%. | cpu={}%;20.0;50.0;;", cpu_quota_used, warning_level_quota, cpu_quota_used);
 		return "OK".to_string();
 	}
 	else if cpu_quota >= warning_level && cpu_quota < critical_level {
-		println!("CPU WARNING: used {}%, critical {}%.", cpu_quota_used, critical_level_quota);
+		println!("CPU WARNING: used {}%, critical {}%. | cpu={}%;20.0;50.0;;", cpu_quota_used, critical_level_quota, cpu_quota_used);
 		return "WARNING".to_string();
 	}
 	else {
-		println!("CPU CRITICAL: used {}%, critical {}%.", cpu_quota_used, critical_level_quota);
+		println!("CPU CRITICAL: used {}%, critical {}%. | cpu={}%;20.0;50.0;;", cpu_quota_used, critical_level_quota, cpu_quota_used);
 		return "CRITICAL".to_string();
 	}
 	
