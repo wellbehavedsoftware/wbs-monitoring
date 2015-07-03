@@ -146,10 +146,10 @@ fn check_email (rootfs: &str, deferred: bool, container: bool) -> String {
 	}
 }
 
-fn check_email_output (mail_output: String, deferred: bool) -> String {
+fn check_email_output (mail_output: String, deferred: bool) -> (String, String) {
 
 	if mail_output.contains("failed to get the init pid") || mail_output.is_empty() {
-		return format!("MAIL-UNKNOWN: Unable to perform the check: {}", mail_output);
+		return (format!("MAIL-UNKNOWN: Unable to perform the check: {}", mail_output), "".to_string());
 	}
 
 	let lines: Vec<&str> = mail_output.split('\n').collect();
@@ -161,13 +161,13 @@ fn check_email_output (mail_output: String, deferred: bool) -> String {
 	}
 
 	if !deferred && lines.len() > 3 {
-		return format!("MAIL-WARNING: {} at emails queue.\n{}", total_mails, mail_output);
+		return (format!("MAIL-WARNING: {} at emails queue.\n{}", total_mails, mail_output), total_mails.to_string());
 	}
 	else if deferred && lines.len() > 3 {
-		return format!("MAIL-WARNING: {} emails at the deferred emails queue.\n{}", total_mails, mail_output);
+		return (format!("MAIL-WARNING: {} emails at the deferred emails queue.\n{}", total_mails, mail_output), total_mails.to_string());
 	}
 	else {
-		return "MAIL-OK: The emails queue is empty.\n".to_string();
+		return ("MAIL-OK: The emails queue is empty.\n".to_string(), total_mails.to_string());
 	}
 	
 }
@@ -187,19 +187,23 @@ fn main () {
 	let container = opts.container;
 
 	let mut command_output = check_email (rootfs, false, container);
-	let mut result = check_email_output (command_output, false);
-	let mut deferred_result: String = "".to_string();
+	let (mut result, mails) = check_email_output (command_output, false);
+
+	let mut deferred_values: (String, String) = ("".to_string(), "".to_string());
 
 	if deferred {
 		command_output = check_email (rootfs, true, container);
-		deferred_result = check_email_output (command_output, true);
+		let (deferred_result, deferred_mails) = check_email_output (command_output, true);
+		deferred_values = (deferred_result, deferred_mails);
 	}
+
+	let (deferred_result, deferred_mails) = deferred_values;
 
 	if result.contains("UNKNOWN") {
 
 		result = result + "\n -- Deferred queue -- \n\n" + &deferred_result; 
 
-		println!("{}", result);
+		println!("{} | mails={};;;; deferred_mails={};;;;", result, mails, deferred_mails);
 		process::exit(3);
 
 	}
@@ -207,7 +211,7 @@ fn main () {
 
 		result = deferred_result + "\n -- Queue -- \n\n" + &result; 
 
-		println!("{}", result);
+		println!("{} | mails={};;;; deferred_mails={};;;;", result, mails, deferred_mails);
 		process::exit(3);
 
 	}
@@ -215,7 +219,7 @@ fn main () {
 
 		result = result + "\n -- Deferred queue -- \n\n" + &deferred_result; 
 
-		println!("{}", result);
+		println!("{} | mails={};;;; deferred_mails={};;;;", result, mails, deferred_mails);
 		process::exit(1);
 
 	}
@@ -223,11 +227,11 @@ fn main () {
 
 		result = deferred_result + "\n -- Queue -- \n\n" + &result; 
 
-		println!("{}", result);
+		println!("{} | mails={};;;; deferred_mails={};;;;", result, mails, deferred_mails);
 		process::exit(1);
 
 	} else {
-		println!("{}", result);
+		println!("{} | mails={};;;; deferred_mails={};;;;", result, mails, deferred_mails);
 		process::exit(0);
 	}
 	

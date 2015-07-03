@@ -89,7 +89,7 @@ fn parse_options () -> Option<Opts> {
 
 }
 
-fn get_authsmtp_data (username: &str, password: &str, messages_level: f64, data_level: f64) -> String {
+fn get_authsmtp_data (username: &str, password: &str, messages_level: f64, data_level: f64) -> (String, String, String) {
 
 	let url = "https://secure.authsmtp.com/restful/basic_user/".to_string() + username;
 	let userpass = username.to_string() + ":" + password;
@@ -113,7 +113,7 @@ fn get_authsmtp_data (username: &str, password: &str, messages_level: f64, data_
 
 	let messages_limit : f64 = match messages_limit_str.parse() {
 		Ok (f64) => { f64 }
-		Err (_) => { return "AUTHSMTP ERROR".to_string(); }
+		Err (_) => { return ("AUTHSMTP ERROR".to_string(), "".to_string(), "".to_string()); }
 	};
 
 	//Messages sent
@@ -123,7 +123,7 @@ fn get_authsmtp_data (username: &str, password: &str, messages_level: f64, data_
 
 	let messages_sent : f64 = match messages_sent_str.parse() {
 		Ok (f64) => { f64 }
-		Err (_) => { return "AUTHSMTP ERROR".to_string(); }
+		Err (_) => { return ("AUTHSMTP ERROR".to_string(), "".to_string(), "".to_string()); }
 	};
 
 	//Data limit
@@ -133,7 +133,7 @@ fn get_authsmtp_data (username: &str, password: &str, messages_level: f64, data_
 
 	let data_limit : f64 = match data_limit_str.parse() {
 		Ok (f64) => { f64 }
-		Err (_) => { return "AUTHSMTP ERROR".to_string(); }
+		Err (_) => { return ("AUTHSMTP ERROR".to_string(), "".to_string(), "".to_string()); }
 	};
 
 	//Data sent
@@ -143,7 +143,7 @@ fn get_authsmtp_data (username: &str, password: &str, messages_level: f64, data_
 
 	let data_sent : f64 = match data_sent_str.parse() {
 		Ok (f64) => { f64 }
-		Err (_) => { return "AUTHSMTP ERROR".to_string(); }
+		Err (_) => { return ("AUTHSMTP ERROR".to_string(), "".to_string(), "".to_string()); }
 	};
 
 	//From address
@@ -153,7 +153,7 @@ fn get_authsmtp_data (username: &str, password: &str, messages_level: f64, data_
 
 	let from_address : f64 = match from_address_str.parse() {
 		Ok (f64) => { f64 }
-		Err (_) => { return "AUTHSMTP ERROR".to_string(); }
+		Err (_) => { return ("AUTHSMTP ERROR".to_string(), "".to_string(), "".to_string()); }
 	};
 
 	//From address used
@@ -163,7 +163,7 @@ fn get_authsmtp_data (username: &str, password: &str, messages_level: f64, data_
 
 	let from_address_used : f64 = match from_address_used_str.parse() {
 		Ok (f64) => { f64 }
-		Err (_) => { return "AUTHSMTP ERROR".to_string(); }
+		Err (_) => { return ("AUTHSMTP ERROR".to_string(), "".to_string(), "".to_string()); }
 	};
 
 	let messages_percentage = messages_sent / messages_limit;
@@ -201,7 +201,7 @@ fn get_authsmtp_data (username: &str, password: &str, messages_level: f64, data_
 	else if !address_bool { message = message + &address_msg + &messages_msg + &data_msg; }	
 	else { message = message + &messages_msg + &data_msg + &address_msg; }
 
-	return message;
+	return (message, messages_percentage_format, data_percentage_format);
 
 }
 
@@ -228,22 +228,22 @@ fn main () {
 		}
 	};
 
-	let response = get_authsmtp_data (&opts.username, &opts.password, messages_level, data_level);		
+	let (response, data, messages) = get_authsmtp_data (&opts.username, &opts.password, messages_level, data_level);		
 
 	if response.contains("AUTHSMTP ERROR") {
-		println!("{}", response);
+		println!("{} | data_quota%={};;;; messages_quota%={};;;;", response, data, messages);
 		process::exit(3);
 	}
 	else if response.contains("OK") {
-		println!("{}", response);
+		println!("{} | data_quota%={};;;; messages_quota%={};;;;", response, data, messages);
 		process::exit(0);
 	}
 	else if response.contains("CRITICAL") {
-		println!("{}", response);
+		println!("{} | data_quota%={};;;; messages_quota%={};;;;", response, data, messages);
 		process::exit(2);
 	}
 	else {
-		println!("UNKNOWN: Check_authsmtp failed.");
+		println!("UNKNOWN: Check_authsmtp failed. | data_quota%={};;;; messages_quota%={};;;;", data, messages);
 		process::exit(3);
 	}
 

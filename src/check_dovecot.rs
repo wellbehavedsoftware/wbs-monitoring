@@ -97,7 +97,7 @@ fn parse_options () -> Option<Opts> {
 
 }
 
-fn check_email_list (rootfs: &str, mail: &str, option: &str, warning_th: f64, critical_th: f64) -> String {
+fn check_email_list (rootfs: &str, mail: &str, option: &str, warning_th: f64, critical_th: f64) -> (String, i32) {
 
 	let mut doveadm_output: String;
 	
@@ -119,7 +119,7 @@ fn check_email_list (rootfs: &str, mail: &str, option: &str, warning_th: f64, cr
 			.arg (option)
 			.output () {
 		Ok (output) => { output }
-		Err (err) => { return format!("Check email: {}.", err); }
+		Err (err) => { return (format!("Check email: {}.", err), 0); }
 		};
 	
 		doveadm_output = String::from_utf8_lossy(&output.stdout).to_string();
@@ -139,7 +139,7 @@ fn check_email_list (rootfs: &str, mail: &str, option: &str, warning_th: f64, cr
 			.arg (option)
 			.output () {
 		Ok (output) => { output }
-		Err (err) => { return format!("Check email: {}.", err); }
+		Err (err) => { return (format!("Check email: {}.", err), 0); }
 		};
 	
 		doveadm_output = String::from_utf8_lossy(&output.stdout).to_string();
@@ -150,6 +150,7 @@ fn check_email_list (rootfs: &str, mail: &str, option: &str, warning_th: f64, cr
 	let mut critical = false;
 	let mut warning_msg = "".to_string();
 	let mut critical_msg = "".to_string();
+	let mut num_messages = 0;
 
 	// now datetime
 	let now = UTC::now();
@@ -162,6 +163,8 @@ fn check_email_list (rootfs: &str, mail: &str, option: &str, warning_th: f64, cr
 
 		if line_tokens.len() <= 1 { continue; }
 
+		num_messages = num_messages + 1;
+
 		let complete_date = format!("{} {}", line_tokens[1], line_tokens[2]);
 
 		let date_object = UTC.datetime_from_str(&complete_date, "%Y-%m-%d %H:%M:%S");
@@ -171,7 +174,7 @@ fn check_email_list (rootfs: &str, mail: &str, option: &str, warning_th: f64, cr
 			Ok (date) => { date }
 			Err (e) => {
 
-				return format!("DOVECOT-ERROR: {}.\n", e);	
+				return (format!("DOVECOT-ERROR: {}.\n", e), 0);	
 			}
 		};
 
@@ -199,11 +202,11 @@ fn check_email_list (rootfs: &str, mail: &str, option: &str, warning_th: f64, cr
 
 	if warning || critical {
 
-		return format!("{}{}", critical_msg, warning_msg);
+		return (format!("{}{}", critical_msg, warning_msg), num_messages);
 
 	}
 	else {
-		return format!("DOVECOT-OK: {} shared mailbox is OK.\n", mail);
+		return (format!("DOVECOT-OK: {} shared mailbox is OK.\n", mail), num_messages);
 	}
 
 
@@ -241,14 +244,17 @@ fn main () {
 
 	let mail_list: Vec<&str> = mails.split(",").collect();
 
-	let mut result: String;
+	let mut final_result: String;
 	let mut critical_result = "".to_string();
 	let mut warning_result = "".to_string();
 	let mut ok_result = "".to_string();
+	let mut total_messages: i32 = 0;
 
 	for mail in mail_list {
 
-		result = check_email_list (rootfs, mail, option, warning, critical);
+		let (result, messages) = check_email_list (rootfs, mail, option, warning, critical);
+	
+		total_messages = total_messages + messages;
 
 		if result.contains("CRITICAL") {
 
@@ -272,15 +278,15 @@ fn main () {
 
 	}
 
-	result = format!("{}{}{}", critical_result, warning_result, ok_result);
-	println!("{}", result);
+	final_result = format!("{}{}{}", critical_result, warning_result, ok_result);
+	println!("{} | num_messages={};;;;", final_result, total_messages);
 
-	if result.contains("CRITICAL") {
+	if final_result.contains("CRITICAL") {
 
 		process::exit(2);
 
 	}
-	else if result.contains("WARNING") {
+	else if final_result.contains("WARNING") {
 
 		process::exit(1);
 

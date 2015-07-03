@@ -96,7 +96,7 @@ fn parse_options () -> Option<Opts> {
 
 }
 
-fn check_email_queue (rootfs: &str, max_mails: i32) -> String {
+fn check_email_queue (rootfs: &str, max_mails: i32) -> (String, i32, i32) {
 
 	let mut queue_output: String = "".to_string();
 	let mut deferred_output: String = "".to_string();
@@ -114,7 +114,7 @@ fn check_email_queue (rootfs: &str, max_mails: i32) -> String {
 			.arg ("qshape".to_string ())		
 			.output () {
 		Ok (output) => { output }
-		Err (err) => { return format!("Check email: {}.", err); }
+		Err (err) => { return (format!("Check postfix: {}.", err), 0, 0); }
 		};
 	
 		queue_output = String::from_utf8_lossy(&email_output.stdout).to_string();
@@ -131,7 +131,7 @@ fn check_email_queue (rootfs: &str, max_mails: i32) -> String {
 			.arg ("deferred".to_string ())	
 			.output () {
 		Ok (output) => { output }
-		Err (err) => { return format!("Check email: {}.", err); }
+		Err (err) => { return (format!("Check postfix: {}.", err), 0, 0); }
 		};
 
 		deferred_output =  String::from_utf8_lossy(&email_output.stdout).to_string();
@@ -145,7 +145,7 @@ fn check_email_queue (rootfs: &str, max_mails: i32) -> String {
 			.arg ("qshape".to_string ())		
 			.output () {
 		Ok (output) => { output }
-		Err (err) => { return format!("Check email: {}.", err); }
+		Err (err) => { return (format!("Check postfix: {}.", err), 0, 0); }
 		};
 	
 		queue_output = String::from_utf8_lossy(&email_output.stdout).to_string();
@@ -158,7 +158,7 @@ fn check_email_queue (rootfs: &str, max_mails: i32) -> String {
 			.arg ("deferred".to_string ())	
 			.output () {
 		Ok (output) => { output }
-		Err (err) => { return format!("Check email: {}.", err); }
+		Err (err) => { return (format!("Check postfix: {}.", err), 0, 0); }
 		};
 
 		deferred_output =  String::from_utf8_lossy(&email_output.stdout).to_string();
@@ -169,7 +169,7 @@ fn check_email_queue (rootfs: &str, max_mails: i32) -> String {
 	if queue_output.contains("failed to get the init pid") || queue_output.is_empty() || 
 	   deferred_output.contains("failed to get the init pid") || deferred_output.is_empty()	
 	{
-		return format!("MAIL-UNKNOWN: Unable to perform the check: {}\n{}", queue_output, deferred_output);
+		return (format!("MAIL-UNKNOWN: Unable to perform the check: {}\n{}", queue_output, deferred_output), 0, 0);
 	}
 
 	// check if the number of mails surpasses the maximum	
@@ -189,7 +189,7 @@ fn check_email_queue (rootfs: &str, max_mails: i32) -> String {
 			queue_mails = match token.parse() {
 				Ok (i32) => { i32 }
 				Err (_) => {
-					return "UNKNOWN: Error while parsing mails number.".to_string(); 
+					return ("UNKNOWN: Error while parsing mails number.".to_string(), 0, 0); 
 				}
 			};
  
@@ -206,7 +206,7 @@ fn check_email_queue (rootfs: &str, max_mails: i32) -> String {
 			deferred_mails = match token.parse() {
 				Ok (i32) => { i32 }
 				Err (_) => {
-					return "UNKNOWN: Error while parsing deferred mails number.".to_string(); 
+					return ("UNKNOWN: Error while parsing deferred mails number.".to_string(), 0, 0); 
 				}
 			};
  
@@ -218,12 +218,12 @@ fn check_email_queue (rootfs: &str, max_mails: i32) -> String {
 
 	if total_mails <= max_mails {
 
-		return format!("POSTFIX-OK: Emails queue has {} mails. Deferred emails queue has {} mails. Max. allowed: {}.", queue_mails, deferred_mails, max_mails);
+		return (format!("POSTFIX-OK: Emails queue has {} mails. Deferred emails queue has {} mails. Max. allowed: {}.", queue_mails, deferred_mails, max_mails), queue_mails, deferred_mails);
 
 	}
 	else {
 
-		return format!("POSTFIX-WARNING: Emails queue has {} mails. Deferred emails queue has {} mails. Max allowed: {}.\n\nMails queue:\n\n{}\n\nDeferred mails queue:\n\n{}", queue_mails, deferred_mails, max_mails, queue_output, deferred_output);
+		return (format!("POSTFIX-WARNING: Emails queue has {} mails. Deferred emails queue has {} mails. Max allowed: {}.\n\nMails queue:\n\n{}\n\nDeferred mails queue:\n\n{}", queue_mails, deferred_mails, max_mails, queue_output, deferred_output), queue_mails, deferred_mails);
 
 	}
 
@@ -447,47 +447,49 @@ fn main () {
 		}
 	}
 
-	let mut result = "".to_string();
+	let mut final_result: String = "".to_string();
 
 	if complete_check && !(&opts.complete).is_empty() {
 
-		result = check_email_queue(rootfs, mails);
+		let (result, mails, deferred_mails) = check_email_queue(rootfs, mails);
 
 		let mailq_output = get_mailq_output (rootfs);
 		let mailq_age_result = check_emails_age (mailq_output.clone(), age);
 		let mailq_quota_result = check_emails_per_hour (mailq_output.clone(), quota);
 		
 		if result.contains("OK") && !mailq_age_result.contains("OK") && mailq_quota_result.contains("OK") {
-			result = format!("{}\n{}\n{}", mailq_age_result, result, mailq_quota_result);
+			final_result = format!("{}\n{}\n{} | mails={};;;; deferred_mails={};;;;", mailq_age_result, result, mailq_quota_result, mails, deferred_mails);
 		}
 		else if result.contains("OK") && mailq_age_result.contains("OK") && !mailq_quota_result.contains("OK") {
-			result = format!("{}\n{}\n{}", mailq_quota_result, result, mailq_age_result);
+			final_result = format!("{}\n{}\n{} | mails={};;;; deferred_mails={};;;;", mailq_quota_result, result, mailq_age_result, mails, deferred_mails);
 		}
 		else if result.contains("OK") && !mailq_age_result.contains("OK") && !mailq_quota_result.contains("OK") {
-			result = format!("{}\n{}\n{}", mailq_age_result, mailq_quota_result, result);
+			final_result = format!("{}\n{}\n{} | mails={};;;; deferred_mails={};;;;", mailq_age_result, mailq_quota_result, result, mails, deferred_mails);
 		}
 		else if !result.contains("OK") && mailq_age_result.contains("OK") && !mailq_quota_result.contains("OK") {
-			result = format!("{}\n{}\n{}", result, mailq_quota_result, mailq_age_result);
+			final_result = format!("{}\n{}\n{} | mails={};;;; deferred_mails={};;;;", result, mailq_quota_result, mailq_age_result, mails, deferred_mails);
 		}
 		else if !result.contains("OK") && !mailq_age_result.contains("OK") && mailq_quota_result.contains("OK") {
-			result = format!("{}\n{}\n{}", result, mailq_age_result, mailq_quota_result);
+			final_result = format!("{}\n{}\n{} | mails={};;;; deferred_mails={};;;;", result, mailq_age_result, mailq_quota_result, mails, deferred_mails);
 		}
 		else {
-			result = format!("{}\n{}\n{}", result, mailq_age_result, mailq_quota_result);
+			final_result = format!("{}\n{}\n{} | mails={};;;; deferred_mails={};;;;", result, mailq_age_result, mailq_quota_result, mails, deferred_mails);
 		}
 	}
 	else {
-		result = check_email_queue(rootfs, 0);
+		let (result, mails, deferred_mails) = check_email_queue(rootfs, 0);
+
+		final_result = format!("{} | mails={};;;; deferred_mails={};;;;", result, mails, deferred_mails);
 	}
 
-	println!("{}", result);
+	println!("{}", final_result);
 
-	if result.contains("UNKNOWN") {
+	if final_result.contains("UNKNOWN") {
 
 		process::exit(3);
 
 	}
-	else if result.contains("WARNING") {
+	else if final_result.contains("WARNING") {
 
 		process::exit(1);
 
