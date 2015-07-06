@@ -160,7 +160,7 @@ fn main () {
 	let opts = match parse_options () {
 		Some (opts) => { opts }
 		None => { 
-			println!("UNKNOWN: Wrong arguments.");
+			println!("BTRFS-UNKNOWN: Wrong arguments.");
 			process::exit(3);
 		}
 	};
@@ -170,14 +170,14 @@ fn main () {
 	let warning : f64 = match opts.warning.parse() {
 		Ok (f64) => { f64 }
 		Err (_) => {
-			println!("UNKNOWN: The hours warning threshold must be a double!"); 
+			println!("BTRFS-UNKNOWN: The warning threshold must be a double between 0.0 and 1.0!"); 
 			process::exit(3);
 		}
 	};
 	let critical : f64 = match opts.critical.parse() {
 		Ok (f64) => { f64 }
 		Err (_) => {
-			println!("UNKNOWN: The hours critical threshold must be a double!"); 
+			println!("BTRFS-UNKNOWN: The critical threshold must be a double between 0.0 and 1.0!"); 
 			process::exit(3);
 		}
 	};
