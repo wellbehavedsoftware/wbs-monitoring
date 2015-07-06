@@ -109,7 +109,7 @@ fn get_response (host: &str, uri: &str, secure: bool) -> String {
 				.arg ("--ssl".to_string())
 				.output () {
 			Ok (output) => { output }
-			Err (err) => { panic! ("Error calling check_http: {}", err) }
+			Err (err) => { return format!("SITE-UNKNOWN: Error while checking the site: {}", err); }
 		};
 
 		response = String::from_utf8_lossy(&list_output.stdout).to_string()
@@ -125,7 +125,7 @@ fn get_response (host: &str, uri: &str, secure: bool) -> String {
 				.arg (uri.to_string ())
 				.output () {
 			Ok (output) => { output }
-			Err (err) => { panic! ("Error calling check_http: {}", err) }
+			Err (err) => {return format!("SITE-UNKNOWN: Error while checking the site: {}", err); }
 		};
 
 		response = String::from_utf8_lossy(&list_output.stdout).to_string()
