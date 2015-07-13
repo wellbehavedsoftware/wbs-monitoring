@@ -30,13 +30,13 @@ fn parse_options () -> String {
 		Ok (m) => { m }
 		Err (_) => {
 			print_usage ("check_hd_data", opts);
-			return "USAGE".to_string();
+			process::exit(3);
 		}
 	};
 
 	if matches.opt_present ("help") {
 		print_help ("check_hd_data", opts);
-		return "HELP".to_string();
+		process::exit(3);
 	}
 
 	return "OK".to_string();

@@ -41,7 +41,7 @@ fn parse_options () -> Option<Opts> {
 		Ok (m) => { m }
 		Err (_) => {
 			print_usage ("check_apt_cache", opts);
-			return None;
+			process::exit(3);
 		}
 	};
 

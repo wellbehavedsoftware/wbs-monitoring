@@ -57,13 +57,13 @@ fn parse_options () -> Option<Opts> {
 		Ok (m) => { m }
 		Err (_) => {
 			print_usage ("check_btrfs", opts);
-			return None;
+			process::exit(3);
 		}
 	};
 
 	if matches.opt_present ("help") {
 		print_help ("check_btrfs", opts);
-		return None;
+		process::exit(3);
 	}
 
 	let route = matches.opt_str ("route").unwrap ();

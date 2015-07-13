@@ -30,7 +30,7 @@ fn parse_options () {
 		Ok (m) => { m }
 		Err (_) => {
 			print_usage ("check_memory", opts);
-			panic!("");
+			process::exit(3);
 		}
 	};
 

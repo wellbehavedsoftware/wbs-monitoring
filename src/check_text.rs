@@ -57,13 +57,13 @@ fn parse_options () -> Option<Opts> {
 		Ok (m) => { m }
 		Err (_) => {
 			print_usage ("check_text", opts);
-			return None;
+			process::exit(3);
 		}
 	};
 
 	if matches.opt_present ("help") {
 		print_help ("check_text", opts);
-		return None;
+		process::exit(3);
 	}
 
 	let hostname = matches.opt_str ("host-name").unwrap ();
