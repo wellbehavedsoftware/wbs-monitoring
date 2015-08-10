@@ -124,7 +124,7 @@ fn check_site (host: &str, uri: &str, text: &str, secure: bool, headers: &Vec<St
 
 	let resp = http_request.exec().unwrap();
 
-	// Code check
+	// Code check and text
 	let informational = 	vec![100isize, 101, 102];
 	let success = 		vec![200isize, 201, 202, 203, 204, 205, 206, 208, 226];
 	let redirection = 	vec![300isize, 301, 302, 303, 304, 305, 306, 308];
@@ -136,6 +136,7 @@ fn check_site (host: &str, uri: &str, text: &str, secure: bool, headers: &Vec<St
 				511, 520, 521, 522, 523, 524, 598, 599];
 
 	let code_string = resp.get_code();
+	let url_code = String::from_utf8_lossy(resp.get_body());
 
 	let response_code : isize = match code_string.to_string().parse() {
 		Ok (isize) => { isize }
@@ -144,72 +145,41 @@ fn check_site (host: &str, uri: &str, text: &str, secure: bool, headers: &Vec<St
 		}
 	};
 
-	let mut code_result: String;
 
 	if informational.contains(&response_code) {
-		code_result = format!("RESPONSE-UNKNOWN: {}.", code_string);
+		if url_code.contains(text) {
+			return format!("SITE-UNKNOWN: {}. Text \"{}\" found.", code_string, text);
+		}
+		else {
+			return format!("SITE-UNKNOWN: {}. Text \"{}\" not found.", code_string, text);
+		}
 	}
 	else if success.contains(&response_code) {
-		code_result = format!("RESPONSE-OK: {}.", code_string);
+		if url_code.contains(text) {
+			return format!("SITE-OK: {}. Text \"{}\" found.", code_string, text);
+		}
+		else {
+			return format!("SITE-WARNING: {}. Text \"{}\" not found.", code_string, text);
+		}
 	}
 	else if redirection.contains(&response_code) {
-		code_result = format!("RESPONSE-WARNING: {}.", code_string);
+		if url_code.contains(text) {
+			return format!("SITE-WARNING: {}. Text \"{}\" found.", code_string, text);
+		}
+		else {
+			return format!("SITE-WARNING: {}. Text \"{}\" not found.", code_string, text);
+		}
 	}
 	else if client_error.contains(&response_code) || server_error.contains(&response_code) {
-		code_result = format!("RESPONSE-CRITICAL: {}.", code_string);
+		if url_code.contains(text) {
+			return format!("SITE-CRITICAL: {}. Text \"{}\" found.", code_string, text);
+		}
+		else {
+			return format!("SITE-CRITICAL: {}. Text \"{}\" not found.", code_string, text);
+		}
 	}
 	else {
-		code_result = "RESPONSE-UNKNOWN: Check_response failed.".to_string();
-	}
-
-	// Text check
-	let url_code = String::from_utf8_lossy(resp.get_body());
-
-	let mut text_result: String;
-
-	if url_code.contains(text)
-	/* && url_code.contains("<body") && url_code.contains("</body>") 
-		&& url_code.contains("<head") && url_code.contains("</head>") && url_code.contains("<html") 
-		&& url_code.contains("</html>")*/ { 
-	
-		text_result = format!("TEXT-OK: Text \"{}\" found.", text);
-
-	} else {
-
-		text_result = format!("TEXT-WARNING: Text \"{}\" not found.", text); 
-
-	}
-
-	if code_result.contains("UNKNOWN") {
-		
-		return format!("SITE-UNKNOWN: {}\n{}", code_result, text_result);
-
-	}
-	else if text_result.contains("UNKNOWN") {
-
-		return format!("SITE-UNKNOWN: {}\n{}", text_result, code_result);
-
-	}
-	
-	if code_result.contains("CRITICAL") {
-		
-		return format!("SITE-CRITICAL: {}\n{}", code_result, text_result);
-
-	}
-	else if code_result.contains("WARNING") {
-
-		return format!("SITE-WARNING: {}\n{}", code_result, text_result);
-
-	}
-	else if text_result.contains("WARNING") {
-
-		return format!("SITE-WARNING: {}\n{}", text_result, code_result);
-
-	}
-	else {
-
-		return format!("SITE-OK: {}\n{}", code_result, text_result);
-
+		return "SITE-UNKNOWN: check_site failed.".to_string();
 	}
 
 }
