@@ -40,9 +40,6 @@ name = "check_hd_data"
 
 name = "check_md_raid"
 
-[[bin]]
-
-name = "check_text"
 
 [[bin]]
 
