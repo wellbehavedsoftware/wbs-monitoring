@@ -34,19 +34,19 @@ fn parse_options () -> Option<Opts> {
 			"print this help menu");
 
 	opts.reqopt (
-			"w",
+			"",
 			"warning",
 			"warning usage quota level",
 			"<warning-level>");
 
 	opts.reqopt (
-			"c",
+			"",
 			"critical",
 			"critical usage quota level",
 			"<critical-level>");
 
 	opts.reqopt (
-			"r",
+			"",
 			"rootfs",
 			"root of the file system in which the checks will be performed",
 			"<rootfs>");

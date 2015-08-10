@@ -22,7 +22,7 @@ fn parse_options () -> String {
 	let mut opts = Options::new();
 
 	opts.optflag (	
-			"h",
+			"",
 			"help",
 			"print this help menu");
 

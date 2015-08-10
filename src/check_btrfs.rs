@@ -31,24 +31,24 @@ fn parse_options () -> Option<Opts> {
 	let mut opts = Options::new();
 
 	opts.optflag (	
-			"h",
+			"",
 			"help",
 			"print this help menu");
 
 	opts.reqopt (
-			"r",
+			"",
 			"route",
 			"route to the btrfs filesystem",
 			"<route>");
 	
 	opts.reqopt (
-			"w",
+			"",
 			"warning",
 			"queue time for which the script returns a warning state",
 			"<warning>");
 
 	opts.reqopt (
-			"c",
+			"",
 			"critical",
 			"queue time for which the script returns a critical state",
 			"<critical>");

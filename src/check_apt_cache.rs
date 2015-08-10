@@ -27,12 +27,12 @@ fn parse_options () -> Option<Opts> {
 	let mut opts = Options::new();
 
 	opts.optflag (	
-			"h",
+			"",
 			"help",
 			"print this help menu");
 
 	opts.reqopt (
-			"r",
+			"",
 			"rootfs",
 			"root of the file system in which the checks will be performed",
 			"<rootfs>");

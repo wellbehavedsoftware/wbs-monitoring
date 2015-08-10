@@ -34,34 +34,34 @@ fn parse_options () -> Option<Opts> {
 	let mut opts = Options::new();
 
 	opts.optflag (	
-			"h",
+			"",
 			"help",
 			"print this help menu");
 
 	opts.optflag (	
-			"u",
+			"",
 			"untracked",
 			"includes untracked files when looking for changes");
 
 	opts.optflag (	
-			"i",
+			"",
 			"ignored",
 			"includes ignored files when looking for changes");
 
 
 	opts.optflag (	
-			"s",
+			"",
 			"submodules",
 			"includes submodules when looking for changes");
 
 	opts.reqopt (
-			"l",
+			"",
 			"local",
 			"folder in which the local repository is placed",
 			"<local-repository>");
 
 	opts.reqopt (
-			"r",
+			"",
 			"remote",
 			"remote repository ssh",
 			"<remote-repository-ssh>");

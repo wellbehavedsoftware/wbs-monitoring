@@ -33,31 +33,31 @@ fn parse_options () -> Option<Opts> {
 
 	let mut opts = Options::new();
 
-	opts.optflag (
-			"h",
+	opts.optflag (	
+			"",
 			"help",
 			"print this help menu");
 
 	opts.reqopt (
-			"H",
+			"",
 			"hostname",
 			"Hostname of the site in which the check is performed",
 			"<hostname>");
 
 	opts.reqopt (
-			"u",
+			"",
 			"uri",
 			"URI of the site in which the check is performed",
 			"<url>");
 
 	opts.reqopt (
-			"t",
+			"",
 			"text",
 			"Text that will be searched in the site",
 			"<text>");
 
 	opts.reqopt (
-			"s",
+			"",
 			"ssl",
 			"use https instead of http",
 			"<http-enabled>");

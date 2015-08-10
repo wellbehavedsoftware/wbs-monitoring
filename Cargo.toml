@@ -6,10 +6,6 @@ authors = [ "Jose Luis <joseluis@wellbehavedsoftware.com>" ]
 
 [[bin]]
 
-name = "check_response"
-
-[[bin]]
-
 name = "check_memory"
 
 [[bin]]
@@ -67,10 +63,6 @@ name = "ssh_command_handler"
 [[bin]]
 
 name = "check_subvolumes"
-
-[[bin]]
-
-name = "check_email"
 
 [[bin]]
 

@@ -32,30 +32,30 @@ fn parse_options () -> Option<Opts> {
 	let mut opts = Options::new();
 
 	opts.optflag (	
-			"h", 
+			"", 
 			"help", 
 			"print this help menu");
 
 	opts.reqopt (	
-			"d", 
+			"", 
 			"data-level", 
 			"maximum data level allowed", 
 			"<data-level>");
 
 	opts.reqopt (	
-			"m", 
+			"", 
 			"message-level", 
 			"maximum messages level allowed", 
 			"<message-level>");
 
 	opts.reqopt (	
-			"u", 
+			"", 
 			"username",
 			"authsmtp api username",
 			"<username>");
 
 	opts.reqopt (
-			"p",
+			"",
 			"password",
 			"authsmtp api password",
 			"<password>");

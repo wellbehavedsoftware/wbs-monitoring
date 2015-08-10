@@ -28,18 +28,18 @@ fn parse_options () -> Option<Opts> {
 	let mut opts = Options::new();
 
 	opts.optflag (	
-			"h",
+			"",
 			"help",
 			"print this help menu");
 
 	opts.reqopt (
-			"w",
+			"",
 			"warning",
 			"warning usage quota level",
 			"<warning-level>");
 
 	opts.reqopt (
-			"c",
+			"",
 			"critical",
 			"critical usage quota level",
 			"<critical-level>");

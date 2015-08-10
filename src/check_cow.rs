@@ -33,23 +33,23 @@ fn parse_options () -> Option<Opts> {
 	let mut opts = Options::new();
 
 	opts.optflag (	
-			"h",
+			"",
 			"help",
 			"print this help menu");
 
 	opts.reqopt (	
-			"d",
+			"",
 			"directory",
 			"The specified file is a directory",
 			"<directory>");
 	opts.reqopt (
-			"r",
+			"",
 			"rootfs",
 			"root of the file system in which the checks will be performed",
 			"<rootfs>");
 
 	opts.reqopt (
-			"f",
+			"",
 			"file",
 			"Route of the file that is going to be check",
 			"<file>");

@@ -34,19 +34,19 @@ fn parse_options () -> Option<Opts> {
 			"print this help menu");
 
 	opts.reqopt (
-			"r",
+			"",
 			"root",
 			"root of the filesystem to check",
 			"<fs-root>");
 
 	opts.reqopt (
-			"w",
+			"",
 			"warning",
 			"warning memory usage threshold",
 			"<warning-threshold>");
 
 	opts.reqopt (
-			"c",
+			"",
 			"critical",
 			"critical memory usage threshold",
 			"<critical-threshold>");

@@ -33,36 +33,36 @@ fn parse_options () -> Option<Opts> {
 	let mut opts = Options::new();
 
 	opts.optflag (	
-			"h",
+			"",
 			"help",
 			"print this help menu");
 
 	opts.reqopt (
-			"r",
+			"",
 			"rootfs",
 			"root of the file system in which the checks will be performed",
 			"<rootfs>");
 
 	opts.reqopt (
-			"m",
+			"",
 			"mails",
 			"the maximum number of messages allowed",
 			"<mails>");
 
 	opts.reqopt (
-			"q",
+			"",
 			"quota",
 			"maximum mails per hour quota allowed",
 			"<quota>");
 
 	opts.reqopt (
-			"a",
+			"",
 			"age",
 			"maximum age (in days) that mails are allowed to stay in the queue",
 			"<age>");
 
 	opts.reqopt (
-			"c",
+			"",
 			"complete",
 			"names of the containers that will perform all the checks separated by comma",
 			"<complete>");

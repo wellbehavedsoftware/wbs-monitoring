@@ -31,24 +31,24 @@ fn parse_options () -> Option<Opts> {
 	let mut opts = Options::new();
 
 	opts.optflag (	
-			"h",
+			"",
 			"help",
 			"print this help menu");
 
 	opts.reqopt (
-			"t",
+			"",
 			"text",
 			"the text that is going to be searched",
 			"<text-to-check>");
 
 	opts.reqopt (
-			"H",
+			"",
 			"host-name",
 			"name of the host",
 			"<host-name>");
 
 	opts.reqopt (
-			"u",
+			"",
 			"uri",
 			"uri where the request is sent",
 			"<uri>");

@@ -35,36 +35,36 @@ fn parse_options () -> Option<Opts> {
 	let mut opts = Options::new();
 
 	opts.optflag (	
-			"h",
+			"",
 			"help",
 			"print this help menu");
 
 	opts.reqopt (
-			"H",
+			"",
 			"host",
 			"Host in which the command will be executed",
 			"<host>");
 
 	opts.reqopt (
-			"S",
+			"",
 			"state",
 			"state of the check that triggers the event",
 			"<state>");
 
 	opts.reqopt (
-			"t",
+			"",
 			"state-type",
 			"state type of the check that triggers the event",
 			"<state-trype>");
 
 	opts.reqopt (
-			"c",
+			"",
 			"command",
 			"Command that will be executed in the host if the state is critical",
 			"<command>");
 
 	opts.reqopt (
-			"s",
+			"",
 			"service",
 			"Service that will be executed in the host if the state is critical",
 			"<service>");

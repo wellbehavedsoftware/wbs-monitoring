@@ -31,12 +31,12 @@ fn parse_options () -> Option<Opts> {
 	let mut opts = Options::new();
 
 	opts.optflag (	
-			"h",
+			"",
 			"help",
 			"print this help menu");
 
 	opts.reqopt (
-			"n",
+			"",
 			"host",
 			"host name in which the check is performed",
 			"<host-name>");
