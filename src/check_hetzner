@@ -7,7 +7,7 @@ require '/etc/php5/robot-client/RobotClient.class.php';
 $plugin_output = new nagios_plugin_output();
 
 if (count ($argv) != 7) {
-	$output = $plugin_output->unknown("USAGE: check_hetzner -i <server-ip> -u <hetzner-username> -p <password>.");
+	$output = $plugin_output->unknown("USAGE: check_hetzner --ip <server-ip> --username <hetzner-username> --password <password>.");
 	echo($output['msg']);
 	exit($output['state']);
 }
@@ -31,7 +31,7 @@ while ($argIndex < 7) {
 		$password = $argv[$argIndex];
 	}
 	else {
-		$output = $plugin_output->unknown("USAGE: check_hetzner -i <server-ip> -u <hetzner-username> -p <password>.");
+		$output = $plugin_output->unknown("USAGE: check_hetzner --ip <server-ip> --username <hetzner-username> --password <password>.");
 		echo($output['msg']);
 		exit($output['state']);
 	}
