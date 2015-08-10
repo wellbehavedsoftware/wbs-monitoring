@@ -1,0 +1,83 @@
+#!/usr/bin/env php
+<?php
+
+include("/etc/php5/nagios_plugin_output.php");
+
+$plugin_output = new nagios_plugin_output();
+$devices_count = 0;
+
+if (count ($argv) != 3) {
+	$output = $plugin_output->unknown("USAGE: check_btrfs_raid --rootfs <rootfs>.");
+	echo($output['msg']);
+	exit($output['state']);
+}
+
+$rootfs = "";
+
+$argIndex = 1;
+while ($argIndex < 3) {
+	if ($argv[$argIndex] == "--rootfs") {
+		$argIndex++;
+		$rootfs = $argv[$argIndex];
+	}
+	else {
+		$output = $plugin_output->unknown("USAGE: check_btrfs_raid --rootfs <rootfs>.");
+		echo($output['msg']);
+		exit($output['state']);
+	}
+	$argIndex++;
+}
+
+$mdstatus = shell_exec("sudo btrfs filesystem show /btrfs");
+
+$mdstatus_array = explode("\n\n", $mdstatus);
+unset($mdstatus_array[count($mdstatus_array)-1]);
+
+$message;
+$critical = false;
+
+foreach ($mdstatus_array as $btrfs) {
+
+	$btrfs_array = explode("\n", $btrfs);
+	unset($btrfs_array[0]);
+	$btrfs_array = array_values($btrfs_array);
+	unset($btrfs_array[0]);
+	$btrfs_array = array_values($btrfs_array);
+
+	foreach($btrfs_array as $device) {
+
+		if (strpos($device, "this device is missing") !== false) {
+			$device_array = explode(" ", $device);
+			$device_array = array_values(array_filter($device_array));
+			$output = $plugin_output->critical("Device ".$device_array[1]." is missing!");
+
+			$devices_count++;
+			$message = $message.$output['msg'];
+			$critical = true;
+		}
+	}
+}
+
+$output = array();
+
+if ($critical) {
+	$summary = "";
+
+	if ($device_count > 0) {
+		$summary = "BTRFS with $device_count devices missing. See below.";
+	}
+	else {
+		$summary = "BTRFS raid has critical errors. See below.";
+	}
+
+	$output = $plugin_output->critical($summary);
+	$output['msg'] = $output['msg'].$message;
+}
+else {
+	$output = $plugin_output->ok("BTRFS raid status is OK.");
+}
+
+echo($output['msg']);
+exit($output['state']);
+
+?>
