@@ -102,93 +102,7 @@ fn parse_options () -> Option<Opts> {
 
 }
 
-fn get_response (host: &str, uri: &str, secure: bool, headers: &Vec<String>) -> String {
-
-	let mut list_command =
-		process::Command::new ("/usr/lib/nagios/plugins/check_http");
-
-	list_command
-		.arg ("-H".to_string ())
-		.arg (host.to_string ())
-		.arg ("-u".to_string ())
-		.arg (uri.to_string ());
-
-	if secure {
-
-		list_command
-			.arg ("--ssl".to_string ());
-
-	}
-
-	for header in headers {
-
-		list_command
-			.arg ("--header")
-			.arg (header);
-
-	}
-
-	let list_output = match list_command.output () {
-		Ok (output) => { output }
-		Err (err) => { return format!("SITE-UNKNOWN: Error while checking the site: {}", err); }
-	};
-
-	let response = String::from_utf8_lossy(&list_output.stdout).to_string();
-
-	let response_vector: Vec<&str> = response.split(' ').collect();
-
-	let informational = 	vec![100isize, 101, 102];
-	let success = 		vec![200isize, 201, 202, 203, 204, 205, 206, 208, 226];
-	let redirection = 	vec![300isize, 301, 302, 303, 304, 305, 306, 308];
-	let client_error = 	vec![400isize, 401, 402, 403, 404, 405, 406, 407, 408, 409, 410, 
-				411, 412, 413, 414, 415, 416, 417, 418, 419, 420, 422,
-				423, 424, 426, 428, 429, 431, 440, 444, 450, 451, 494, 
-				495, 496, 497, 498, 499];
-	let server_error =	vec![500isize, 501, 502, 503, 504, 505, 506, 507, 508, 509, 510,
-				511, 520, 521, 522, 523, 524, 598, 599];
-
-	let response_code : isize = match response_vector[3].parse() {
-		Ok (isize) => { isize }
-		Err (_) => { 
-			return "SITE-UNKNOWN: The check could not be performed. No response received.".to_string(); 
-		}
-	};
-	
-
-	if in_array(response_code, informational) {
-		return format!("SITE-UNKNOWN: {}", response);
-	}
-	else if in_array(response_code, success) {
-		return format!("SITE-OK: {}", response);
-	}
-	else if in_array(response_code, redirection) {
-		return format!("SITE-WARNING: {}", response);
-	}
-	else if in_array(response_code, client_error) || in_array(response_code, server_error) {
-		return format!("SITE-CRITICAL: {}", response);
-	}
-	else {
-		return "SITE-UNKNOWN: Check_response failed.".to_string();
-	}
-	
-}
-
-fn in_array (element: isize, haystack: Vec<isize>) -> bool {
-
-	let mut found = false;
-
-	for &code in haystack.iter() {
-
-		if code == element {
-			found = true;
-		}
-
-	}
-
-	return found;
-}
-
-fn check_text (host: &str, uri: &str, text: &str, secure: bool, headers: &Vec<String>) -> String {
+fn check_site (host: &str, uri: &str, text: &str, secure: bool, headers: &Vec<String>) -> String {
     
 	let mut prefix: String;
 
@@ -210,18 +124,91 @@ fn check_text (host: &str, uri: &str, text: &str, secure: bool, headers: &Vec<St
 
 	let resp = http_request.exec().unwrap();
 
+	// Code check
+	let informational = 	vec![100isize, 101, 102];
+	let success = 		vec![200isize, 201, 202, 203, 204, 205, 206, 208, 226];
+	let redirection = 	vec![300isize, 301, 302, 303, 304, 305, 306, 308];
+	let client_error = 	vec![400isize, 401, 402, 403, 404, 405, 406, 407, 408, 409, 410, 
+				411, 412, 413, 414, 415, 416, 417, 418, 419, 420, 422,
+				423, 424, 426, 428, 429, 431, 440, 444, 450, 451, 494, 
+				495, 496, 497, 498, 499];
+	let server_error =	vec![500isize, 501, 502, 503, 504, 505, 506, 507, 508, 509, 510,
+				511, 520, 521, 522, 523, 524, 598, 599];
+
+	let code_string = resp.get_code();
+
+	let response_code : isize = match code_string.to_string().parse() {
+		Ok (isize) => { isize }
+		Err (_) => { 
+			return "SITE-UNKNOWN: The check could not be performed. No response received.".to_string(); 
+		}
+	};
+
+	let mut code_result: String;
+
+	if informational.contains(&response_code) {
+		code_result = format!("RESPONSE-UNKNOWN: {}.", code_string);
+	}
+	else if success.contains(&response_code) {
+		code_result = format!("RESPONSE-OK: {}.", code_string);
+	}
+	else if redirection.contains(&response_code) {
+		code_result = format!("RESPONSE-WARNING: {}.", code_string);
+	}
+	else if client_error.contains(&response_code) || server_error.contains(&response_code) {
+		code_result = format!("RESPONSE-CRITICAL: {}.", code_string);
+	}
+	else {
+		code_result = "RESPONSE-UNKNOWN: Check_response failed.".to_string();
+	}
+
+	// Text check
 	let url_code = String::from_utf8_lossy(resp.get_body());
+
+	let mut text_result: String;
 
 	if url_code.contains(text)
 	/* && url_code.contains("<body") && url_code.contains("</body>") 
 		&& url_code.contains("<head") && url_code.contains("</head>") && url_code.contains("<html") 
 		&& url_code.contains("</html>")*/ { 
 	
-		return "SITE-OK: Correct text found.".to_string();
+		text_result = format!("TEXT-OK: Text \"{}\" found.", text);
 
 	} else {
 
-		return "SITE-WARNING: Text not found.".to_string(); 
+		text_result = format!("TEXT-WARNING: Text \"{}\" not found.", text); 
+
+	}
+
+	if code_result.contains("UNKNOWN") {
+		
+		return format!("SITE-UNKNOWN: {}\n{}", code_result, text_result);
+
+	}
+	else if text_result.contains("UNKNOWN") {
+
+		return format!("SITE-UNKNOWN: {}\n{}", text_result, code_result);
+
+	}
+	
+	if code_result.contains("CRITICAL") {
+		
+		return format!("SITE-CRITICAL: {}\n{}", code_result, text_result);
+
+	}
+	else if code_result.contains("WARNING") {
+
+		return format!("SITE-WARNING: {}\n{}", code_result, text_result);
+
+	}
+	else if text_result.contains("WARNING") {
+
+		return format!("SITE-WARNING: {}\n{}", text_result, code_result);
+
+	}
+	else {
+
+		return format!("SITE-OK: {}\n{}", code_result, text_result);
 
 	}
 
@@ -244,34 +231,30 @@ fn main () {
 	let secure = opts.secure;
 	let headers = opts.headers;
 
-	let response_res = get_response(hostname, uri, secure, & headers);
-	let text_res = check_text(hostname, uri, text, secure, & headers);
+	let site_res = check_site(hostname, uri, text, secure, & headers);
 
 
-	if response_res.contains("UNKNOWN") || text_res.contains("UNKNOWN") {
+	if site_res.contains("UNKNOWN") {
 
-		println!("{}\n{}", response_res, text_res);
+		println!("{}", site_res);
 		process::exit(3);
 
 	}
-	else if response_res.contains("CRITICAL") {
+	else if site_res.contains("CRITICAL") {
 
-		println!("{}\n{}", response_res, text_res);
+		println!("{}", site_res);
 		process::exit(2);
 
-	} else if response_res.contains("WARNING") {
+	} 
+	else if site_res.contains("WARNING") {
 
-		println!("{}\n{}", response_res, text_res);
+		println!("{}", site_res);
 		process::exit(1);
 
-	} else if text_res.contains("WARNING") {
+	} 
+	else {
 
-		println!("{}\n{}", text_res, response_res);
-		process::exit(1);
-
-	} else {
-
-		println!("{}\n{}", response_res, text_res);
+		println!("{}", site_res);
 		process::exit(0);
 
 	}
