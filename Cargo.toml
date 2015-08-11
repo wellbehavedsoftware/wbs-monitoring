@@ -91,5 +91,5 @@ chrono = "0.2.14"
 git2 = "0.2.11"
 
 [dependencies.regex]
-regex = "0.1.40"
+regex = "0.1.8"
 

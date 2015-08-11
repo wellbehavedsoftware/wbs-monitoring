@@ -1,14 +1,15 @@
 //Rust file
 
+extern crate regex;
 extern crate getopts;
 
 use getopts::Options;
 use std::env;
 use std::process;
-use std::io::BufReader;
-use std::io::BufRead;
 use std::fs::File;
+use std::io::Read;
 use std::path::Path;
+use regex::Regex;
 
 fn print_usage (program: &str, opts: Options) {
 	let brief = format!("Usage: {} [options]", program);
@@ -72,99 +73,100 @@ fn check_md_raid(host_name: &str) -> String {
 		Ok (output) => { output }
 		Err (err) => { return format!("MD RAID ERROR: {}.", err); }
 	};	
+
 	let md_raid = String::from_utf8_lossy(&md_raid_output.stdout).to_string();
-	let mut md_raid_lines: Vec<&str> = md_raid.split('\n').collect();
 
 	let template_route = "/etc/templates/".to_string() + &host_name + "-mdstat";
 	let path = Path::new(&template_route);
 
-	let file = match File::open(&path) {
+	let mut file = match File::open(&path) {
 	    Ok(file) => file,
 	    Err(_)  => panic!("I/O Error!"),
 	};
 
-	let file = BufReader::new(&file);
-	let template_lines: Vec<String> = file.lines().map(|x| x.unwrap()).collect();
+	let mut template: String = "".to_string();
+	file.read_to_string(&mut template);
 
-	let mut template_content: String = "".to_string();
-	for line in template_lines.iter() {
-		template_content = template_content + &line;
+	let re = Regex::new(r"^(.+)\n").unwrap();
+
+	// Get headers of current md status and template
+	let mut md_raid_header = "";
+	for cap in re.captures_iter(&md_raid) {
+	    md_raid_header = cap.at(1).unwrap_or("");
 	}
 
-	let num_lines = md_raid_lines.len();
-	md_raid_lines.remove(num_lines - 1);
-	
-	if md_raid_lines.len() != template_lines.len() {
-		return format!("CRITICAL:\nNow:\n{}\nBefore:\n{}\n", md_raid, template_content);
+	let mut template_header = "";
+	for cap in re.captures_iter(&template) {
+	    template_header = cap.at(1).unwrap_or("");
 	}
-	
-	//the first line		
-	if md_raid_lines[0].contains("Personalities") && template_lines[0].contains("Personalities") {
 
-		let md_raid_line_array: Vec<&str> = md_raid_lines[0].trim().split(' ').collect();
-		let template_line_array: Vec<&str> = template_lines[0].trim().split(' ').collect();
+	// Compare the headers first
+	let template_header_tokens: Vec<&str> = template_header.trim().split(' ').collect();
+	let md_raid_header_tokens: Vec<&str> = md_raid_header.trim().split(' ').collect();
 
-		for raid_token in md_raid_line_array.iter() {			
-			let mut found = false;
+	if template_header_tokens.len() != md_raid_header_tokens.len() {
+		return format!("MD-RAID-CRITICAL: Header changed!\nCurrent:\n{}\nPrevious:\n{}\n", md_raid_header, template_header);
+	}
+
+	for token in template_header_tokens.iter() {			
 			
-			for template_token in template_line_array.iter() {
-				if raid_token == template_token { found = true; break; } 						}
-			if !found { return format!("CRITICAL:\nNow:\n{}\nBefore:\n{}\n", md_raid, template_content); }
+		if !template_header.contains(token) { 
+			return format!("MD-RAID-CRITICAL: {} was not present!\nNow:\n{}\nBefore:\n{}\n", token, md_raid_header, template_header); 
 		}
 	}
 
-	let mut warning = false;
-	let mut index = 1;
+	// Get the devices info of current md status and template
+	let md_raid_devices_string = re.replace_all(&md_raid, "");
+	let template_devices_string = re.replace_all(&template, "");
 
-	//the rest of the lines
-	while index < md_raid_lines.len() {
+	// Compare the devices
+	let md_raid_devices: Vec<&str> = md_raid_devices_string.split("\n      \n").collect();
+	let template_devices: Vec<&str> = template_devices_string.split("\n      \n").collect();
 
-		let ref md_raid_line = md_raid_lines[index].to_string() + "\n";
-		let md_raid_line_array: Vec<&str> = md_raid_line.trim().split(' ').collect();	
+	if template_devices.len() != md_raid_devices.len() {
+		return format!("MD-RAID-CRITICAL: The number of devices changed!\nCurrent:\n{}\nPrevious:\n{}\n", md_raid_devices_string, template_devices_string);
+	}
 
-		let mut line_found = false;
-		let mut i = 1;
+	let space_re = Regex::new(r" +").unwrap();
 
-		while i < template_lines.len() {
-			if template_lines[i].contains(md_raid_line_array[0]) {
-				line_found = true;
-				break;
-			}
-			else { i = i + 3; }
-		}	
-		if !line_found { return format!("CRITICAL:\nNow:\n{}\nBefore:\n{}\n", md_raid, template_content); }
+	for md_raid_device in md_raid_devices.iter() {
 
-		let ref template_line = template_lines[i];
-		let template_line_array: Vec<&str> = template_line.trim().split(' ').collect();
+		let normalized_md_raid_device = space_re.replace_all(&md_raid_device, " ");
 
-		if md_raid_line != template_line {				
-			for raid_token in md_raid_line_array.iter() {			
+		let md_raid_device_tokens: Vec<&str> = normalized_md_raid_device.trim().split(" ").collect();
+	
+		let mut is_present = false;
+
+		for template_device in template_devices.iter() {
+
+			if template_device.contains(md_raid_device_tokens[0]) {
+				is_present = true;
+
+				let normalized_template_device = space_re.replace_all(&template_device, " ");
+				let template_device_tokens: Vec<&str> = normalized_template_device.trim().split(" ").collect();
+				if md_raid_device_tokens.len() != template_device_tokens.len() {
+			
+					return format!("MD-RAID-CRITICAL: The device {} has changed!\nCurrent:\n{}\nPrevious:\n{}\n", md_raid_device_tokens[0], md_raid_device, template_device);
+
+				}
+
+				for token in md_raid_device_tokens.iter() {
+					if !template_device.contains(token) {
+						return format!("MD-RAID-CRITICAL: The device {} has changed!\nCurrent:\n{}\nPrevious:\n{}\n", md_raid_device_tokens[0], md_raid_device, template_device);
+					}
+				}
+
+			}					
+
+		}
 		
-				let mut found = false;
-				
-				for template_token in template_line_array.iter() {
-					if raid_token == template_token { found = true; break; } 					}
-				if !found { return format!("CRITICAL:\nNow:\n{}\nBefore:\n{}\n", md_raid, template_content); }
-			}
+		if !is_present {
+			return format!("MD-RAID-CRITICAL: The device {} was not present!\n", md_raid_device_tokens[0]);
 		}
-
-		let ref md_raid_nextline = md_raid_lines[index+1].to_string() + "\n";
-		let md_raid_nextline_array: Vec<&str> = md_raid_nextline.trim().split(' ').collect();	
-
-		let ref template_nextline = template_lines[i+1];
-		let template_nextline_array: Vec<&str>= template_nextline.trim().split(' ').collect();
-
-		if md_raid_nextline != template_nextline {				
-			if md_raid_nextline_array[md_raid_nextline_array.len()-1] != template_nextline_array[template_nextline_array.len()-1] { return format!("CRITICAL:\nNow:\n{}\nBefore:\n{}\n", md_raid, template_content); }
-			else { warning = true; }
-		}
-	
-		index = index + 3;
-		if index == md_raid_lines.len()-1 { break; }
 	}
-	
-	if warning { return format!("WARNING:\nNow:\n{}\nBefore:\n{}\n", md_raid, template_content); }
-	else { return format!("OK:\nNow:\n{}\nBefore:\n{}\n", md_raid, template_content); }
+
+
+	return format!("MD-RAID-OK: No changes detected.\nNow:\n{}\nBefore:\n{}\n", md_raid_devices_string, template_devices_string); 
 	
 }
 
@@ -182,15 +184,11 @@ fn main () {
 		process::exit(3);	
 	}
 	else if md_raid_str.contains("OK") {
-		println!("OK: MD raid status is OK.\n{}", md_raid_str); 
+		println!("{}", md_raid_str); 
 		process::exit(0);	
 	}
-	else if md_raid_str.contains("WARNING") {
-		println!("WARNING: MD raid status changed. Some blocks may be missing.\n{}", md_raid_str); 
-		process::exit(1);	
-	}
 	else if md_raid_str.contains("CRITICAL") {
-		println!("CRITICAL:  MD raid status changed. A device stopped running or is missing.\n{}", md_raid_str); 
+		println!("{}", md_raid_str); 
 		process::exit(2);	
 	}
 	else {
