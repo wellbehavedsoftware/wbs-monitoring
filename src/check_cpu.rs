@@ -147,14 +147,14 @@ fn main () {
 		println!("CPU UNKNOWN: Could not execute CPU check: {}.", cpu_str); 
 		process::exit(3);	
 	}
-	else if cpu_str == "OK" {
-		process::exit(0);	
+	else if cpu_str == "CRITICAL" {
+		process::exit(2);	
 	}
 	else if cpu_str == "WARNING" {
 		process::exit(1);	
 	}
-	else if cpu_str == "CRITICAL" {
-		process::exit(2);	
+	else if cpu_str == "OK" {
+		process::exit(0);	
 	}
 	else {
 		println!("CPU UNKNOWN: Could not execute disk check. Unknown error."); 
