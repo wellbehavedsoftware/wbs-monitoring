@@ -17,7 +17,7 @@ fn print_help (program: &str, opts: Options) {
 }
 
 struct Opts {
-	rootfs: String,
+	name: String,
 }
 
 fn parse_options () -> Option<Opts> {
@@ -33,38 +33,38 @@ fn parse_options () -> Option<Opts> {
 
 	opts.reqopt (
 			"",
-			"rootfs",
-			"root of the file system in which the checks will be performed",
-			"<rootfs>");
+			"container-name",
+			"name of the container in which the checks will be performed",
+			"<container-name>");
 
 	let matches = match opts.parse (args) {
 		Ok (m) => { m }
 		Err (_) => {
-			print_usage ("check_mem_quota", opts);
+			print_usage ("check_lxc_memory", opts);
 			process::exit(3);
 		}
 	};
 
 	if matches.opt_present ("help") {
-		print_help ("check_mem_quota", opts);
+		print_help ("check_lxc_memory", opts);
 		process::exit(3);
 	}
 
-	let rootfs = matches.opt_str ("rootfs").unwrap ();
+	let name = matches.opt_str ("container-name").unwrap ();
 
 	return Some (Opts {
-		rootfs: rootfs,
+		name: name,
 	});
 
 }
 
-fn check_mem(rootfs: &str) -> String {
+fn check_mem(container_name: &str) -> String {
 
 	let usage_output =
 		match process::Command::new ("sudo")
 			.arg ("/usr/bin/lxc-cgroup".to_string ())
 			.arg ("--name".to_string())
-			.arg (rootfs.to_string())
+			.arg (container_name.to_string())
 			.arg ("memory.usage_in_bytes".to_string())
 			.output () {
 		Ok (output) => { output }
@@ -75,7 +75,7 @@ fn check_mem(rootfs: &str) -> String {
 		match process::Command::new ("sudo")
 			.arg ("/usr/bin/lxc-cgroup".to_string ())
 			.arg ("--name".to_string())
-			.arg (rootfs.to_string())
+			.arg (container_name.to_string())
 			.arg ("memory.limit_in_bytes".to_string())
 			.output () {
 		Ok (output) => { output }
@@ -124,7 +124,7 @@ fn main () {
 		None => { return }
 	};
 	
-	let mem_str = check_mem(&opts.rootfs);
+	let mem_str = check_mem(&opts.name);
 	if mem_str == "MEM ERROR" {
 		println!("MEM-Q UNKNOWN: Could not execute memory check. Shell commands failed to execute."); 
 		process::exit(3);	
