@@ -73,7 +73,7 @@ fn parse_options () -> Option<Opts>  {
 
 }
 
-fn check_memory(warning_level: f32, critical_level: f32) -> String {
+fn check_memory(warning_level: f64, critical_level: f64) -> String {
 
 	let meminfo_route = "/proc/meminfo";
 	let path = Path::new(&meminfo_route);
@@ -89,7 +89,7 @@ fn check_memory(warning_level: f32, critical_level: f32) -> String {
 	// Fields we want to check
 	let interesting_fields = [ "MemTotal", "MemFree", "Buffers", "Cached", "SwapCached", "Active", "Inactive", "SwapTotal", "SwapFree", "Slab", "SReclaimable", "SUnreclaim" ];
 
-	let mut field_values: Vec<f32> = vec![];
+	let mut field_values: Vec<f64> = vec![];
 
 	let mut perf_data: String = "".to_string();
 
@@ -101,8 +101,8 @@ fn check_memory(warning_level: f32, critical_level: f32) -> String {
 
 		for cap in re.captures_iter(&meminfo) {
 			let value = cap.at(1).unwrap_or("").trim();
-			let int_value: f32 = match value.parse() {
-				Ok(f32) => { f32 }
+			let int_value: f64 = match value.parse() {
+				Ok(f64) => { f64 }
 				Err(e) => { return format!("MEMORY-UNKNOWN: Usage {} should be a number!", e); }
 			};
 			field_values.push(int_value);
@@ -178,16 +178,16 @@ fn main () {
 		None => { return }
 	};
 
-	let mem_warning : f32 = match opts.warning.parse() {
-		Ok (f32) => { f32 }
+	let mem_warning : f64 = match opts.warning.parse() {
+		Ok (f64) => { f64 }
 		Err (_) => {
 			println!("UNKNOWN: Warning level must be a value between 0.0 and 1.0."); 
 			process::exit(3);
 		}
 	};
 	
-	let mem_critical : f32 = match opts.critical.parse() {
-		Ok (f32) => { f32 }
+	let mem_critical : f64 = match opts.critical.parse() {
+		Ok (f64) => { f64 }
 		Err (_) => {
 			println!("UNKNOWN: Critical level must be a value between 0.0 and 1.0."); 
 			process::exit(3);
