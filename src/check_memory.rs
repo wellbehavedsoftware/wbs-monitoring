@@ -140,10 +140,10 @@ fn check_memory(warning_level: f32, critical_level: f32) -> String {
 		memory_message = format!("MEMORY-OK: used {}%, warning {}%.", memory_usage_fmt, warning_level_fmt);
 	}
 	else if memory_usage >= warning_level && memory_usage < critical_level {
-		memory_message = format!("MEMORY-WARNING: used {}%, warning {}%.", memory_usage_fmt, critical_level_fmt);
+		memory_message = format!("MEMORY-WARNING: used {}%, critical {}%.", memory_usage_fmt, critical_level_fmt);
 	}
 	else {
-		memory_message = format!("MEMORY-CRITICAL: used {}%, warning {}%.", memory_usage_fmt, critical_level_fmt);
+		memory_message = format!("MEMORY-CRITICAL: used {}%, critical {}%.", memory_usage_fmt, critical_level_fmt);
 	}
 
 	// Swap state
@@ -152,10 +152,10 @@ fn check_memory(warning_level: f32, critical_level: f32) -> String {
 		swap_message = format!("SWAP-OK: used {}%, warning {}%.", swap_usage_fmt, warning_level_fmt);
 	}
 	else if swap_usage >= warning_level && swap_usage < critical_level {
-		swap_message = format!("SWAP-WARNING: used {}%, warning {}%.", swap_usage_fmt, critical_level_fmt);
+		swap_message = format!("SWAP-WARNING: used {}%, critical {}%.", swap_usage_fmt, critical_level_fmt);
 	}
 	else {
-		swap_message = format!("SWAP-CRITICAL: used {}%, warning {}%.", swap_usage_fmt, critical_level_fmt);
+		swap_message = format!("SWAP-CRITICAL: used {}%, critical {}%.", swap_usage_fmt, critical_level_fmt);
 	}
 
 	let mut message: String;
