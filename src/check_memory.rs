@@ -167,7 +167,7 @@ fn check_memory(warning_level: f32, critical_level: f32) -> String {
 		message = format!("{}\n{}", memory_message, swap_message);
 	}
 
-	return format!("{} | Memory={}%;50.0;75.0;; Swap={}%;50.0;75.0;;{}", message, memory_usage_fmt, swap_usage_fmt, perf_data);
+	return format!("{} | Memory={}%;{};{};; Swap={}%;{};{};;{}", message, memory_usage_fmt, warning_level_fmt, critical_level_fmt, swap_usage_fmt, warning_level_fmt, critical_level_fmt, perf_data);
 }
 
 
