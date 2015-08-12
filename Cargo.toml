@@ -30,7 +30,7 @@ name = "check_lxc_memory"
 
 [[bin]]
 
-name = "check_cpu_quota"
+name = "check_cpu"
 
 [[bin]]
 

@@ -35,25 +35,25 @@ fn parse_options () -> Option<Opts> {
 	opts.reqopt (
 			"",
 			"warning",
-			"warning usage quota level",
+			"warning cpu usage level",
 			"<warning-level>");
 
 	opts.reqopt (
 			"",
 			"critical",
-			"critical usage quota level",
+			"critical cpu usage level",
 			"<critical-level>");
 
 	let matches = match opts.parse (args) {
 		Ok (m) => { m }
 		Err (_) => {
-			print_usage ("check_cpu_quota", opts);
+			print_usage ("check_cpu", opts);
 			process::exit(3);
 		}
 	};
 
 	if matches.opt_present ("help") {
-		print_help ("check_cpu_quota", opts);
+		print_help ("check_cpu", opts);
 		process::exit(3);
 	}
 
@@ -98,22 +98,22 @@ fn check_cpu(warning_level: f64, critical_level: f64) -> String {
 		Err (_) => { return "CPU ERROR".to_string(); }
 	};
 
-	let cpu_quota = busy / (busy + iddle);
-	let cpu_quota_used = format!("{0:.1$}", cpu_quota * 100.0, 1);
+	let cpu = busy / (busy + iddle);
+	let cpu_used = format!("{0:.1$}", cpu * 100.0, 1);
 
-	let warning_level_quota = format!("{0:.1$}", warning_level * 100.0, 1);
-	let critical_level_quota = format!("{0:.1$}", critical_level * 100.0, 1);
+	let warning_level_fmt = format!("{0:.1$}", warning_level * 100.0, 1);
+	let critical_level_fmt = format!("{0:.1$}", critical_level * 100.0, 1);
 
-	if cpu_quota < warning_level {
-		println!("CPU OK: used {}%, warning {}%. | cpu={}%;20.0;50.0;;", cpu_quota_used, warning_level_quota, cpu_quota_used);
+	if cpu < warning_level {
+		println!("CPU OK: used {}%, warning {}%. | cpu={}%;20.0;50.0;;", cpu_used, warning_level_fmt, cpu_used);
 		return "OK".to_string();
 	}
-	else if cpu_quota >= warning_level && cpu_quota < critical_level {
-		println!("CPU WARNING: used {}%, critical {}%. | cpu={}%;20.0;50.0;;", cpu_quota_used, critical_level_quota, cpu_quota_used);
+	else if cpu >= warning_level && cpu < critical_level {
+		println!("CPU WARNING: used {}%, critical {}%. | cpu={}%;20.0;50.0;;", cpu_used, critical_level_fmt, cpu_used);
 		return "WARNING".to_string();
 	}
 	else {
-		println!("CPU CRITICAL: used {}%, critical {}%. | cpu={}%;20.0;50.0;;", cpu_quota_used, critical_level_quota, cpu_quota_used);
+		println!("CPU CRITICAL: used {}%, critical {}%. | cpu={}%;20.0;50.0;;", cpu_used, critical_level_fmt, cpu_used);
 		return "CRITICAL".to_string();
 	}
 	
