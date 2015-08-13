@@ -93,3 +93,6 @@ git2 = "0.2.11"
 [dependencies.regex]
 regex = "0.1.8"
 
+[dependencies.time]
+time = "0.1.32"
+
