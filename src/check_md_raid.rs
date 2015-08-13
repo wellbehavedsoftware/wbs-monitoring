@@ -66,22 +66,25 @@ fn parse_options () -> Option<Opts> {
 
 fn check_md_raid(host_name: &str) -> String {
 
-	let md_raid_output =
-		match process::Command::new ("cat")
-			.arg ("/proc/mdstat".to_string ())
-			.output () {
-		Ok (output) => { output }
-		Err (err) => { return format!("MD RAID ERROR: {}.", err); }
-	};	
+	// Read current mdstat for this host
+	let stat_route = "/proc/mdstat";
+	let stat_path = Path::new(&stat_route);
 
-	let md_raid = String::from_utf8_lossy(&md_raid_output.stdout).to_string();
+	let mut stat_file = match File::open(&stat_path) {
+	    Ok(file) => { file }
+	    Err(e)  => { return format!("MEMORY-UNKNOWN: Failed to read /proc/mdstat: {}", e); }
+	};
 
+	let mut md_raid: String = "".to_string();
+	stat_file.read_to_string(&mut md_raid);
+
+	// Read the mdstat template of this host
 	let template_route = "/etc/templates/".to_string() + &host_name + "-mdstat";
 	let path = Path::new(&template_route);
 
 	let mut file = match File::open(&path) {
-	    Ok(file) => file,
-	    Err(_)  => panic!("I/O Error!"),
+	    Ok(file) => { file }
+	    Err(e)  => { return format!("MEMORY-UNKNOWN: Failed to read the template: {}", e); }
 	};
 
 	let mut template: String = "".to_string();
