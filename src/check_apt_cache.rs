@@ -5,6 +5,7 @@ use getopts::Options;
 use std::env;
 use std::option::{ Option };
 use std::process;
+use std::fs;
 
 fn print_usage (program: &str, opts: Options) {
 	let brief = format!("Usage: {} [options]", program);
@@ -62,89 +63,40 @@ fn parse_options () -> Option<Opts> {
 
 fn check_apt_cache(rootfs: &str) -> String {
 
-	let mut ls_apt;
-	let mut ls_apt_archive;
-	let mut ls_apt_archive_partial;
+	let mut ls_apt_route: String = "/var/cache/apt".to_string();
+	let mut ls_apt_archive_route: String = "/var/cache/apt/archives".to_string();
+	let mut ls_apt_archive_partial_route: String = "/var/cache/apt/archives/partial".to_string();
 
-	if rootfs.is_empty() {
-		let ls_apt_output =
-			match process::Command::new ("ls")
-				.arg ("-l".to_string ())
-				.arg ("/var/cache/apt".to_string ())
-				.output () {
-			Ok (output) => { output }
-			Err (err) => { return format!("APT CHACHE ERROR: {}.", err); }
-		};
-		ls_apt = String::from_utf8_lossy(&ls_apt_output.stdout).to_string();
+	if !rootfs.is_empty() {
 
-		let ls_apt_archive_output =
-			match process::Command::new ("ls")
-				.arg ("-l".to_string ())
-				.arg ("/var/cache/apt/archives".to_string ())
-				.output () {
-			Ok (output) => { output }
-			Err (err) => { return format!("APT CHACHE ERROR: {}.", err); }
-		};
-		ls_apt_archive = String::from_utf8_lossy(&ls_apt_archive_output.stdout).to_string();
+		ls_apt_route = format!("/var/lib/lxc/{}{}", rootfs, ls_apt_route);
+		ls_apt_archive_route = format!("/var/lib/lxc/{}{}", rootfs, ls_apt_archive_route);
+		ls_apt_archive_partial_route = format!("/var/lib/lxc/{}{}", rootfs, ls_apt_archive_partial_route);
 
-		let ls_apt_archive_partial_output =
-			match process::Command::new ("ls")
-				.arg ("-l".to_string ())
-				.arg ("/var/cache/apt/archives/partial".to_string ())
-				.output () {
-			Ok (output) => { output }
-			Err (err) => { return format!("APT CHACHE ERROR: {}.", err); }
-		};
-		ls_apt_archive_partial = String::from_utf8_lossy(&ls_apt_archive_partial_output.stdout).to_string();
-	}
-	else { 		
-
-		let name: String = rootfs.to_string();
-		let mut apt_route = "/var/lib/lxc/".to_string() + &name;
-		apt_route = apt_route + "/rootfs/var/cache/apt";
-
-		let ls_apt_output =
-			match process::Command::new ("ls")
-				.arg ("-l".to_string ())
-				.arg (apt_route.clone())
-				.output () {
-			Ok (output) => { output }
-			Err (err) => { return format!("APT CHACHE ERROR: {}.", err); }
-		};
-		ls_apt = String::from_utf8_lossy(&ls_apt_output.stdout).to_string();
-
-		let ls_apt_archive_output =
-			match process::Command::new ("ls")
-				.arg ("-l".to_string ())
-				.arg (apt_route.clone() + "/archives")
-				.output () {
-			Ok (output) => { output }
-			Err (err) => { return format!("APT CHACHE ERROR: {}.", err); }
-		};
-		ls_apt_archive = String::from_utf8_lossy(&ls_apt_archive_output.stdout).to_string();
-
-		let ls_apt_archive_partial_output =
-			match process::Command::new ("ls")
-				.arg ("-l".to_string ())
-				.arg (apt_route.clone() + "/archives/partial")
-				.output () {
-			Ok (output) => { output }
-			Err (err) => { return format!("APT CHACHE ERROR: {}.", err); }
-		};
-		ls_apt_archive_partial = String::from_utf8_lossy(&ls_apt_archive_partial_output.stdout).to_string();		
 	}
 
-	let ls_apt_array: Vec<&str> = ls_apt.split("\n").collect();
-	let ls_apt_archive_array: Vec<&str> = ls_apt_archive.split("\n").collect();
-	let ls_apt_archive_partial_array: Vec<&str> = ls_apt_archive_partial.split("\n").collect();
+	// Count the elements present on the apt cache directories
+	let ls_apt_elements = match fs::read_dir(&ls_apt_route) {
+		Ok(rd) => { rd }
+		Err(_) => { return format!("APT-CACHE-UNKNOWN: could not read the directory {}.", ls_apt_route); }
+	};
 
-	if ls_apt_array.len() <= 5 && ls_apt_archive_array.len() <= 4 && ls_apt_archive_partial_array.len() <= 2 {
-		return "OK".to_string();
+	let ls_apt_archive_elements = match fs::read_dir(&ls_apt_archive_route) {
+		Ok(rd) => { rd }
+		Err(_) => { return format!("APT-CACHE-UNKNOWN: could not read the directory {}.", ls_apt_archive_route); }
+	};
+
+	let ls_apt_archive_partial_elements = match fs::read_dir(&ls_apt_archive_partial_route) {
+		Ok(rd) => { rd }
+		Err(_) => { return format!("APT-CACHE-UNKNOWN: could not read the directory {}.", ls_apt_archive_partial_route); }
+	};
+
+	if ls_apt_elements.count() <= 3 && ls_apt_archive_elements.count() <= 2 && ls_apt_archive_partial_elements.count() <= 0 {
+		return "APT-CACHE-OK: Apt cache is empty.".to_string();
 	}
 	else {
-		return "WARNING".to_string();
+		return "APT-CACHE-WARNING: Apt cache is not empty. Use apt-get clean to erase it.".to_string();
 	}
-
 }
 
 
@@ -156,20 +108,20 @@ fn main () {
 	};
 	
 	let apt_cache_msg = check_apt_cache(&opts.rootfs);
-	if apt_cache_msg.contains("APT CHACHE ERROR") {
-		println!("UNKNOWN: Could not execute apt cache check: {}.", apt_cache_msg); 
+
+	println!("{}", apt_cache_msg);
+
+	if apt_cache_msg.contains("UNKNOWN") {
 		process::exit(3);	
 	}
-	else if apt_cache_msg == "OK" {
-		println!("OK: Apt cache is empty.");
+	else if apt_cache_msg.contains("OK") {
 		process::exit(0);	
 	}
-	else if apt_cache_msg == "WARNING" {
-		println!("WARNING: Apt cache is not empty. Use apt-get clean to erase it.");
+	else if apt_cache_msg.contains("WARNING") {
 		process::exit(1);	
 	}
 	else {
-		println!("UNKNOWN: Could not execute apt cache check. Unknown error."); 
+		println!("APT-CACHE-UNKNOWN: Could not execute apt cache check. Unknown error."); 
 		process::exit(3);	
 	}
 

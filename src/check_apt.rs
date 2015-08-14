@@ -15,7 +15,6 @@ use std::io::Read;
 use std::fs::File;
 use std::path::Path;
 use std::os::unix::fs::MetadataExt;
-use regex::Regex;
 
 fn print_usage (program: &str, opts: Options) {
 	let brief = format!("Usage: {} [options]", program);
@@ -183,9 +182,8 @@ fn check_packages(rootfs: &str) -> (isize, String) {
 	let mut packages_update_needed = "KO".to_string();
 
 	let mut dpkg_output;
-	
-	// Get package list
-	if rootfs.is_empty() {		
+
+	if rootfs.is_empty() {	
 
 		dpkg_output =
 			match process::Command::new ("dpkg")
@@ -211,32 +209,24 @@ fn check_packages(rootfs: &str) -> (isize, String) {
 		};	
 	}
 
-	let mut selections = String::from_utf8_lossy(&dpkg_output.stdout).to_string();
-	drop(dpkg_output);
-	
-	// Exclude the packaga that are not installed
-	let expression = format!("(.+)(deinstall)\n");
-	let re = Regex::new(&expression).unwrap();
-	selections = re.replace_all(&selections, "");
-
-	// Get versions of the installed packages, both installed and newest available
 	let mut xargs_output =
 		match process::Command::new ("xargs")
 			.arg ("apt-cache".to_string())
 			.arg ("policy".to_string())
-		    	.stdin(std::process::Stdio::piped())
-		   	.stdout(std::process::Stdio::piped())
+	            	.stdin(std::process::Stdio::piped())
+	           	.stdout(std::process::Stdio::piped())
 			.spawn () {
 		Ok (output) => { output }
 		Err (_) => {  return (0, "CHECK PACKAGES ERROR".to_string()); }
 		};
 
-	xargs_output.stdin.unwrap().write(selections.as_bytes());
+	xargs_output.stdin.unwrap().write(String::from_utf8_lossy(&dpkg_output.stdout).as_bytes());
+	drop(dpkg_output);
 
 	let mut out: String = "".to_string();
 	xargs_output.stdout.as_mut().unwrap().read_to_string(&mut out);
 
-	// Check if the installed version is the latest available for each installed package
+	// Check if the installed version is the latest available for each package
 	let output_lines: Vec<&str> = out.split("\n").collect();
 	if output_lines.len() == 1 { return (0, "CHECK PACKAGES ERROR".to_string()); }
 	
@@ -276,8 +266,7 @@ fn packages_updated(package_list: Vec<String>) -> (isize, String) {
 		let installed: Vec<&str> = package_array[1].trim().split(' ').collect();
 		let candidate: Vec<&str> = package_array[2].trim().split(' ').collect();
 
-		if installed[1] != candidate[1] {
-				
+		if (installed[1] != "(none)") && (installed[1] != candidate[1]) {
 			message = format!("{}APT-WARNING: {} new version available.\n", message, package_array[0]);
 			num_packages = num_packages + 1;
 
