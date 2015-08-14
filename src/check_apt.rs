@@ -10,6 +10,9 @@ use chrono::UTC;
 use chrono::offset::TimeZone;
 use std::io::Write;
 use std::io::Read;
+use std::fs::File;
+use std::path::Path;
+use std::os::unix::fs::MetadataExt;
 
 fn print_usage (program: &str, opts: Options) {
 	let brief = format!("Usage: {} [options]", program);
@@ -75,38 +78,21 @@ fn parse_options () -> Option<Opts> {
 
 fn check_last_update (rootfs: &str) -> String {
 
-	let mut update_stamp;
-
-	if rootfs.is_empty() {
-		let stat_output =
-			match process::Command::new ("stat")
-				.arg ("-c".to_string ())
-				.arg ("%y".to_string ())
-				.arg ("/var/lib/apt/periodic/update-success-stamp".to_string ())
-				.output () {
-			Ok (output) => { output }
-			Err (err) => { return format!("LAST UPDATE ERROR: {}.", err); }
-		};
-		update_stamp = String::from_utf8_lossy(&stat_output.stdout).to_string();
-	}
-	else { 		
-		let stat_output =
-			match process::Command::new ("sudo")
-				.arg ("lxc-attach".to_string ())
-				.arg ("--name".to_string ())
-				.arg (&rootfs)
-				.arg ("--".to_string ())
-				.arg ("stat".to_string ())
-				.arg ("-c".to_string ())
-				.arg ("%y".to_string ())
-				.arg ("/var/lib/apt/periodic/update-success-stamp".to_string ())
-				.output () {
-			Ok (output) => { output }
-			Err (err) => { return format!("LAST UPDATE ERROR: {}.", err); }
-		};
-		update_stamp = String::from_utf8_lossy(&stat_output.stdout).to_string();		
+	// Get last modification datetime from file metadata
+	let mut success_stamp_route = "/var/lib/apt/periodic/update-success-stamp".to_string();
+	
+	if !rootfs.is_empty() {
+		success_stamp_route = format!("/var/lib/lxc/{}{}", rootfs, success_stamp_route);
 	}
 
+	let metadata = match std::fs::metadata(&success_stamp_route) {
+		Ok(m) => { m }
+		Err(e) => { return format!("APT-UNKNOWN: Failed to read {}: {}", success_stamp_route, e); } 
+	};
+
+	let update_stamp = UTC.timestamp(metadata.mtime(), metadata.mtime_nsec() as u32).to_string();
+
+	// Compare last update datetime with current datetime
 	let mut day_time: Vec<&str> = update_stamp.split('.').collect();
 	if day_time.len() == 1 { return "LAST UPDATE ERROR".to_string(); }
 
@@ -131,34 +117,26 @@ fn check_last_update (rootfs: &str) -> String {
 
 fn check_reboot(rootfs: &str) -> String {
 
-	let mut motd;
 	let mut reboot_needed = "NO".to_string();
-	
-	if rootfs.is_empty() {
-		let cat_output =
-			match process::Command::new ("cat")
-				.arg ("/var/run/motd.dynamic".to_string ())
-				.output () {
-			Ok (output) => { output }
-			Err (err) => { return format!("CHECK REBOOT ERROR: {}.", err); }
-		};
-		motd = String::from_utf8_lossy(&cat_output.stdout).to_string();
-	}
-	else { 	
-		let cat_output =
-		match process::Command::new ("sudo")
-			.arg ("lxc-attach".to_string ())
-			.arg ("--name".to_string ())
-			.arg (&rootfs)
-			.arg ("cat".to_string ())
-			.arg ("/var/run/motd.dynamic".to_string ())
-			.output () {
-		Ok (output) => { output }
-		Err (err) => { return format!("CHECK REBOOT ERROR: {}.", err); }
-		};
-		motd = String::from_utf8_lossy(&cat_output.stdout).to_string();
+
+	// Get the motd from the motd file
+	let mut motd_route = "/var/run/motd.dynamic".to_string();
+
+	if !rootfs.is_empty() {
+		motd_route = format!("/var/lib/lxc/{}{}", rootfs, motd_route);
 	}
 
+	let path = Path::new(&motd_route);
+
+	let mut file = match File::open(&path) {
+	    Ok(file) => { file }
+	    Err(e)  => { return format!("APT-UNKNOWN: Failed to read {}: {}", motd_route, e); }
+	};
+
+	let mut motd: String = "".to_string();
+	file.read_to_string(&mut motd);
+
+	// Check if the host or container needs reboot
 	if motd.contains("System restart required") {
 		reboot_needed = "YES".to_string();
 	}
