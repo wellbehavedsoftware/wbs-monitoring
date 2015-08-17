@@ -104,7 +104,7 @@ fn check_cpu(warning_level: f64, critical_level: f64) -> String {
 	let irq = stat_cpu[6];
 	let softirq = stat_cpu[7];
 
-	let mut perf_data = format!("user={};;;; niced={};;;; system={};;;; idle={};;;; iowait={};;;; irq={};;;; softirq={};;;;", user_str, niced, system, idle_str, iowait, irq, softirq);	
+	let mut perf_data = format!("user={}c;;;; niced={}c;;;; system={}c;;;; idle={}c;;;; iowait={}c;;;; irq={};;;; softirq={}c;;;;", user_str, niced, system, idle_str, iowait, irq, softirq);	
 
 	let interesting_fields = [ "ctxt", "btime", "processes", "procs_running", "procs_blocked" ];
 
@@ -123,8 +123,14 @@ fn check_cpu(warning_level: f64, critical_level: f64) -> String {
 			};
 			field_values.push(int_value);
 
-			perf_data = format!("{} {}={};;;;", perf_data, field, int_value);
-			break;
+			if !field.contains("procs_running") && !field.contains("procs_blocked") {
+				perf_data = format!("{} {}={};;;;", perf_data, field, int_value);
+				break;
+			}	
+			else {
+				perf_data = format!("{} {}={}c;;;;", perf_data, field, int_value);
+				break;
+			}
 
 		}
 

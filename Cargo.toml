@@ -75,6 +75,10 @@ name = "check_btrfs"
 
 [[bin]]
 
+name = "check_lxc_cpu_overview"
+
+[[bin]]
+
 name = "check_git"
 
 [dependencies.getopts]
