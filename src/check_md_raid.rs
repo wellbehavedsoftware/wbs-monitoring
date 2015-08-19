@@ -154,7 +154,8 @@ fn check_md_raid(host_name: &str) -> String {
 				}
 
 				for token in md_raid_device_tokens.iter() {
-					if !template_device.contains(token) {
+
+					if template_device.contains(token.trim()) == false { 
 						return format!("MD-RAID-CRITICAL: The device {} has changed!\nCurrent:\n{}\nPrevious:\n{}\n", md_raid_device_tokens[0], md_raid_device, template_device);
 					}
 				}
