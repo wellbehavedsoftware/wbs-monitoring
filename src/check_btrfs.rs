@@ -101,6 +101,8 @@ fn check_btrfs (route: &str, warning_th: f64, critical_th: f64) -> (String, Stri
 	
 	if btrfs_lines.len() < 5 { return (format!("BTRFS-UNKNOWN: No devices present."), "".to_string()); }
 
+	let used_line = btrfs_lines[1];
+
 	let device_line = btrfs_lines[2];
 
 	let re = Regex::new(r"(\d+.\d+)([a-zA-Z]{3,})").unwrap();
@@ -109,8 +111,7 @@ fn check_btrfs (route: &str, warning_th: f64, critical_th: f64) -> (String, Stri
 	let mut size_str = "".to_string();
 	let mut used_str = "".to_string();
 
-	let mut index = 1;
-
+	// Get total space
 	for cap in re.captures_iter(device_line) {
 
 		let value_str = cap.at(1).unwrap_or("");
@@ -127,8 +128,30 @@ fn check_btrfs (route: &str, warning_th: f64, critical_th: f64) -> (String, Stri
 		if unit == "MiB".to_string() { value = value / 1024.0; }
 		if unit == "TiB".to_string() { value = value * 1024.0; }
 
-		if index == 1 { size = value; size_str = format!("{} {}", value_str, unit); index = index + 1;}
-		else { used = value; used_str = format!("{} {}", value_str, unit);}
+		size = value; size_str = format!("{} {}", value_str, unit); 
+		break;
+		
+	}
+
+	// Get used space
+	for cap in re.captures_iter(used_line) {
+
+		let value_str = cap.at(1).unwrap_or("");
+		let mut value : f64 = match value_str.parse() {
+			Ok (f64) => { f64 }
+			Err (_) => {
+				println!("BTRFS-UNKNOWN: Error while executing the command!"); 
+				process::exit(3);
+			}
+		};
+
+		let unit = cap.at(2).unwrap_or("");
+
+		if unit == "MiB".to_string() { value = value / 1024.0; }
+		if unit == "TiB".to_string() { value = value * 1024.0; }
+
+		used = value; used_str = format!("{} {}", value_str, unit);
+		break;
 		
 	}
 
