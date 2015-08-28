@@ -25,7 +25,6 @@ fn print_help (program: &str, opts: Options) {
 struct Opts {
 	hostname: String,
 	uri: String,
-	text: String,
 	secure: bool,
 	warning: String,
 	critical: String,
@@ -58,12 +57,6 @@ fn parse_options () -> Option<Opts> {
 
 	opts.reqopt (
 			"",
-			"text",
-			"Text that will be searched in the site",
-			"<text>");
-
-	opts.reqopt (
-			"",
 			"ssl",
 			"use https instead of http",
 			"<http-enabled>");
@@ -90,24 +83,23 @@ fn parse_options () -> Option<Opts> {
 			"",
 			"header",
 			"Request header to send, such as 'Name: value'",
-			"<HEADER>");
+			"HEADER");
 
 	let matches = match opts.parse (args) {
 		Ok (m) => { m }
-		Err (_) => { 
-			print_usage ("check_site", opts);
+		Err (_) => {
+			print_usage ("check_etcd", opts);
 			process::exit(3);
 		}
 	};
 
 	if matches.opt_present ("help") {
-		print_help ("check_site", opts);
+		print_help ("check_etcd", opts);
 		process::exit(3);
 	}
 
 	let hostname = matches.opt_str ("hostname").unwrap ();
 	let uri = matches.opt_str ("uri").unwrap ();
-	let text = matches.opt_str ("text").unwrap ();
 	let secure_str = matches.opt_str ("ssl").unwrap ();
 	let warning = matches.opt_str ("warning-time").unwrap ();
 	let critical = matches.opt_str ("critical-time").unwrap ();
@@ -122,7 +114,6 @@ fn parse_options () -> Option<Opts> {
 	return Some (Opts {
 		hostname: hostname,
 		uri: uri,
-		text: text,
 		secure: secure,
 		warning: warning,
 		critical: critical,
@@ -132,14 +123,11 @@ fn parse_options () -> Option<Opts> {
 
 }
 
-fn check_site (host: &str, uri: &str, text: &str, secure: bool, headers: &Vec<String>, warning: f64, critical: f64, timeout: f64) -> String {
+fn check_etcd (host: &str, uri: &str, secure: bool, headers: &Vec<String>, warning: f64, critical: f64, timeout: f64) -> String {
     
 	let mut prefix: String;
 
-	if secure { prefix = "https://".to_string(); }
-	else { prefix = "http://".to_string(); }
-
-	let url = prefix + host + uri;
+	let url = "http://10.109.160.17:2380/metrics";
 
 	let headers_copy = headers.clone();
 
@@ -159,10 +147,16 @@ fn check_site (host: &str, uri: &str, text: &str, secure: bool, headers: &Vec<St
 		}
 
 		let resp = http_request.exec().unwrap();
+println!("{:?}",resp.get_body());
 
 		let code_string = resp.get_code().to_string();
 
-		let url_code = String::from_utf8_lossy(resp.get_body()).to_string();
+		let url_code = match std::str::from_utf8(resp.get_body()) {
+
+			Ok(str) => { str }
+			Err(e) => { return format!("ETCD-UNKNOWN: Error while requesting the metrics: {}.",e); }
+
+		};
 
 		return format!("{}:::{}", code_string, url_code);
 	});
@@ -202,6 +196,8 @@ fn check_site (host: &str, uri: &str, text: &str, secure: bool, headers: &Vec<St
 	let code_string: String = tokens[0].to_string();
 	let url_code: String = tokens[1].to_string();
 
+	println!("{}", response_string);
+/*
 	// Code check and text
 	let informational = 	vec![100isize, 101, 102];
 	let success = 		vec![200isize, 201, 202, 203, 204, 205, 206, 208, 226];
@@ -267,7 +263,8 @@ fn check_site (host: &str, uri: &str, text: &str, secure: bool, headers: &Vec<St
 	}
 	else {
 		return format!("{}\n{} | response_time={}ms;;;;", result_message, millis_message, millis);
-	}
+	}*/
+	return "OK".to_string();
 
 }
 
@@ -284,7 +281,6 @@ fn main () {
 
 	let hostname = &opts.hostname;
 	let uri = &opts.uri;
-	let text = &opts.text;
 	let secure = opts.secure;
 	let headers = opts.headers;
 
@@ -312,30 +308,27 @@ fn main () {
 		}
 	};
 
-	let site_res = check_site(hostname, uri, text, secure, & headers, warning, critical, timeout);
+	let etcd_res = check_etcd(hostname, uri, secure, & headers, warning, critical, timeout);
 
+	println!("{}", etcd_res);
 
-	if site_res.contains("UNKNOWN") {
+	if etcd_res.contains("UNKNOWN") {
 
-		println!("{}", site_res);
 		process::exit(3);
 
 	}
-	else if site_res.contains("CRITICAL") {
+	else if etcd_res.contains("CRITICAL") {
 
-		println!("{}", site_res);
 		process::exit(2);
 
 	} 
-	else if site_res.contains("WARNING") {
+	else if etcd_res.contains("WARNING") {
 
-		println!("{}", site_res);
 		process::exit(1);
 
 	} 
 	else {
 
-		println!("{}", site_res);
 		process::exit(0);
 
 	}
