@@ -63,91 +63,41 @@ fn parse_options () -> Option<Opts> {
 
 fn check_apt_cache(rootfs: &str) -> String {
 
-	let mut apt_elements_count = 0;
-	let mut apt_archive_elements_count = 0;
-	let mut apt_archive_partial_elements_count = 0;
+	let mut ls_apt_route: String = "/var/cache/apt".to_string();
+	let mut ls_apt_archive_route: String = "/var/cache/apt/archives".to_string();
+	let mut ls_apt_archive_partial_route: String = "/var/cache/apt/archives/partial".to_string();
 
-	let mut apt_elements_th = 0;
-	let mut apt_archive_elements_th = 0;
-	let mut apt_archive_partial_elements_th = 0;
+	if !rootfs.contains("none") {
 
-	if rootfs.is_empty() {
-
-		apt_elements_th = 3;
-		apt_archive_elements_th = 2;
-		apt_archive_partial_elements_th = 0;
-
-		let ls_apt_route: String = "/var/cache/apt".to_string();
-		let ls_apt_archive_route: String = "/var/cache/apt/archives".to_string();
-		let ls_apt_archive_partial_route: String = "/var/cache/apt/archives/partial".to_string();
-
-		// Count the elements present on the apt cache directories
-		let ls_apt_elements = match fs::read_dir(&ls_apt_route) {
-			Ok(rd) => { rd }
-			Err(_) => { return format!("APT-CACHE-UNKNOWN: could not read the directory {}.", ls_apt_route); }
-		};
-
-		let ls_apt_archive_elements = match fs::read_dir(&ls_apt_archive_route) {
-			Ok(rd) => { rd }
-			Err(_) => { return format!("APT-CACHE-UNKNOWN: could not read the directory {}.", ls_apt_archive_route); }
-		};
-
-		let ls_apt_archive_partial_elements = match fs::read_dir(&ls_apt_archive_partial_route) {
-			Ok(rd) => { rd }
-			Err(_) => { return format!("APT-CACHE-UNKNOWN: could not read the directory {}.", ls_apt_archive_partial_route); }
-		};
-
-		apt_elements_count = ls_apt_elements.count();
-		apt_archive_elements_count = ls_apt_archive_elements.count();
-		apt_archive_partial_elements_count = ls_apt_archive_partial_elements.count();
+		ls_apt_route = format!("/var/lib/lxc/{}/rootfs/{}", rootfs, ls_apt_route);
+		ls_apt_archive_route = format!("/var/lib/lxc/{}/rootfs/{}", rootfs, ls_apt_archive_route);
+		ls_apt_archive_partial_route = format!("/var/lib/lxc/{}/rootfs/{}", rootfs, ls_apt_archive_partial_route);
 
 	}
-	else { 		
-		apt_elements_th = 5;
-		apt_archive_elements_th = 4;
-		apt_archive_partial_elements_th = 2;
 
-		let apt_route =  format!("/var/lib/lxc/{}/rootfs/var/cache/apt", rootfs);
+	// Count the elements present on the apt cache directories
+	let ls_apt_elements = match fs::read_dir(&ls_apt_route) {
+		Ok(rd) => { rd }
+		Err(_) => { return format!("APT-CACHE-UNKNOWN: could not read the directory {}.", ls_apt_route); }
+	};
 
-		let ls_apt_output =
-			match process::Command::new ("ls")
-				.arg ("-l".to_string ())
-				.arg (apt_route.clone())
-				.output () {
-			Ok (output) => { output }
-			Err(_) => { return format!("APT-CACHE-UNKNOWN: could not read the directory {}.", apt_route); }
-		};
-		let ls_apt = String::from_utf8_lossy(&ls_apt_output.stdout).to_string();
+	let ls_apt_archive_elements = match fs::read_dir(&ls_apt_archive_route) {
+		Ok(rd) => { rd }
+		Err(_) => { return format!("APT-CACHE-UNKNOWN: could not read the directory {}.", ls_apt_archive_route); }
+	};
 
-		let ls_apt_archive_output =
-			match process::Command::new ("ls")
-				.arg ("-l".to_string ())
-				.arg (apt_route.clone() + "/archives")
-				.output () {
-			Ok (output) => { output }
-			Err(_) => { return format!("APT-CACHE-UNKNOWN: could not read the directory {}.", apt_route.clone() + "/archives"); }
-		};
-		let ls_apt_archive = String::from_utf8_lossy(&ls_apt_archive_output.stdout).to_string();
+	let ls_apt_archive_partial_elements = match fs::read_dir(&ls_apt_archive_partial_route) {
+		Ok(rd) => { rd }
+		Err(_) => { return format!("APT-CACHE-UNKNOWN: could not read the directory {}.", ls_apt_archive_partial_route); }
+	};
 
-		let ls_apt_archive_partial_output =
-			match process::Command::new ("ls")
-				.arg ("-l".to_string ())
-				.arg (apt_route.clone() + "/archives/partial")
-			.	output () {
-			Ok (output) => { output }
-			Err(_) => { return format!("APT-CACHE-UNKNOWN: could not read the directory {}.", apt_route.clone() + "/archives/partial"); }
-		};
-		let ls_apt_archive_partial = String::from_utf8_lossy(&ls_apt_archive_partial_output.stdout).to_string();
+	let apt_elements_count = ls_apt_elements.count();
+	let apt_archive_elements_count = ls_apt_archive_elements.count();
+	let apt_archive_partial_elements_count = ls_apt_archive_partial_elements.count();
 
-		let ls_apt_array: Vec<&str> = ls_apt.split("\n").collect();
-		let ls_apt_archive_array: Vec<&str> = ls_apt_archive.split("\n").collect();
-		let ls_apt_archive_partial_array: Vec<&str> = ls_apt_archive_partial.split("\n").collect();
-
-		apt_elements_count = ls_apt_array.len();
-		apt_archive_elements_count = ls_apt_archive_array.len();
-		apt_archive_partial_elements_count = ls_apt_archive_partial_array.len();
-
-	}
+	let apt_elements_th = 3;
+	let apt_archive_elements_th = 2;
+	let apt_archive_partial_elements_th = 0;
 
 	if apt_elements_count <= apt_elements_th && apt_archive_elements_count <= apt_archive_elements_th && apt_archive_partial_elements_count <= apt_archive_partial_elements_th {
 		return "APT-CACHE-OK: Apt cache is empty.".to_string();

@@ -83,6 +83,10 @@ name = "check_snapshots"
 
 [[bin]]
 
+name = "check_lvm"
+
+[[bin]]
+
 name = "check_etcd"
 
 [[bin]]
