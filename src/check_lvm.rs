@@ -19,8 +19,10 @@ fn print_help (program: &str, opts: Options) {
 }
 
 struct Opts {
-	warning: String,
-	critical: String,
+	warning_percentage: String,
+	critical_percentage: String,
+	warning_remaining_below: String,
+	critical_remaining_below: String,
 }
 
 fn parse_options () -> Option<Opts> {
@@ -36,15 +38,27 @@ fn parse_options () -> Option<Opts> {
 
 	opts.reqopt (
 			"",
-			"warning",
-			"lvm group size warning threshold",
-			"<warning>");
+			"warning-percentage",
+			"lvm group ocupation percentage warning threshold",
+			"<warning-percentage>");
 
 	opts.reqopt (
 			"",
-			"critical",
-			"lvm group size critical threshold",
-			"<critical>");
+			"critical-percentage",
+			"lvm group ocupation percentage critical threshold",
+			"<critical-percentage>");
+
+	opts.reqopt (
+			"",
+			"warning-remaining-below",
+			"lvm group remaining space warning threshold",
+			"<warning-remaining-below>");
+
+	opts.reqopt (
+			"",
+			"critical-remaining-below",
+			"lvm group remaining space critical threshold",
+			"<critical-remaining-below>");
 
 	let matches = match opts.parse (args) {
 		Ok (m) => { m }
@@ -59,17 +73,21 @@ fn parse_options () -> Option<Opts> {
 		process::exit(3);
 	}
 
-	let warning = matches.opt_str ("warning").unwrap ();
-	let critical = matches.opt_str ("critical").unwrap ();
+	let warning_percentage = matches.opt_str ("warning-percentage").unwrap ();
+	let critical_percentage = matches.opt_str ("critical-percentage").unwrap ();
+	let warning_remaining_below = matches.opt_str ("warning-remaining-below").unwrap ();
+	let critical_remaining_below = matches.opt_str ("critical-remaining-below").unwrap ();
 
 	return Some (Opts {
-		warning: warning,
-		critical: critical,
+		warning_percentage: warning_percentage,
+		critical_percentage: critical_percentage,
+		warning_remaining_below: warning_remaining_below,
+		critical_remaining_below: critical_remaining_below,
 	});
 
 }
 
-fn check_lvm (warning_th: f64, critical_th: f64) -> String {
+fn check_lvm (warning_th: f64, critical_th: f64, warning_remaining: f64, critical_remaining: f64) -> String {
 
 	let mut vgdisplay_output: String;
 	
@@ -91,8 +109,6 @@ fn check_lvm (warning_th: f64, critical_th: f64) -> String {
 	let mut size_units: Vec<String> = vec![];
 
 	let mut int_used: f64 = 0.0;
-	let mut used_unit: String = "".to_string();
-	
 	let mut critical_message: String = "".to_string();
 	let mut warning_message: String = "".to_string();
 	let mut ok_message: String = "".to_string();
@@ -138,33 +154,37 @@ fn check_lvm (warning_th: f64, critical_th: f64) -> String {
 		let used_unit = cap.at(2).unwrap_or("").trim();
 
 		let mut used_percentage: f64 = 0.0;
+		let mut remaining_space: f64 = 0.0;
 
-		if size_units[i-1].contains(used_unit) {
-			used_percentage = int_used / size_values[i-1];
-		}
-		else if (size_units[i-1].contains("TiB") && used_unit.contains("GiB")) ||
-			(size_units[i-1].contains("GiB") && used_unit.contains("MiB")) {
-			used_percentage = (int_used / 1024.0) / size_values[i-1];
-		}
-		else if size_units[i-1].contains("TiB") && used_unit.contains("MiB") {
-			used_percentage = (int_used / (1024.0 * 1024.0)) / size_values[i-1];
-		}
+		if size_units[i-1].contains("GiB") { size_values[i-1] = size_values[i-1] / 1024.0; }
+		if size_units[i-1].contains("MiB") { size_values[i-1] = size_values[i-1] / (1024.0 * 1024.0); }
+		if used_unit.contains("GiB") { int_used = int_used / 1024.0; }
+		if used_unit.contains("MiB") { int_used = int_used / (1024.0 * 1024.0); }
+
+		used_percentage = int_used / size_values[i-1];
+		remaining_space = size_values[i-1] - int_used;
+		
+		// Determine output state
 
 		let used_fmt = format!("{0:.1$}", used_percentage * 100.0, 1);
 		let warning_fmt = format!("{0:.1$}", warning_th * 100.0, 1);
 		let critical_fmt = format!("{0:.1$}", critical_th * 100.0, 1);
 
-		if used_percentage < warning_th {
-			ok_message = format!("{}\nLVM-OK: VG{} - used {}%, warning {}%.", ok_message, i, used_fmt, warning_fmt);
+		if used_percentage < warning_th && remaining_space > warning_remaining {
+			ok_message = format!("{}\nLVM-OK: VG{} - {}% used; Remaining space: {} TiB.", ok_message, i, used_fmt, remaining_space);
 		}
-		else if used_percentage >= warning_th && used_percentage < critical_th {
-			warning_message = format!("{}\nLVM-WARNING: VG{} - used {}%, critical {}%.", warning_message, i, used_fmt, critical_fmt);
+		else if used_percentage >= warning_th && used_percentage < critical_th &&
+			remaining_space < warning_remaining && remaining_space > critical_remaining {
+			warning_message = format!("{}\nLVM-WARNING: VG{} - {}% used; Remaining space: {} TiB.", warning_message, i, used_fmt, remaining_space);
+		}
+		else if used_percentage >= critical_th && remaining_space <= critical_remaining {
+			critical_message = format!("{}\nLVM-CRITICAL: VG{} - {}% used;  Remaining space: {} TiB.", critical_message, i, used_fmt, remaining_space);
 		}
 		else {
-			critical_message = format!("{}\nLVM-CRITICAL: VG{} - used {}%, critical {}%.", critical_message, i, used_fmt, critical_fmt);
+			ok_message = format!("{}\nLVM-OK: VG{} - {}% used; Remaining space: {} TiB.", ok_message, i, used_fmt, remaining_space);
 		}
 
-		perf_data = format!("{} VG{}_Used={}%;{};{};;", perf_data, i, used_fmt, warning_fmt, critical_fmt);
+		perf_data = format!("{} VG{}_Used={}%;{};{};; VG{}_Remaining={}TB;;;;", perf_data, i, used_fmt, warning_fmt, critical_fmt, i, remaining_space);
 
 		i = i + 1;
 	}
@@ -184,22 +204,37 @@ fn main () {
 		}
 	};
 
-	let warning : f64 = match opts.warning.parse() {
+	let warning_percentage : f64 = match opts.warning_percentage.parse() {
 		Ok (f64) => { f64 }
 		Err (_) => {
-			println!("LVM-UNKNOWN: The size warning threshold must be a double!"); 
+			println!("LVM-UNKNOWN: The percentage warning threshold must be a double!"); 
 			process::exit(3);
 		}
 	};
-	let critical : f64 = match opts.critical.parse() {
+	let critical_percentage : f64 = match opts.critical_percentage.parse() {
 		Ok (f64) => { f64 }
 		Err (_) => {
-			println!("LVM-UNKNOWN: The size critical threshold must be a double!"); 
+			println!("LVM-UNKNOWN: The percentage critical threshold must be a double!"); 
+			process::exit(3);
+		}
+	};
+	let warning_remaining_below : f64 = match opts.warning_remaining_below.parse() {
+		Ok (f64) => { f64 }
+		Err (_) => {
+			println!("LVM-UNKNOWN: The remaining size warning threshold must be a double!"); 
+			process::exit(3);
+		}
+	};
+	let critical_remaining_below : f64 = match opts.critical_remaining_below.parse() {
+		Ok (f64) => { f64 }
+		Err (_) => {
+			println!("LVM-UNKNOWN: The remaining size critical threshold must be a double!"); 
 			process::exit(3);
 		}
 	};
 
-	let result = check_lvm (warning, critical);
+	let result = check_lvm (warning_percentage, critical_percentage, warning_remaining_below, critical_remaining_below);
+
 	println!("{}", result);
 
 	if result.contains("CRITICAL") {
