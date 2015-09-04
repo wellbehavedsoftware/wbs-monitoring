@@ -101,7 +101,7 @@ fn check_email_queue (rootfs: &str, max_mails: i32) -> (String, i32, i32) {
 	let mut queue_output: String = "".to_string();
 	let mut deferred_output: String = "".to_string();
 	
-	if !rootfs.is_empty() {
+	if !rootfs.contains("none") {
 	
 		//check email queue
 
@@ -233,7 +233,7 @@ fn get_mailq_output(rootfs: &str) -> String {
 
 	let mut mailq_data: String = "".to_string();
 
-	if !rootfs.is_empty() {
+	if !rootfs.contains("none") {
 	
 		//check mailq data
 
@@ -442,7 +442,7 @@ fn main () {
 	let mut complete_check = false;
 
 	for host in complete_hosts {	
-		if rootfs.contains(host) {
+		if rootfs.contains(host) && !rootfs.contains("none") && !host.contains("none") {
 			complete_check = true;
 		}
 	}
@@ -450,6 +450,7 @@ fn main () {
 	let mut final_result: String = "".to_string();
 
 	if complete_check && !(&opts.complete).is_empty() {
+
 
 		let (result, mails, deferred_mails) = check_email_queue(rootfs, mails);
 
@@ -477,6 +478,7 @@ fn main () {
 		}
 	}
 	else {
+
 		let (result, mails, deferred_mails) = check_email_queue(rootfs, 0);
 
 		final_result = format!("{} | mails={};;;; deferred_mails={};;;;", result, mails, deferred_mails);
