@@ -87,6 +87,10 @@ name = "check_lvm"
 
 [[bin]]
 
+name = "check_over_quota"
+
+[[bin]]
+
 name = "check_etcd"
 
 [[bin]]
