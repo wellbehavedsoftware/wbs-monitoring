@@ -91,6 +91,10 @@ name = "check_over_quota"
 
 [[bin]]
 
+name = "check_mail_ports"
+
+[[bin]]
+
 name = "check_etcd"
 
 [[bin]]
