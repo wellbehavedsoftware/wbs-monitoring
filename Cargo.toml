@@ -95,6 +95,10 @@ name = "check_mail_ports"
 
 [[bin]]
 
+name = "check_github"
+
+[[bin]]
+
 name = "check_etcd"
 
 [[bin]]
@@ -119,4 +123,7 @@ regex = "0.1.8"
 
 [dependencies.time]
 time = "0.1.32"
+
+[dependencies.serde_json]
+serde_json = "0.6.0"
 

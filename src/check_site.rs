@@ -307,37 +307,25 @@ fn main () {
 	let timeout : f64 = match opts.timeout.parse() {
 		Ok (f64) => { f64 }
 		Err (_) => {
-			println!("UNKNOWN: Critical level must be a value between 0.0 and 1.0."); 
+			println!("UNKNOWN: Timeout must be a number!"); 
 			process::exit(3);
 		}
 	};
 
 	let site_res = check_site(hostname, uri, text, secure, & headers, warning, critical, timeout);
-
+	println!("{}", site_res);
 
 	if site_res.contains("UNKNOWN") {
-
-		println!("{}", site_res);
 		process::exit(3);
-
 	}
 	else if site_res.contains("CRITICAL") {
-
-		println!("{}", site_res);
 		process::exit(2);
-
 	} 
 	else if site_res.contains("WARNING") {
-
-		println!("{}", site_res);
 		process::exit(1);
-
 	} 
 	else {
-
-		println!("{}", site_res);
 		process::exit(0);
-
 	}
 
 }
