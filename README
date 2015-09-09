@@ -35,5 +35,7 @@ New checks:
 Version 1.2.X
 
 New checks: 
-- check_over_quota: checks wether a host or a container has it's disk quota exceeded
+- check_over_quota: checks wether a host or a container has its disk quota exceeded
+- check_mail_ports: checks wether the SMTP and IMAP services are listening to the right ports
+- check_github: compares the latest and installed releases of the specified github application
 
