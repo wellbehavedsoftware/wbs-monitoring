@@ -18,7 +18,7 @@ fn print_help (program: &str, opts: Options) {
 
 struct Opts {
 	rootfs: String,
-	files: String,
+	files: Vec<String>,
 }
 
 fn parse_options () -> Option<Opts> {
@@ -38,7 +38,7 @@ fn parse_options () -> Option<Opts> {
 			"root of the file system in which the checks will be performed",
 			"<rootfs>");
 
-	opts.reqopt (
+	opts.optmulti (
 			"",
 			"files",
 			"Route of the files that are going to be checked",
@@ -59,7 +59,7 @@ fn parse_options () -> Option<Opts> {
 	}
 
 	let rootfs = matches.opt_str ("rootfs").unwrap ();
-	let files = matches.opt_str ("files").unwrap ();
+	let files = matches.opt_strs ("files");
 
 	return Some (Opts {
 		rootfs: rootfs,
@@ -68,14 +68,12 @@ fn parse_options () -> Option<Opts> {
 
 }
 
-fn check_cow (rootfs: &str, files: &str) -> String {
-
-	let file_routes: Vec<&str> = files.split(',').collect();
+fn check_cow (rootfs: &str, files: &Vec<String>) -> String {
 
 	let mut result: String = "".to_string();
 
-	for route in file_routes.iter() {	
-	
+	for route in files.iter() {	
+
 		let cow_output =
 			match process::Command::new ("sudo")
 			.arg ("lxc-attach".to_string ())
@@ -87,7 +85,8 @@ fn check_cow (rootfs: &str, files: &str) -> String {
 			.arg (route.to_string ())
 			.output () {
 		Ok (output) => { output }
-		Err (err) => { return format!("Check CoW: {}.", err); }
+		Err (err) => { return format!("Check CoW: {}.", err); 
+		}
 		};
 
 		let out = String::from_utf8_lossy(&cow_output.stdout).to_string();
@@ -142,9 +141,9 @@ fn main () {
 
 
 	let rootfs = &opts.rootfs;
-	let files = &opts.files;
+	let files = opts.files;
 
-	let result = check_cow (rootfs, files);
+	let result = check_cow (rootfs, & files);
 
 	if result.contains("UNKNOWN") {
 
