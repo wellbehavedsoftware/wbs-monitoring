@@ -5,10 +5,6 @@ use getopts::Options;
 use std::env;
 use std::process;
 use std::option::{ Option };
-use std::io::BufReader as BR;
-use std::io::BufRead;
-use std::fs::File;
-use std::path::Path;
 
 fn print_usage (program: &str, opts: Options) {
 	let brief = format!("Usage: {} [options]", program);
@@ -22,8 +18,7 @@ fn print_help (program: &str, opts: Options) {
 
 struct Opts {
 	rootfs: String,
-	file: String,
-	directory: String,
+	files: String,
 }
 
 fn parse_options () -> Option<Opts> {
@@ -37,11 +32,6 @@ fn parse_options () -> Option<Opts> {
 			"help",
 			"print this help menu");
 
-	opts.reqopt (	
-			"",
-			"directory",
-			"The specified file is a directory",
-			"<directory>");
 	opts.reqopt (
 			"",
 			"rootfs",
@@ -50,9 +40,9 @@ fn parse_options () -> Option<Opts> {
 
 	opts.reqopt (
 			"",
-			"file",
-			"Route of the file that is going to be check",
-			"<file>");
+			"files",
+			"Route of the files that are going to be checked",
+			"<files>");
 
 
 	let matches = match opts.parse (args) {
@@ -69,78 +59,42 @@ fn parse_options () -> Option<Opts> {
 	}
 
 	let rootfs = matches.opt_str ("rootfs").unwrap ();
-	let file = matches.opt_str ("file").unwrap ();
-	let directory = matches.opt_str ("directory").unwrap ();
+	let files = matches.opt_str ("files").unwrap ();
 
 	return Some (Opts {
 		rootfs: rootfs,
-		file: file,
-		directory: directory,
+		files: files,
 	});
 
 }
 
-fn check_cow (rootfs: &str, file: &str, directory: &str) -> String {
+fn check_cow (rootfs: &str, files: &str) -> String {
 
-	let path = Path::new(file);
-
-	let file = match File::open(&path) {
-	    Ok(file) => file,
-	    Err(..)  => panic!("I/O Error!"),
-	};
-
-	let file_lines: Vec<String> = BR::new(&file).lines().map(|x| x.unwrap()).collect();
+	let file_routes: Vec<&str> = files.split(',').collect();
 
 	let mut result: String = "".to_string();
 
-	for line in file_lines.iter() {	
+	for route in file_routes.iter() {	
+	
+		let cow_output =
+			match process::Command::new ("sudo")
+			.arg ("lxc-attach".to_string ())
+			.arg ("--name".to_string ())
+			.arg (rootfs.to_string ())
+			.arg ("--".to_string ())
+			.arg ("lsattr".to_string ())
+			.arg ("-d".to_string ())
+			.arg (route.to_string ())
+			.output () {
+		Ok (output) => { output }
+		Err (err) => { return format!("Check CoW: {}.", err); }
+		};
 
-		let chars_to_trim: &[char] = &[' ', '\n'];
-	   	let trimmed_line: &str = line.trim_matches(chars_to_trim);		
-
-		let mut out: String;
-
-		if directory == "true" {
-
-			let cow_output =
-				match process::Command::new ("sudo")
-				.arg ("lxc-attach".to_string ())
-				.arg ("--name".to_string ())
-				.arg (rootfs.to_string ())
-				.arg ("--".to_string ())
-				.arg ("lsattr".to_string ())
-				.arg ("-d".to_string ())
-				.arg (trimmed_line.to_string ())
-				.output () {
-			Ok (output) => { output }
-			Err (err) => { return format!("Check CoW: {}.", err); }
-			};
-
-			out = String::from_utf8_lossy(&cow_output.stdout).to_string();
-
-		}
-		else {
-
-			let cow_output =
-				match process::Command::new ("sudo")
-				.arg ("lxc-attach".to_string ())
-				.arg ("--name".to_string ())
-				.arg (rootfs.to_string ())
-				.arg ("--".to_string ())
-				.arg ("lsattr".to_string ())
-				.arg (trimmed_line.to_string ())
-				.output () {
-			Ok (output) => { output }
-			Err (err) => { return format!("Check CoW: {}.", err); }
-			};
-
-			out = String::from_utf8_lossy(&cow_output.stdout).to_string();
-
-		}
+		let out = String::from_utf8_lossy(&cow_output.stdout).to_string();
 
 		if out.contains("No such file or directory") || out.is_empty() {
 	
-			result = result + &format!("COW-OK: The file {} does not exist in {}.\n", trimmed_line, rootfs);
+			result = result + &format!("COW-OK: The file {} does not exist in {}.\n", route, rootfs);
 
 		}
 		else if out.contains("Permission denied") {
@@ -153,12 +107,12 @@ fn check_cow (rootfs: &str, file: &str, directory: &str) -> String {
 
 			if file_attr.contains("C") {
 
-				result = result + &format!("COW-OK: The file {} exist in {} with COW disabled.\n", trimmed_line, rootfs);
+				result = result + &format!("COW-OK: The file {} exist in {} with COW disabled.\n", route, rootfs);
 
 			}
 			else {
 
-				result = result + &format!("COW-WARNING: The file {} exist in {} with COW enabled.\n", trimmed_line, rootfs);
+				result = result + &format!("COW-WARNING: The file {} exist in {} with COW enabled.\n", route, rootfs);
 
 			}
 
@@ -188,10 +142,9 @@ fn main () {
 
 
 	let rootfs = &opts.rootfs;
-	let file = &opts.file;
-	let directory = &opts.directory;
+	let files = &opts.files;
 
-	let result = check_cow (rootfs, file, directory);
+	let result = check_cow (rootfs, files);
 
 	if result.contains("UNKNOWN") {
 
