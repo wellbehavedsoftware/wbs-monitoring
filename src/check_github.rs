@@ -142,10 +142,10 @@ fn check_github (owner: &str, repository: &str, version: &str, timeout: f64) -> 
 	let release = obj.get("tag_name").unwrap().as_string().unwrap();
 	
 	if release != version && (release.contains("rc") || release.contains("alpha") || release.contains("beta")) {
-		return format!("GITHUB-WARNING: {} new release available ({}). {} currently installed.", repository, release, version); 
+		return format!("GITHUB-WARNING: {} new version available ({}). {} currently installed.", repository, release, version); 
 	}
 	else if release != version {
-		return format!("GITHUB-CRITICAL: {} new release available ({}). {} currently installed.", repository, release, version); 
+		return format!("GITHUB-WARNING: {} new release available ({}). {} currently installed.", repository, release, version); 
 	}
 	else {
 		return format!("GITHUB-OK: {} version is up to date.", repository); 
