@@ -29,61 +29,102 @@ fn parse_options () -> Option<Opts> {
 	let mut opts = Options::new();
 
 	opts.optflag (
-			"",
-			"help",
-			"print this help menu");
+		"",
+		"help",
+		"print this help menu");
 
 	opts.reqopt (
-			"",
-			"container-name",
-			"Name of the container in which the check will be performed. Set to \"none\" for performing the check in the host.",
-			"<container-name>");
+		"",
+		"container-name",
+		"Name of the container in which the check will be performed. Set to \"none\" for performing the check in the host.",
+		"<container-name>");
 
-	let matches = match opts.parse (args) {
+	let matches =
+		match opts.parse (args) {
+
 		Ok (m) => { m }
+
 		Err (_) => {
-			print_usage ("check_over_quota", opts);
-			process::exit(3);
+
+			print_usage (
+				"check_over_quota",
+				opts);
+
+			process::exit (3);
+
 		}
+
 	};
 
 	if matches.opt_present ("help") {
-		print_help ("check_over_quota", opts);
-		process::exit(3);
+
+		print_help (
+			"check_over_quota",
+			opts);
+
+		process::exit (3);
+
 	}
 
-	let container_name = matches.opt_str ("container-name").unwrap ();
+	let container_name =
+		matches.opt_str ("container-name").unwrap ();
 
 	return Some (Opts {
 		container_name: container_name,
-
 	});
 
 }
 
 
-fn check_over_quota(rootfs: &str) -> String {
+fn check_over_quota (rootfs: &str) -> String {
 
-	let mut	test_file_route: String = "/home/ubuntu/test.txt".to_string();
+	let mut	test_file_route: String =
+		"/home/ubuntu/test.txt".to_string ();
 
-	if !rootfs.contains("none") {
+	if ! rootfs.contains ("none") {
 
-		test_file_route = format!("/var/lib/lxc/{}/rootfs{}", rootfs, test_file_route);
+		test_file_route =
+			format! (
+				"/var/lib/lxc/{}/rootfs{}",
+				rootfs,
+				test_file_route);
 
 	}
 
-	match File::create(&test_file_route) {
-		Ok (f) => { f }
-		Err (e) => {
-			return format!("OVER-QUOTA-CRITICAL: Could not create the file {}: {}.", test_file_route, e);
+	{
+
+		match File::create (& test_file_route) {
+
+			Ok (f) => { f }
+
+			Err (err) => {
+
+				return format! (
+					"OVER-QUOTA-CRITICAL: Could not create the file {}: {}.",
+					test_file_route,
+					err);
+
+			}
+
+		};
+
+	}
+
+	match fs::remove_file (& test_file_route) {
+
+		Ok (_) => {
+
+			return format! (
+				"OVER-QUOTA-OK: quota limit not exceeded.");
+
 		}
-	};
 
-	match fs::remove_file(&test_file_route) {
+		Err (err) => {
 
-		Ok (_) => { return format!("OVER-QUOTA-OK: quota limit not exceeded."); }
-		Err (e) => {
-			return format!("OVER-QUOTA-UNKNOWN: Unexpected error: {}.", e);
+			return format! (
+				"OVER-QUOTA-UNKNOWN: Unexpected error: {}.",
+				err);
+
 		}
 
 	};
@@ -98,22 +139,32 @@ fn main () {
 		None => { return }
 	};
 
-	let over_quota_msg = check_over_quota(&opts.container_name);
+	let over_quota_msg =
+		check_over_quota (& opts.container_name);
 
-	println!("{}", over_quota_msg);
+	println! (
+		"{}",
+		over_quota_msg);
 
-	if over_quota_msg.contains("UNKNOWN") {
-		process::exit(3);
-	}
-	else if over_quota_msg.contains("OK") {
-		process::exit(0);
-	}
-	else if over_quota_msg.contains("CRITICAL") {
-		process::exit(2);
-	}
-	else {
-		println!("OVER-QUOTA-UNKNOWN: Could not execute over quota check. Unknown error.");
-		process::exit(3);
+	if over_quota_msg.contains ("UNKNOWN") {
+
+		process::exit (3);
+
+	} else if over_quota_msg.contains ("OK") {
+
+		process::exit (0);
+
+	} else if over_quota_msg.contains ("CRITICAL") {
+
+		process::exit (2);
+
+	} else {
+
+		println! (
+			"OVER-QUOTA-UNKNOWN: Could not execute over quota check. Unknown error.");
+
+		process::exit (3);
+
 	}
 
 }
