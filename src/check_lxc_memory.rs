@@ -26,7 +26,7 @@ fn parse_options () -> Option<Opts> {
 
 	let mut opts = Options::new();
 
-	opts.optflag (	
+	opts.optflag (
 			"",
 			"help",
 			"print this help menu");
@@ -113,7 +113,7 @@ fn check_mem(container_name: &str) -> String {
 
 	println!("MEM-Q OK: {} GiB {}%, limit {} GiB. | memory={}%;;;;", mem_used_quota, mem_used_percentage_quota, mem_limit_quota, mem_used_percentage_quota);
 	return "OK".to_string();
-	
+
 }
 
 
@@ -123,18 +123,18 @@ fn main () {
 		Some (opts) => { opts }
 		None => { return }
 	};
-	
+
 	let mem_str = check_mem(&opts.name);
 	if mem_str == "MEM ERROR" {
-		println!("MEM-Q UNKNOWN: Could not execute memory check. Shell commands failed to execute."); 
-		process::exit(3);	
+		println!("MEM-Q UNKNOWN: Could not execute memory check. Shell commands failed to execute.");
+		process::exit(3);
 	}
 	else if mem_str == "OK" {
-		process::exit(0);	
+		process::exit(0);
 	}
 	else {
-		println!("MEM-Q UNKNOWN: Could not execute mem check. Unknown error."); 
-		process::exit(3);	
+		println!("MEM-Q UNKNOWN: Could not execute mem check. Unknown error.");
+		process::exit(3);
 	}
 
 }

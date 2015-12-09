@@ -27,7 +27,7 @@ fn parse_options () -> Option<Opts> {
 
 	let mut opts = Options::new();
 
-	opts.optflag (	
+	opts.optflag (
 			"",
 			"help",
 			"print this help menu");
@@ -115,23 +115,23 @@ fn main () {
 		Some (opts) => { opts }
 		None => { return }
 	};
-	
+
 	let apt_cache_msg = check_apt_cache(&opts.rootfs);
 
 	println!("{}", apt_cache_msg);
 
 	if apt_cache_msg.contains("UNKNOWN") {
-		process::exit(3);	
+		process::exit(3);
 	}
 	else if apt_cache_msg.contains("OK") {
-		process::exit(0);	
+		process::exit(0);
 	}
 	else if apt_cache_msg.contains("WARNING") {
-		process::exit(1);	
+		process::exit(1);
 	}
 	else {
-		println!("APT-CACHE-UNKNOWN: Could not execute apt cache check. Unknown error."); 
-		process::exit(3);	
+		println!("APT-CACHE-UNKNOWN: Could not execute apt cache check. Unknown error.");
+		process::exit(3);
 	}
 
 }

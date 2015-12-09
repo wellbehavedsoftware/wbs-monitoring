@@ -27,7 +27,7 @@ fn parse_options () -> Option<Opts> {
 
 	let mut opts = Options::new();
 
-	opts.optflag (	
+	opts.optflag (
 			"",
 			"help",
 			"print this help menu");
@@ -72,7 +72,7 @@ fn check_cow (rootfs: &str, files: &Vec<String>) -> String {
 
 	let mut result: String = "".to_string();
 
-	for route in files.iter() {	
+	for route in files.iter() {
 
 		let cow_output =
 			match process::Command::new ("sudo")
@@ -85,14 +85,14 @@ fn check_cow (rootfs: &str, files: &Vec<String>) -> String {
 			.arg (route.to_string ())
 			.output () {
 		Ok (output) => { output }
-		Err (err) => { return format!("Check CoW: {}.", err); 
+		Err (err) => { return format!("Check CoW: {}.", err);
 		}
 		};
 
 		let out = String::from_utf8_lossy(&cow_output.stdout).to_string();
 
 		if out.contains("No such file or directory") || out.is_empty() {
-	
+
 			result = result + &format!("COW-OK: The file {} does not exist in {}.\n", route, rootfs);
 
 		}
@@ -126,14 +126,14 @@ fn check_cow (rootfs: &str, files: &Vec<String>) -> String {
 	}
 
 	return result;
-	
+
 }
 
 fn main () {
 
 	let opts = match parse_options () {
 		Some (opts) => { opts }
-		None => { 
+		None => {
 			println!("UNKNOWN: Wrong arguments.");
 			process::exit(3);
 		}
@@ -162,5 +162,5 @@ fn main () {
 		process::exit(0);
 
 	}
-	
+
 }

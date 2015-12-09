@@ -28,7 +28,7 @@ fn parse_options () -> Option<Opts> {
 
 	let mut opts = Options::new();
 
-	opts.optflag (	
+	opts.optflag (
 			"",
 			"help",
 			"print this help menu");
@@ -65,13 +65,13 @@ fn parse_options () -> Option<Opts> {
 fn check_over_quota(rootfs: &str) -> String {
 
 	let mut	test_file_route: String = "/home/ubuntu/test.txt".to_string();
-	
+
 	if !rootfs.contains("none") {
 
 		test_file_route = format!("/var/lib/lxc/{}/rootfs{}", rootfs, test_file_route);
 
 	}
-	
+
 	match File::create(&test_file_route) {
 		Ok (f) => { f }
 		Err (e) => {
@@ -86,8 +86,8 @@ fn check_over_quota(rootfs: &str) -> String {
 			return format!("OVER-QUOTA-UNKNOWN: Unexpected error: {}.", e);
 		}
 
-	};	
-	
+	};
+
 }
 
 
@@ -97,23 +97,23 @@ fn main () {
 		Some (opts) => { opts }
 		None => { return }
 	};
-	
+
 	let over_quota_msg = check_over_quota(&opts.container_name);
 
 	println!("{}", over_quota_msg);
 
 	if over_quota_msg.contains("UNKNOWN") {
-		process::exit(3);	
+		process::exit(3);
 	}
 	else if over_quota_msg.contains("OK") {
-		process::exit(0);	
+		process::exit(0);
 	}
 	else if over_quota_msg.contains("CRITICAL") {
-		process::exit(2);	
+		process::exit(2);
 	}
 	else {
-		println!("OVER-QUOTA-UNKNOWN: Could not execute over quota check. Unknown error."); 
-		process::exit(3);	
+		println!("OVER-QUOTA-UNKNOWN: Could not execute over quota check. Unknown error.");
+		process::exit(3);
 	}
 
 }

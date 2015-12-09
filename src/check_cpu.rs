@@ -33,7 +33,7 @@ fn parse_options () -> Option<Opts> {
 
 	let mut opts = Options::new();
 
-	opts.optflag (	
+	opts.optflag (
 			"",
 			"help",
 			"print this help menu");
@@ -104,7 +104,7 @@ fn check_cpu(warning_level: f64, critical_level: f64) -> String {
 	let irq = stat_cpu[6];
 	let softirq = stat_cpu[7];
 
-	let mut perf_data = format!("user={}c;;;; niced={}c;;;; system={}c;;;; idle={}c;;;; iowait={}c;;;; irq={};;;; softirq={}c;;;;", user_str, niced, system, idle_str, iowait, irq, softirq);	
+	let mut perf_data = format!("user={}c;;;; niced={}c;;;; system={}c;;;; idle={}c;;;; iowait={}c;;;; irq={};;;; softirq={}c;;;;", user_str, niced, system, idle_str, iowait, irq, softirq);
 
 	let interesting_fields = [ "ctxt", "btime", "processes", "procs_running", "procs_blocked" ];
 
@@ -126,7 +126,7 @@ fn check_cpu(warning_level: f64, critical_level: f64) -> String {
 			if !field.contains("procs_running") && !field.contains("procs_blocked") {
 				perf_data = format!("{} {}={};;;;", perf_data, field, int_value);
 				break;
-			}	
+			}
 			else {
 				perf_data = format!("{} {}={}c;;;;", perf_data, field, int_value);
 				break;
@@ -141,7 +141,7 @@ fn check_cpu(warning_level: f64, critical_level: f64) -> String {
 		Ok (f64) => { f64 }
 		Err (_) => { return "CPU-UNKNOWN: Unable to parse /proc/stat.".to_string(); }
 	};
-	
+
 	let kernel : f64 = match system.parse() {
 		Ok (f64) => { f64 }
 		Err (_) => { return "CPU-UNKNOWN: Unable to parse /proc/stat.".to_string(); }
@@ -169,7 +169,7 @@ fn check_cpu(warning_level: f64, critical_level: f64) -> String {
 	else {
 		return format!("CPU-CRITICAL: used {}%, critical {}%. | cpu={}%;{};{};; {}", cpu_used, critical_level_fmt, cpu_used, warning_level_fmt, critical_level_fmt, perf_data);
 	}
-	
+
 }
 
 fn main () {
@@ -182,36 +182,36 @@ fn main () {
 	let cpu_warning : f64 = match opts.warning.parse() {
 		Ok (f64) => { f64 }
 		Err (_) => {
-			println!("CPU-UNKNOWN: Warning level must be a value between 0.0 and 1.0."); 
+			println!("CPU-UNKNOWN: Warning level must be a value between 0.0 and 1.0.");
 			process::exit(3);
 		}
 	};
-	
+
 	let cpu_critical : f64 = match opts.critical.parse() {
 		Ok (f64) => { f64 }
 		Err (_) => {
-			println!("CPU-UNKNOWN: Critical level must be a value between 0.0 and 1.0."); 
+			println!("CPU-UNKNOWN: Critical level must be a value between 0.0 and 1.0.");
 			process::exit(3);
 		}
 	};
 
 	let cpu_str = check_cpu(cpu_warning, cpu_critical);
 	println!("{}", cpu_str);
- 
+
 	if cpu_str.contains("UNKNOWN") {
-		process::exit(3);	
+		process::exit(3);
 	}
 	else if cpu_str.contains("CRITICAL") {
-		process::exit(2);	
+		process::exit(2);
 	}
 	else if cpu_str.contains("WARNING") {
-		process::exit(1);	
+		process::exit(1);
 	}
 	else if cpu_str.contains("OK") {
-		process::exit(0);	
+		process::exit(0);
 	}
 	else {
-		process::exit(3);	
+		process::exit(3);
 	}
 }
 

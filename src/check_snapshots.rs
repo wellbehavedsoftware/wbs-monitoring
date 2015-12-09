@@ -29,7 +29,7 @@ fn parse_options () -> Option<Opts> {
 
 	let mut opts = Options::new();
 
-	opts.optflag (	
+	opts.optflag (
 			"",
 			"help",
 			"print this help menu");
@@ -106,7 +106,7 @@ fn check_snapshots(container: &str) -> String {
 
 		let entry_name = dir.file_name().clone();
 		let file_name = entry_name.to_str().unwrap();
-		
+
 		if yesterday.contains(file_name) {
 			return format!("SNAPSHOTS-OK: Last snapshots for {} created on {}", container, yesterday);
 		}
@@ -127,23 +127,23 @@ fn main () {
 		Some (opts) => { opts }
 		None => { return }
 	};
-	
+
 	let snapshots_msg = check_snapshots(&opts.container);
 
 	println!("{}", snapshots_msg);
 
 	if snapshots_msg.contains("UNKNOWN") {
-		process::exit(3);	
+		process::exit(3);
 	}
 	else if snapshots_msg.contains("OK") {
-		process::exit(0);	
+		process::exit(0);
 	}
 	else if snapshots_msg.contains("WARNING") {
-		process::exit(1);	
+		process::exit(1);
 	}
 	else {
-		println!("APT-CACHE-UNKNOWN: Could not execute snapshots check. Unknown error."); 
-		process::exit(3);	
+		println!("APT-CACHE-UNKNOWN: Could not execute snapshots check. Unknown error.");
+		process::exit(3);
 	}
 
 }

@@ -31,25 +31,25 @@ fn parse_options () -> Option<Opts> {
 
 	let mut opts = Options::new();
 
-	opts.optflag (	
-			"", 
-			"help", 
+	opts.optflag (
+			"",
+			"help",
 			"print this help menu");
 
-	opts.reqopt (	
-			"", 
-			"data-level", 
-			"maximum data level allowed", 
+	opts.reqopt (
+			"",
+			"data-level",
+			"maximum data level allowed",
 			"<data-level>");
 
-	opts.reqopt (	
-			"", 
-			"message-level", 
-			"maximum messages level allowed", 
+	opts.reqopt (
+			"",
+			"message-level",
+			"maximum messages level allowed",
 			"<message-level>");
 
-	opts.reqopt (	
-			"", 
+	opts.reqopt (
+			"",
 			"username",
 			"authsmtp api username",
 			"<username>");
@@ -60,19 +60,19 @@ fn parse_options () -> Option<Opts> {
 			"authsmtp api password",
 			"<password>");
 
-	
+
 
 	let matches = match opts.parse (args) {
 		Ok (m) => { m }
 		Err (_) => {
 			print_usage ("Check_authsmtp", opts);
-			process::exit(3);	
+			process::exit(3);
 		}
 	};
 
 	if matches.opt_present ("help") {
 		print_help ("check_authsmtp", opts);
-		process::exit(3);	
+		process::exit(3);
 	}
 
 	let data_level = matches.opt_str ("data-level").unwrap ();
@@ -93,7 +93,7 @@ fn get_authsmtp_data (username: &str, password: &str, messages_level: f64, data_
 
 	let url = "https://secure.authsmtp.com/restful/basic_user/".to_string() + username;
 	let userpass = username.to_string() + ":" + password;
-	
+
    	let resp = http::handle()
 		  	.connect_timeout(30000)
 			.ssl_verifypeer(false)
@@ -105,7 +105,7 @@ fn get_authsmtp_data (username: &str, password: &str, messages_level: f64, data_
 	let url_code = String::from_utf8_lossy(resp.get_body());
 
 	let response_lines: Vec<&str> = url_code.split("\n").collect();
-	
+
 	//Messages limit
 	let mut messages_limit_array: Vec<&str> = response_lines[7].split('>').collect();
 	messages_limit_array = messages_limit_array[1].split('<').collect();
@@ -174,31 +174,31 @@ fn get_authsmtp_data (username: &str, password: &str, messages_level: f64, data_
 
 	let messages_level_format = format!("{0:.1$}", messages_level * 100.0, 2);
 	let data_level_format = format!("{0:.1$}", data_level * 100.0, 2);
-	
-	let mut message: String = "".to_string();
-	let mut messages_msg: String = format!("AUTHSMTP-OK: Messages quota OK. {}% out of {}%.\n", messages_percentage_format, messages_level_format);  
 
-	let mut data_msg: String = format!("AUTHSMTP-OK: Data quota OK. {}% out of {}%.\n", data_percentage_format, data_level_format); 
+	let mut message: String = "".to_string();
+	let mut messages_msg: String = format!("AUTHSMTP-OK: Messages quota OK. {}% out of {}%.\n", messages_percentage_format, messages_level_format);
+
+	let mut data_msg: String = format!("AUTHSMTP-OK: Data quota OK. {}% out of {}%.\n", data_percentage_format, data_level_format);
 	let mut data_bool: bool = true;
 
-	let mut address_msg: String = "AUTHSMTP-OK: From address quota OK.\n".to_string(); 
+	let mut address_msg: String = "AUTHSMTP-OK: From address quota OK.\n".to_string();
 	let mut address_bool: bool = true;
 
-	if messages_percentage >= messages_level { 
-		messages_msg = format!("AUTHSMTP-CRITICAL: Messages limit reached. {}% out of {}%.\n", messages_percentage_format, messages_level_format); 
+	if messages_percentage >= messages_level {
+		messages_msg = format!("AUTHSMTP-CRITICAL: Messages limit reached. {}% out of {}%.\n", messages_percentage_format, messages_level_format);
 	}
-	if data_percentage >= data_level { 
+	if data_percentage >= data_level {
 		data_msg = format!("AUTHSMTP-CRITICAL: Data limit reached. {}% out of {}%.\n", data_percentage_format, data_level_format);
-		data_bool = false;	
+		data_bool = false;
 	}
-	if from_address_used == from_address { 
-		address_msg = "AUTHSMTP-CRITICAL: From address limit reached.\n".to_string(); 
+	if from_address_used == from_address {
+		address_msg = "AUTHSMTP-CRITICAL: From address limit reached.\n".to_string();
 		address_bool = false;
 	}
 
-	
+
 	if !data_bool { message = message + &data_msg + &messages_msg + &address_msg; }
-	else if !address_bool { message = message + &address_msg + &messages_msg + &data_msg; }	
+	else if !address_bool { message = message + &address_msg + &messages_msg + &data_msg; }
 	else { message = message + &messages_msg + &data_msg + &address_msg; }
 
 	return (message, messages_percentage_format, data_percentage_format);
@@ -214,21 +214,21 @@ fn main () {
 
 	let data_level : f64 = match opts.data_level.parse() {
 		Ok (f64) => { f64 }
-		Err (_) => { 
-			println!("UNKNOWN: data_level has an incorrect type (0.0 - 1.0)."); 	
+		Err (_) => {
+			println!("UNKNOWN: data_level has an incorrect type (0.0 - 1.0).");
 			process::exit(3);
 		}
 	};
 
 	let messages_level : f64 = match opts.message_level.parse() {
 		Ok (f64) => { f64 }
-		Err (_) => { 		
-			println!("UNKNOWN: message_level has an incorrect type (0.0 - 1.0)."); 	
+		Err (_) => {
+			println!("UNKNOWN: message_level has an incorrect type (0.0 - 1.0).");
 			process::exit(3);
 		}
 	};
 
-	let (response, data, messages) = get_authsmtp_data (&opts.username, &opts.password, messages_level, data_level);		
+	let (response, data, messages) = get_authsmtp_data (&opts.username, &opts.password, messages_level, data_level);
 
 	if response.contains("AUTHSMTP ERROR") {
 		println!("{} | data_quota%={};;;; messages_quota%={};;;;", response, data, messages);

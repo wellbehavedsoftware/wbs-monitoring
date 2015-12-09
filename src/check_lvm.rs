@@ -31,7 +31,7 @@ fn parse_options () -> Option<Opts> {
 
 	let mut opts = Options::new();
 
-	opts.optflag (	
+	opts.optflag (
 			"",
 			"help",
 			"print this help menu");
@@ -90,7 +90,7 @@ fn parse_options () -> Option<Opts> {
 fn check_lvm (warning_th: f64, critical_th: f64, warning_remaining: f64, critical_remaining: f64) -> String {
 
 	let mut vgdisplay_output: String;
-	
+
 	//check emails list
 
 	let output =
@@ -129,7 +129,7 @@ fn check_lvm (warning_th: f64, critical_th: f64, warning_remaining: f64, critica
 
 		size_values.push(int_value);
 		size_units.push(cap.at(2).unwrap_or("").trim().to_string());
-		
+
 		i = i + 1;
 
 	}
@@ -144,7 +144,7 @@ fn check_lvm (warning_th: f64, critical_th: f64, warning_remaining: f64, critica
 	for cap in re.captures_iter(&vgdisplay_output) {
 		let capt = cap.at(1).unwrap_or("").trim();
 		let value_array: Vec<&str> = capt.split(" / ").collect();
-		let value = value_array[1];		
+		let value = value_array[1];
 
 		int_used = match value.parse() {
 			Ok(f64) => { f64 }
@@ -163,7 +163,7 @@ fn check_lvm (warning_th: f64, critical_th: f64, warning_remaining: f64, critica
 
 		used_percentage = int_used / size_values[i-1];
 		remaining_space = size_values[i-1] - int_used;
-		
+
 		// Determine output state
 
 		let used_fmt = format!("{0:.1$}", used_percentage * 100.0, 1);
@@ -198,7 +198,7 @@ fn main () {
 
 	let opts = match parse_options () {
 		Some (opts) => { opts }
-		None => { 
+		None => {
 			println!("LVM-UNKNOWN: Wrong arguments.");
 			process::exit(3);
 		}
@@ -207,28 +207,28 @@ fn main () {
 	let warning_percentage : f64 = match opts.warning_percentage.parse() {
 		Ok (f64) => { f64 }
 		Err (_) => {
-			println!("LVM-UNKNOWN: The percentage warning threshold must be a double!"); 
+			println!("LVM-UNKNOWN: The percentage warning threshold must be a double!");
 			process::exit(3);
 		}
 	};
 	let critical_percentage : f64 = match opts.critical_percentage.parse() {
 		Ok (f64) => { f64 }
 		Err (_) => {
-			println!("LVM-UNKNOWN: The percentage critical threshold must be a double!"); 
+			println!("LVM-UNKNOWN: The percentage critical threshold must be a double!");
 			process::exit(3);
 		}
 	};
 	let warning_remaining_below : f64 = match opts.warning_remaining_below.parse() {
 		Ok (f64) => { f64 }
 		Err (_) => {
-			println!("LVM-UNKNOWN: The remaining size warning threshold must be a double!"); 
+			println!("LVM-UNKNOWN: The remaining size warning threshold must be a double!");
 			process::exit(3);
 		}
 	};
 	let critical_remaining_below : f64 = match opts.critical_remaining_below.parse() {
 		Ok (f64) => { f64 }
 		Err (_) => {
-			println!("LVM-UNKNOWN: The remaining size critical threshold must be a double!"); 
+			println!("LVM-UNKNOWN: The remaining size critical threshold must be a double!");
 			process::exit(3);
 		}
 	};

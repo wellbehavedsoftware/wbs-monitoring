@@ -22,7 +22,7 @@ fn parse_options () {
 
 	let mut opts = Options::new();
 
-	opts.optflag (	
+	opts.optflag (
 			"",
 			"help",
 			"print this help menu");
@@ -102,30 +102,30 @@ fn check_cpu_overview() -> String {
 
 		let stat_system_list: Vec<&str> = stat_list[1].split(' ').collect();
 		perfdata = format!("{} {}_system={};;;;", perfdata, container, stat_system_list[1]);
-	
+
 	}
 
 	return format!("CPU-OVERVIEW-OK: Click to display containers CPU usage. {}", perfdata);
-	
+
 }
 
 
 fn main () {
 
 	parse_options ();
-	
+
 	let cpu_str = check_cpu_overview();
 	println!("{}", cpu_str);
 
 	if cpu_str.contains("UNKNOWN") {
-		process::exit(3);	
+		process::exit(3);
 	}
 	else if cpu_str.contains("OK") {
-		process::exit(0);	
+		process::exit(0);
 	}
 	else {
-		println!("CPU-OVERVIEW-UNKNOWN: Could not execute cpu overview check. Unknown error."); 
-		process::exit(3);	
+		println!("CPU-OVERVIEW-UNKNOWN: Could not execute cpu overview check. Unknown error.");
+		process::exit(3);
 	}
 
 }

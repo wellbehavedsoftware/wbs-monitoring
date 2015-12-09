@@ -38,7 +38,7 @@ fn parse_options () -> Option<Opts> {
 
 	let mut opts = Options::new();
 
-	opts.optflag (	
+	opts.optflag (
 			"",
 			"help",
 			"print this help menu");
@@ -124,7 +124,7 @@ fn parse_options () -> Option<Opts> {
 }
 
 fn check_etcd (host: &str, uri: &str, secure: bool, headers: &Vec<String>, warning: f64, critical: f64, timeout: f64) -> String {
-    
+
 	let mut prefix: String;
 
 	let url = "http://10.109.160.17:2380/metrics";
@@ -133,7 +133,7 @@ fn check_etcd (host: &str, uri: &str, secure: bool, headers: &Vec<String>, warni
 
 	let start = PreciseTime::now();
 
-	let child = thread::spawn(move || {	
+	let child = thread::spawn(move || {
 
 	   	let mut http_handle = http::handle();
 
@@ -186,8 +186,8 @@ println!("{:?}",resp.get_body());
 	// Get the child's process results
 	let response_string = match res {
 		Ok (value) => { value }
-		Err (_) => { 
-			return format!("SITE-CRITICAL: The check could not be performed. No response received."); 
+		Err (_) => {
+			return format!("SITE-CRITICAL: The check could not be performed. No response received.");
 		}
 	};
 
@@ -202,9 +202,9 @@ println!("{:?}",resp.get_body());
 	let informational = 	vec![100isize, 101, 102];
 	let success = 		vec![200isize, 201, 202, 203, 204, 205, 206, 208, 226];
 	let redirection = 	vec![300isize, 301, 302, 303, 304, 305, 306, 308];
-	let client_error = 	vec![400isize, 401, 402, 403, 404, 405, 406, 407, 408, 409, 410, 
+	let client_error = 	vec![400isize, 401, 402, 403, 404, 405, 406, 407, 408, 409, 410,
 				411, 412, 413, 414, 415, 416, 417, 418, 419, 420, 422,
-				423, 424, 426, 428, 429, 431, 440, 444, 450, 451, 494, 
+				423, 424, 426, 428, 429, 431, 440, 444, 450, 451, 494,
 				495, 496, 497, 498, 499];
 	let server_error =	vec![500isize, 501, 502, 503, 504, 505, 506, 507, 508, 509, 510,
 				511, 520, 521, 522, 523, 524, 598, 599];
@@ -213,8 +213,8 @@ println!("{:?}",resp.get_body());
 
 	let response_code : isize = match code_string.to_string().parse() {
 		Ok (isize) => { isize }
-		Err (_) => { 
-			return "SITE-UNKNOWN: The check could not be performed. No response received.".to_string(); 
+		Err (_) => {
+			return "SITE-UNKNOWN: The check could not be performed. No response received.".to_string();
 		}
 	};
 
@@ -272,7 +272,7 @@ fn main () {
 
 	let opts = match parse_options () {
 		Some (opts) => { opts }
-		None => { 
+		None => {
 			println!("UNKNOWN: Wrong arguments.");
 			process::exit(3);
 		}
@@ -287,15 +287,15 @@ fn main () {
 	let warning : f64 = match opts.warning.parse() {
 		Ok (f64) => { f64 }
 		Err (_) => {
-			println!("UNKNOWN: Warning level must be a value between 0.0 and 1.0."); 
+			println!("UNKNOWN: Warning level must be a value between 0.0 and 1.0.");
 			process::exit(3);
 		}
 	};
-	
+
 	let critical : f64 = match opts.critical.parse() {
 		Ok (f64) => { f64 }
 		Err (_) => {
-			println!("UNKNOWN: Critical level must be a value between 0.0 and 1.0."); 
+			println!("UNKNOWN: Critical level must be a value between 0.0 and 1.0.");
 			process::exit(3);
 		}
 	};
@@ -303,7 +303,7 @@ fn main () {
 	let timeout : f64 = match opts.timeout.parse() {
 		Ok (f64) => { f64 }
 		Err (_) => {
-			println!("UNKNOWN: Critical level must be a value between 0.0 and 1.0."); 
+			println!("UNKNOWN: Critical level must be a value between 0.0 and 1.0.");
 			process::exit(3);
 		}
 	};
@@ -321,12 +321,12 @@ fn main () {
 
 		process::exit(2);
 
-	} 
+	}
 	else if etcd_res.contains("WARNING") {
 
 		process::exit(1);
 
-	} 
+	}
 	else {
 
 		process::exit(0);

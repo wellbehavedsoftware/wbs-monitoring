@@ -33,7 +33,7 @@ fn parse_options () -> Option<Opts>  {
 
 	let mut opts = Options::new();
 
-	opts.optflag (	
+	opts.optflag (
 			"",
 			"help",
 			"print this help menu");
@@ -60,7 +60,7 @@ fn parse_options () -> Option<Opts>  {
 
 	if matches.opt_present ("help") {
 		print_help ("check_memory", opts);
-		process::exit(3);	
+		process::exit(3);
 	}
 
 	let warning = matches.opt_str ("warning").unwrap ();
@@ -181,37 +181,37 @@ fn main () {
 	let mem_warning : f64 = match opts.warning.parse() {
 		Ok (f64) => { f64 }
 		Err (_) => {
-			println!("UNKNOWN: Warning level must be a value between 0.0 and 1.0."); 
+			println!("UNKNOWN: Warning level must be a value between 0.0 and 1.0.");
 			process::exit(3);
 		}
 	};
-	
+
 	let mem_critical : f64 = match opts.critical.parse() {
 		Ok (f64) => { f64 }
 		Err (_) => {
-			println!("UNKNOWN: Critical level must be a value between 0.0 and 1.0."); 
+			println!("UNKNOWN: Critical level must be a value between 0.0 and 1.0.");
 			process::exit(3);
 		}
 	};
 
 	let mem_str = check_memory(mem_warning, mem_critical);
-	println!("{}", mem_str); 
+	println!("{}", mem_str);
 
 	if mem_str.contains("UNKNOWN") {
-		process::exit(3);	
+		process::exit(3);
 	}
 	else if mem_str.contains("CRITICAL") {
-		process::exit(2);	
+		process::exit(2);
 	}
 	else if mem_str.contains("WARNING") {
-		process::exit(1);	
+		process::exit(1);
 	}
 	else if mem_str.contains("OK") {
-		process::exit(0);	
+		process::exit(0);
 	}
 	else {
-		println!("MEMORY-UNKNOWN: Could not execute memory check. Unknown error."); 
-		process::exit(3);	
+		println!("MEMORY-UNKNOWN: Could not execute memory check. Unknown error.");
+		process::exit(3);
 	}
 }
 

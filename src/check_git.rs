@@ -22,7 +22,7 @@ fn print_help (program: &str, opts: Options) {
 struct Opts {
 	local: String,
 	remote: String,
-	untracked: bool,	
+	untracked: bool,
 	ignored: bool,
 	submodules: bool,
 }
@@ -33,23 +33,23 @@ fn parse_options () -> Option<Opts> {
 
 	let mut opts = Options::new();
 
-	opts.optflag (	
+	opts.optflag (
 			"",
 			"help",
 			"print this help menu");
 
-	opts.optflag (	
+	opts.optflag (
 			"",
 			"untracked",
 			"includes untracked files when looking for changes");
 
-	opts.optflag (	
+	opts.optflag (
 			"",
 			"ignored",
 			"includes ignored files when looking for changes");
 
 
-	opts.optflag (	
+	opts.optflag (
 			"",
 			"submodules",
 			"includes submodules when looking for changes");
@@ -83,7 +83,7 @@ fn parse_options () -> Option<Opts> {
 
 	let mut untracked = false;
 	let mut ignored = false;
-	let mut submodules = false;	
+	let mut submodules = false;
 
 	if matches.opt_present ("untracked") {
 		untracked = true;
@@ -124,16 +124,16 @@ fn check_git_changes(local: &str, untracked: bool, submodules: bool, ignored: bo
 	opts.exclude_submodules(!submodules);
 
 	let statuses = match repo.statuses(Some(&mut opts)) {
-	
+
 		Ok ( st ) => { st },
 		Err (e) => { return format!("CHECK GIT STATUS ERROR:\n {}", e).to_string(); }
 
 	};
-	
+
 	let result = git_status(statuses);
 
 	return result;
-	
+
 }
 
 fn git_status(statuses: git2::Statuses) -> String {
@@ -216,7 +216,7 @@ fn git_status(statuses: git2::Statuses) -> String {
 		}
 	}
 
-	if header { 
+	if header {
 		changed_in_workdir = true;
 		status = status + "\n";
 	}
@@ -281,11 +281,11 @@ fn check_git_sync(local: &str, remote_route: &str) -> String {
 	    Ok (li) => li,
 	    Err (e) => panic!("failed to get the remote list: {}", e),
 	};
-	
+
 	for head in list.iter() {
 		println!("{}\t{}", head.oid(), head.name());
 	}
-	
+
 	return "CHANGES".to_string();
 }
 
@@ -302,7 +302,7 @@ fn check_git_sync(local: &str, remote_route: &str) -> String {
 	};
 
 	let changes = String::from_utf8_lossy(changes_output.output.as_slice()).to_string();
-	
+
 	return "CHANGES".to_string();
 
 }*/
@@ -322,15 +322,15 @@ fn main () {
 	let sync = check_git_sync(local, remote);
 
 	if changes.contains("CHECK GIT STATUS ERROR") {
-		println!("GIT-UNKNOWN: Could not git status check:\n{}.", changes); 
-		process::exit(3);	
+		println!("GIT-UNKNOWN: Could not git status check:\n{}.", changes);
+		process::exit(3);
 	}
 	else if changes.contains("OK") {
-		println!("GIT-OK: Git repo \"{}\" is up to date.\n", local); 
-		process::exit(0);	
+		println!("GIT-OK: Git repo \"{}\" is up to date.\n", local);
+		process::exit(0);
 	}
 	else {
-		println!("GIT-WARNING: Git repo \"{}\" has been modified:\n{}", local, changes); 
+		println!("GIT-WARNING: Git repo \"{}\" has been modified:\n{}", local, changes);
 		process::exit(1);
 	}
 }

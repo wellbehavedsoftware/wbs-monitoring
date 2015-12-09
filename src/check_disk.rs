@@ -28,7 +28,7 @@ fn parse_options () -> Option<Opts> {
 
 	let mut opts = Options::new();
 
-	opts.optflag (	
+	opts.optflag (
 			"h",
 			"help",
 			"print this help menu");
@@ -99,25 +99,25 @@ fn main () {
 	let state = disk_state ();
 
 	if state == "DISK ERROR".to_string() {
-		println!("DISK UNKNOWN: Could not execute memory check command."); 
-		process::exit(3);	
+		println!("DISK UNKNOWN: Could not execute memory check command.");
+		process::exit(3);
 	}
 
 	let to_check: String = opts.root;
 
 	let warning_level : f64 = match opts.warning.parse() {
 		Ok (f64) => { f64 }
-		Err (_) => { 
-			println!("UNKNOWN: Warning level must be a value between 0.0 and 1.0."); 
-			process::exit(3);	
+		Err (_) => {
+			println!("UNKNOWN: Warning level must be a value between 0.0 and 1.0.");
+			process::exit(3);
 		}
 	};
 
 	let critical_level : f64 = match opts.critical.parse() {
 		Ok (f64) => { f64 }
-		Err (_) => { 
-			println!("UNKNOWN: Critical level must be a value between 0.0 and 1.0."); 
-			process::exit(3);	
+		Err (_) => {
+			println!("UNKNOWN: Critical level must be a value between 0.0 and 1.0.");
+			process::exit(3);
 		}
 	};
 
@@ -126,33 +126,33 @@ fn main () {
 	let mut interest_line: &str = "";
 	let mut found = false;
 
-	for line in state_vector.iter() { 
+	for line in state_vector.iter() {
 
 		let str_line: String = line.to_string() + "\n";
 		let to_check_aux = format!("{}\n", &to_check);
-				
-		if str_line.contains(&to_check_aux) { 
+
+		if str_line.contains(&to_check_aux) {
 			interest_line = &line;
 			found = true;
 			break;
-		}	
+		}
 
 	}
 
-	if !found { 
-		println!("DISK UNKNOWN: The {} volume does not exist.", to_check); 
-		process::exit(3);	
+	if !found {
+		println!("DISK UNKNOWN: The {} volume does not exist.", to_check);
+		process::exit(3);
 	}
 
-	let line_vector: Vec<&str> = interest_line.split(' ').collect();	
+	let line_vector: Vec<&str> = interest_line.split(' ').collect();
 	let percentage_vector: Vec<&str> = line_vector[line_vector.len()-2].split('%').collect();
 
 	let disk_quota_percentage = percentage_vector[0];
 	let mut disk_used_percentage : f64 = match disk_quota_percentage.parse() {
 		Ok (f64) => { f64 }
-		Err (_) => { 
-			println!("UNKNOWN: The used disk limit is incorrect."); 
-			process::exit(3);	
+		Err (_) => {
+			println!("UNKNOWN: The used disk limit is incorrect.");
+			process::exit(3);
 		}
 	};
 	disk_used_percentage = disk_used_percentage / 100.0;
@@ -162,9 +162,9 @@ fn main () {
 
 	let mut disk_limit : f64 = match line_vector[index].parse() {
 		Ok (f64) => { f64 }
-		Err (_) => { 
-			println!("UNKNOWN: The disk limit is incorrect."); 
-			process::exit(3);	
+		Err (_) => {
+			println!("UNKNOWN: The disk limit is incorrect.");
+			process::exit(3);
 		}
 	};
 
@@ -178,7 +178,7 @@ fn main () {
 
 	let disk_quota_limit = format!("{0:.1$}", disk_limit, num_decimals);
 
-	
+
 	let disk_quota_used = format!("{0:.1$}", disk_used, num_decimals);
 
 	let warning_quota_level = format!("{0:.1$}", warning_level * 100.0, 0);

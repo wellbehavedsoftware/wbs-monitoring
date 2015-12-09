@@ -32,7 +32,7 @@ fn parse_options () -> Option<Opts> {
 
 	let mut opts = Options::new();
 
-	opts.optflag (	
+	opts.optflag (
 			"",
 			"help",
 			"print this help menu");
@@ -42,7 +42,7 @@ fn parse_options () -> Option<Opts> {
 			"rootfs",
 			"root of the file system in which the checks will be performed",
 			"<rootfs>");
-	
+
 	opts.reqopt (
 			"",
 			"mails",
@@ -100,9 +100,9 @@ fn parse_options () -> Option<Opts> {
 fn check_email_list (rootfs: &str, mail: &str, option: &str, warning_th: f64, critical_th: f64) -> (String, i32) {
 
 	let mut doveadm_output: String;
-	
+
 	if !rootfs.is_empty() {
-	
+
 		//check emails list
 
 		let output =
@@ -121,7 +121,7 @@ fn check_email_list (rootfs: &str, mail: &str, option: &str, warning_th: f64, cr
 		Ok (output) => { output }
 		Err (err) => { return (format!("Check email: {}.", err), 0); }
 		};
-	
+
 		doveadm_output = String::from_utf8_lossy(&output.stdout).to_string();
 
 	}
@@ -141,7 +141,7 @@ fn check_email_list (rootfs: &str, mail: &str, option: &str, warning_th: f64, cr
 		Ok (output) => { output }
 		Err (err) => { return (format!("Check email: {}.", err), 0); }
 		};
-	
+
 		doveadm_output = String::from_utf8_lossy(&output.stdout).to_string();
 
 	}
@@ -154,11 +154,11 @@ fn check_email_list (rootfs: &str, mail: &str, option: &str, warning_th: f64, cr
 
 	// now datetime
 	let now = UTC::now();
-	
+
 	let doveadm_lines: Vec<&str> = doveadm_output.split("\n").collect();
 
 	for line in doveadm_lines {
-		
+
 		let line_tokens: Vec<&str> = line.split(" ").collect();
 
 		if line_tokens.len() <= 1 { continue; }
@@ -174,7 +174,7 @@ fn check_email_list (rootfs: &str, mail: &str, option: &str, warning_th: f64, cr
 			Ok (date) => { date }
 			Err (e) => {
 
-				return (format!("DOVECOT-ERROR: {}.\n", e), 0);	
+				return (format!("DOVECOT-ERROR: {}.\n", e), 0);
 			}
 		};
 
@@ -182,7 +182,7 @@ fn check_email_list (rootfs: &str, mail: &str, option: &str, warning_th: f64, cr
 
 		let diffseconds = date_diff.num_seconds() as f64;
 		let diffhours = (diffseconds / 3600.0) as f64;
-	
+
 		let diffhoursfmt = format!("{0:.1$}", diffhours, 1);
 
 		if diffhours > warning_th && diffhours < critical_th {
@@ -192,7 +192,7 @@ fn check_email_list (rootfs: &str, mail: &str, option: &str, warning_th: f64, cr
 
 		}
 		else if diffhours > critical_th {
-		
+
 			critical = true;
 			critical_msg = critical_msg + &format!("DOVECOT-CRITICAL: Message in {} for more than {} hours.\n", mail, diffhoursfmt);
 
@@ -217,7 +217,7 @@ fn main () {
 
 	let opts = match parse_options () {
 		Some (opts) => { opts }
-		None => { 
+		None => {
 			println!("UNKNOWN: Wrong arguments.");
 			process::exit(3);
 		}
@@ -230,14 +230,14 @@ fn main () {
 	let warning : f64 = match opts.warning.parse() {
 		Ok (f64) => { f64 }
 		Err (_) => {
-			println!("UNKNOWN: The hours warning threshold must be a double!"); 
+			println!("UNKNOWN: The hours warning threshold must be a double!");
 			process::exit(3);
 		}
 	};
 	let critical : f64 = match opts.critical.parse() {
 		Ok (f64) => { f64 }
 		Err (_) => {
-			println!("UNKNOWN: The hours critical threshold must be a double!"); 
+			println!("UNKNOWN: The hours critical threshold must be a double!");
 			process::exit(3);
 		}
 	};
@@ -253,7 +253,7 @@ fn main () {
 	for mail in mail_list {
 
 		let (result, messages) = check_email_list (rootfs, mail, option, warning, critical);
-	
+
 		total_messages = total_messages + messages;
 
 		if result.contains("CRITICAL") {
@@ -295,5 +295,5 @@ fn main () {
 
 		process::exit(0);
 	}
-	
+
 }

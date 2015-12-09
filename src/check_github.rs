@@ -37,7 +37,7 @@ fn parse_options () -> Option<Opts> {
 
 	let mut opts = Options::new();
 
-	opts.optflag (	
+	opts.optflag (
 			"",
 			"help",
 			"print this help menu");
@@ -68,7 +68,7 @@ fn parse_options () -> Option<Opts> {
 
 	let matches = match opts.parse (args) {
 		Ok (m) => { m }
-		Err (_) => { 
+		Err (_) => {
 			print_usage ("check_github", opts);
 			process::exit(3);
 		}
@@ -95,14 +95,14 @@ fn parse_options () -> Option<Opts> {
 }
 
 fn check_github (owner: &str, repository: &str, version: &str, timeout: f64) -> String {
-    
+
 	let prefix = "https://api.github.com/repos".to_string();
 
 	let url = format!("{}/{}/{}/releases/latest", prefix, owner, repository);
 
 	let start = PreciseTime::now();
 
-	let child = thread::spawn(move || {	
+	let child = thread::spawn(move || {
 
 	   	let mut http_handle = http::handle();
 
@@ -132,23 +132,23 @@ fn check_github (owner: &str, repository: &str, version: &str, timeout: f64) -> 
 	// Get the child's process results
 	let result = match res {
 		Ok (value) => { value }
-		Err (_) => { 
-			return format!("GITHUB-CRITICAL: The check could not be performed. No response received."); 
+		Err (_) => {
+			return format!("GITHUB-CRITICAL: The check could not be performed. No response received.");
 		}
 	};
 
 	let data: Value = serde_json::from_str(&result).unwrap();
 	let obj = data.as_object().unwrap();
 	let release = obj.get("tag_name").unwrap().as_string().unwrap();
-	
+
 	if release != version && (release.contains("rc") || release.contains("alpha") || release.contains("beta")) {
-		return format!("GITHUB-WARNING: {} new version available ({}). {} currently installed.", repository, release, version); 
+		return format!("GITHUB-WARNING: {} new version available ({}). {} currently installed.", repository, release, version);
 	}
 	else if release != version {
-		return format!("GITHUB-WARNING: {} new release available ({}). {} currently installed.", repository, release, version); 
+		return format!("GITHUB-WARNING: {} new release available ({}). {} currently installed.", repository, release, version);
 	}
 	else {
-		return format!("GITHUB-OK: {} version is up to date.", repository); 
+		return format!("GITHUB-OK: {} version is up to date.", repository);
 	}
 
 }
@@ -170,7 +170,7 @@ fn main () {
 	let timeout : f64 = match opts.timeout.parse() {
 		Ok (f64) => { f64 }
 		Err (_) => {
-			println!("GITHUB-UNKNOWN: Timeout must be a number."); 
+			println!("GITHUB-UNKNOWN: Timeout must be a number.");
 			process::exit(3);
 		}
 	};
@@ -183,10 +183,10 @@ fn main () {
 	}
 	else if github_res.contains("CRITICAL") {
 		process::exit(2);
-	} 
+	}
 	else if github_res.contains("WARNING") {
 		process::exit(1);
-	} 
+	}
 	else {
 		process::exit(0);
 	}

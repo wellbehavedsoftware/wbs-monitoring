@@ -21,7 +21,7 @@ fn parse_options () -> String {
 
 	let mut opts = Options::new();
 
-	opts.optflag (	
+	opts.optflag (
 			"",
 			"help",
 			"print this help menu");
@@ -79,7 +79,7 @@ fn check_hd_data() -> (i32, String) {
 		let attr_info_array: Vec<&str> = attr_array[1].split(' ').collect();
 
 		let mut i = 1;
-		
+
 		while attr_info_array[i].is_empty() && i < attr_info_array.len() { i = i + 1; }
 		let attr_value: isize = attr_info_array[i].parse().unwrap();
 		i = i + 1;
@@ -121,7 +121,7 @@ fn check_hd_data() -> (i32, String) {
 				warning = true;
 			}
 		}
-	}	
+	}
 
 	let mut exit_status = 0;
 	if critical { exit_status = 2; }
@@ -135,11 +135,11 @@ fn main () {
 
 	let options = parse_options ();
 	if &options != "OK" {
-		process::exit(3);	
+		process::exit(3);
 	}
-	
+
 	let (exit_status, hd_message) = check_hd_data();
-	
+
 	if hd_message == "OK" { println!("OK: HD status is OK."); }
 	else { println!("{}", hd_message); }
 

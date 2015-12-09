@@ -32,7 +32,7 @@ fn parse_options () -> Option<Opts> {
 
 	let mut opts = Options::new();
 
-	opts.optflag (	
+	opts.optflag (
 			"",
 			"help",
 			"print this help menu");
@@ -100,9 +100,9 @@ fn check_email_queue (rootfs: &str, max_mails: i32) -> (String, i32, i32) {
 
 	let mut queue_output: String = "".to_string();
 	let mut deferred_output: String = "".to_string();
-	
+
 	if !rootfs.contains("none") {
-	
+
 		//check email queue
 
 		let email_output =
@@ -111,12 +111,12 @@ fn check_email_queue (rootfs: &str, max_mails: i32) -> (String, i32, i32) {
 			.arg ("--name".to_string ())
 			.arg (rootfs.to_string ())
 			.arg ("--".to_string ())
-			.arg ("qshape".to_string ())		
+			.arg ("qshape".to_string ())
 			.output () {
 		Ok (output) => { output }
 		Err (err) => { return (format!("Check postfix: {}.", err), 0, 0); }
 		};
-	
+
 		queue_output = String::from_utf8_lossy(&email_output.stdout).to_string();
 
 		//check deferred email queue
@@ -128,7 +128,7 @@ fn check_email_queue (rootfs: &str, max_mails: i32) -> (String, i32, i32) {
 			.arg (rootfs.to_string ())
 			.arg ("--".to_string ())
 			.arg ("qshape".to_string ())
-			.arg ("deferred".to_string ())	
+			.arg ("deferred".to_string ())
 			.output () {
 		Ok (output) => { output }
 		Err (err) => { return (format!("Check postfix: {}.", err), 0, 0); }
@@ -142,12 +142,12 @@ fn check_email_queue (rootfs: &str, max_mails: i32) -> (String, i32, i32) {
 
 		let email_output =
 			match process::Command::new ("sudo")
-			.arg ("qshape".to_string ())		
+			.arg ("qshape".to_string ())
 			.output () {
 		Ok (output) => { output }
 		Err (err) => { return (format!("Check postfix: {}.", err), 0, 0); }
 		};
-	
+
 		queue_output = String::from_utf8_lossy(&email_output.stdout).to_string();
 
 		//check deferred email queue
@@ -155,7 +155,7 @@ fn check_email_queue (rootfs: &str, max_mails: i32) -> (String, i32, i32) {
 		let email_output =
 			match process::Command::new ("sudo")
 			.arg ("qshape".to_string ())
-			.arg ("deferred".to_string ())	
+			.arg ("deferred".to_string ())
 			.output () {
 		Ok (output) => { output }
 		Err (err) => { return (format!("Check postfix: {}.", err), 0, 0); }
@@ -166,13 +166,13 @@ fn check_email_queue (rootfs: &str, max_mails: i32) -> (String, i32, i32) {
 
 	// if any of the checks failed, unknown is returned
 
-	if queue_output.contains("failed to get the init pid") || queue_output.is_empty() || 
-	   deferred_output.contains("failed to get the init pid") || deferred_output.is_empty()	
+	if queue_output.contains("failed to get the init pid") || queue_output.is_empty() ||
+	   deferred_output.contains("failed to get the init pid") || deferred_output.is_empty()
 	{
 		return (format!("MAIL-UNKNOWN: Unable to perform the check: {}\n{}", queue_output, deferred_output), 0, 0);
 	}
 
-	// check if the number of mails surpasses the maximum	
+	// check if the number of mails surpasses the maximum
 
 	let queue_lines: Vec<&str> = queue_output.split('\n').collect();
 	let total_queue_mails_line: Vec<&str> = queue_lines[1].split(' ').collect();
@@ -189,11 +189,11 @@ fn check_email_queue (rootfs: &str, max_mails: i32) -> (String, i32, i32) {
 			queue_mails = match token.parse() {
 				Ok (i32) => { i32 }
 				Err (_) => {
-					return ("UNKNOWN: Error while parsing mails number.".to_string(), 0, 0); 
+					return ("UNKNOWN: Error while parsing mails number.".to_string(), 0, 0);
 				}
 			};
- 
-			break; 
+
+			break;
 		}
 	}
 
@@ -206,11 +206,11 @@ fn check_email_queue (rootfs: &str, max_mails: i32) -> (String, i32, i32) {
 			deferred_mails = match token.parse() {
 				Ok (i32) => { i32 }
 				Err (_) => {
-					return ("UNKNOWN: Error while parsing deferred mails number.".to_string(), 0, 0); 
+					return ("UNKNOWN: Error while parsing deferred mails number.".to_string(), 0, 0);
 				}
 			};
- 
-			break; 
+
+			break;
 		}
 	}
 
@@ -234,7 +234,7 @@ fn get_mailq_output(rootfs: &str) -> String {
 	let mut mailq_data: String = "".to_string();
 
 	if !rootfs.contains("none") {
-	
+
 		//check mailq data
 
 		let mailq_output =
@@ -243,12 +243,12 @@ fn get_mailq_output(rootfs: &str) -> String {
 			.arg ("--name".to_string ())
 			.arg (rootfs.to_string ())
 			.arg ("--".to_string ())
-			.arg ("mailq".to_string ())		
+			.arg ("mailq".to_string ())
 			.output () {
 		Ok (output) => { output }
 		Err (err) => { return format!("Check email: {}.", err); }
 		};
-	
+
 		mailq_data = String::from_utf8_lossy(&mailq_output.stdout).to_string();
 
 	}
@@ -258,12 +258,12 @@ fn get_mailq_output(rootfs: &str) -> String {
 
 		let mailq_output =
 			match process::Command::new ("sudo")
-			.arg ("mailq".to_string ())		
+			.arg ("mailq".to_string ())
 			.output () {
 		Ok (output) => { output }
 		Err (err) => { return format!("Check email: {}.", err); }
 		};
-	
+
 		mailq_data = String::from_utf8_lossy(&mailq_output.stdout).to_string();
 
 	}
@@ -307,7 +307,7 @@ fn check_emails_age (mailq_data: String, max_age: i32) -> String {
 				// fix the problem if the resultin datetime is from the future
 
 				complete_date = format!("{} {}", date_string, now.year() - 1);
-				UTC.datetime_from_str(&complete_date, "%a %b %e %T %Y").unwrap()	
+				UTC.datetime_from_str(&complete_date, "%a %b %e %T %Y").unwrap()
 			}
 		};
 
@@ -374,7 +374,7 @@ fn check_emails_per_hour (mailq_data: String, max_quota: i32) -> String {
 				// fix the problem if the resultin datetime is from the future
 
 				complete_date = format!("{} {}", date_string, now.year() - 1);
-				UTC.datetime_from_str(&complete_date, "%a %b %e %T %Y").unwrap()	
+				UTC.datetime_from_str(&complete_date, "%a %b %e %T %Y").unwrap()
 			}
 		};
 
@@ -407,7 +407,7 @@ fn main () {
 
 	let opts = match parse_options () {
 		Some (opts) => { opts }
-		None => { 
+		None => {
 			println!("UNKNOWN: Wrong arguments.");
 			process::exit(3);
 		}
@@ -417,14 +417,14 @@ fn main () {
 	let mails : i32 = match opts.mails.parse() {
 		Ok (i32) => { i32 }
 		Err (_) => {
-			println!("UNKNOWN: The maximum mails number must be an integer!"); 
+			println!("UNKNOWN: The maximum mails number must be an integer!");
 			process::exit(3);
 		}
 	};
 	let quota : i32 = match opts.quota.parse() {
 		Ok (i32) => { i32 }
 		Err (_) => {
-			println!("UNKNOWN: The maximum mails per hour quota must be an integer!"); 
+			println!("UNKNOWN: The maximum mails per hour quota must be an integer!");
 			process::exit(3);
 		}
 	};
@@ -432,7 +432,7 @@ fn main () {
 	let age : i32 = match opts.age.parse() {
 		Ok (i32) => { i32 }
 		Err (_) => {
-			println!("UNKNOWN: The maximum days that mails are allowed to stay in the queue must be an integer!"); 
+			println!("UNKNOWN: The maximum days that mails are allowed to stay in the queue must be an integer!");
 			process::exit(3);
 		}
 	};
@@ -441,7 +441,7 @@ fn main () {
 
 	let mut complete_check = false;
 
-	for host in complete_hosts {	
+	for host in complete_hosts {
 		if rootfs.contains(host) && !rootfs.contains("none") && !host.contains("none") {
 			complete_check = true;
 		}
@@ -457,7 +457,7 @@ fn main () {
 		let mailq_output = get_mailq_output (rootfs);
 		let mailq_age_result = check_emails_age (mailq_output.clone(), age);
 		let mailq_quota_result = check_emails_per_hour (mailq_output.clone(), quota);
-		
+
 		if result.contains("OK") && !mailq_age_result.contains("OK") && mailq_quota_result.contains("OK") {
 			final_result = format!("{}\n{}\n{} | mails={};;;; deferred_mails={};;;;", mailq_age_result, result, mailq_quota_result, mails, deferred_mails);
 		}
@@ -500,5 +500,5 @@ fn main () {
 
 		process::exit(0);
 	}
-	
+
 }

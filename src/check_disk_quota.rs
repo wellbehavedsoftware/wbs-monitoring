@@ -28,7 +28,7 @@ fn parse_options () -> Option<Opts> {
 
 	let mut opts = Options::new();
 
-	opts.optflag (	
+	opts.optflag (
 			"h",
 			"help",
 			"print this help menu");
@@ -61,7 +61,7 @@ fn parse_options () -> Option<Opts> {
 
 	if matches.opt_present ("help") {
 		print_help ("check_disk_quota", opts);
-		process::exit(3);	
+		process::exit(3);
 	}
 
 	let warning = matches.opt_str ("warning").unwrap ();
@@ -94,28 +94,28 @@ fn check_disk(rootfs: &str, warning_level: f64, critical_level: f64) -> String {
 
 	let subvolume = String::from_utf8_lossy(&list_output.stdout).to_string();
 
-	let subvolume_lines: Vec<&str> = subvolume.split('\n').collect(); 
+	let subvolume_lines: Vec<&str> = subvolume.split('\n').collect();
 
-	let mut rootfs_id = "0/".to_string();	
+	let mut rootfs_id = "0/".to_string();
 	let mut found = false;
 
 	let mut to_search: String = "lxc/".to_string() + &rootfs;
 	to_search = to_search + "/rootfs\n";
 
-	for line in subvolume_lines.iter() { 
+	for line in subvolume_lines.iter() {
 
 		let str_line: String = line.to_string() + "\n";
-		if str_line.contains(&to_search) { 
+		if str_line.contains(&to_search) {
 			let rootfs_info: Vec<&str> = line.split(' ').collect();
 			rootfs_id = rootfs_id.to_string() + rootfs_info[1];
 			found = true;
 			break;
-		}	
+		}
 	}
 
 	if !found { return "DISK ERROR".to_string(); }
 
-	let qgroup_output = 
+	let qgroup_output =
 		match process::Command::new ("sudo")
 			.arg ("btrfs".to_string ())
 			.arg ("qgroup".to_string())
@@ -128,7 +128,7 @@ fn check_disk(rootfs: &str, warning_level: f64, critical_level: f64) -> String {
 		Err (err) => { return format!("DISK ERROR: {}.", err); }
 	};
 
-	let qgroup = String::from_utf8_lossy(&qgroup_output.stdout).to_string(); 
+	let qgroup = String::from_utf8_lossy(&qgroup_output.stdout).to_string();
 
 	let qgroup_lines: Vec<&str> = qgroup.split('\n').collect();
 
@@ -138,35 +138,35 @@ fn check_disk(rootfs: &str, warning_level: f64, critical_level: f64) -> String {
 	let mut disk_limit_str = "".to_string();
 	found = false;
 
-	for line in qgroup_lines.iter() { 
+	for line in qgroup_lines.iter() {
 
 		if line.contains(&rootfs_id) {
 
 			let disk_info: Vec<&str> = line.split(' ').collect();
 
 
-			let mut index = 1; 
+			let mut index = 1;
 			while disk_info[index].is_empty() {
-				index = index + 1; 
+				index = index + 1;
 			}
 
 			disk_used_str = disk_info[index].to_string();
 
 			index = index + 1;
 			while disk_info[index].is_empty() {
-				index = index + 1; 
+				index = index + 1;
 			}
-			index = index + 1; 
+			index = index + 1;
 
 			while disk_info[index].is_empty() {
-				index = index + 1; 
+				index = index + 1;
 			}
 
 			disk_limit_str = disk_info[index].to_string();
 
 			found = true;
 			break;
-		}		
+		}
 	}
 
 	if !found { return "DISK ERROR".to_string(); }
@@ -182,7 +182,7 @@ fn check_disk(rootfs: &str, warning_level: f64, critical_level: f64) -> String {
 		Err (_) => { return "MEM ERROR".to_string(); }
 	};
 	disk_limit = disk_limit / 1073741824.0;
-	
+
 	let disk_used_percentage = disk_used / disk_limit;
 
 	let mut num_decimals = 0;
@@ -224,37 +224,37 @@ fn main () {
 
 	let disk_warning : f64 = match opts.warning.parse() {
 		Ok (f64) => { f64 }
-		Err (_) => { 
-			println!("UNKNOWN: Warning level must be a value between 0.0 and 1.0."); 
-			process::exit(3);	
+		Err (_) => {
+			println!("UNKNOWN: Warning level must be a value between 0.0 and 1.0.");
+			process::exit(3);
 		}
 	};
-	
+
 	let disk_critical : f64 = match opts.critical.parse() {
 		Ok (f64) => { f64 }
-		Err (_) => { 
-			println!("UNKNOWN: Critical level must be a value between 0.0 and 1.0."); 
-			process::exit(3);	
+		Err (_) => {
+			println!("UNKNOWN: Critical level must be a value between 0.0 and 1.0.");
+			process::exit(3);
 		}
 	};
 
 	let disk_str = check_disk(&opts.rootfs, disk_warning, disk_critical);
 	if disk_str.contains("DISK ERROR") {
-		println!("DISK-Q UNKNOWN: Could not execute disk check: {}.", disk_str); 
-		process::exit(3);	
+		println!("DISK-Q UNKNOWN: Could not execute disk check: {}.", disk_str);
+		process::exit(3);
 	}
 	else if disk_str == "OK" {
-		process::exit(0);	
+		process::exit(0);
 	}
 	else if disk_str == "WARNING" {
-		process::exit(1);	
+		process::exit(1);
 	}
 	else if disk_str == "CRITICAL" {
-		process::exit(2);	
+		process::exit(2);
 	}
 	else {
-		println!("DISK-Q UNKNOWN: Could not execute disk check. Unknown error."); 
-		process::exit(3);	
+		println!("DISK-Q UNKNOWN: Could not execute disk check. Unknown error.");
+		process::exit(3);
 	}
 
 }

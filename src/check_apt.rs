@@ -37,7 +37,7 @@ fn parse_options () -> Option<Opts> {
 
 	let mut opts = Options::new();
 
-	opts.optflag (	
+	opts.optflag (
 			"",
 			"help",
 			"print this help menu");
@@ -67,7 +67,7 @@ fn parse_options () -> Option<Opts> {
 		process::exit(3);
 	}
 
-	
+
 	let rootfs = matches.opt_str ("rootfs").unwrap ();
 	let warning = matches.opt_str ("warning").unwrap ();
 
@@ -80,15 +80,15 @@ fn parse_options () -> Option<Opts> {
 
 fn check_last_update (rootfs: &str) -> String {
 
-	let update_stamp: String;	
-	
+	let update_stamp: String;
+
 	if rootfs.is_empty() {
-		// Get last modification datetime from file metadata	
+		// Get last modification datetime from file metadata
 		let success_stamp_route = "/var/lib/apt/periodic/update-success-stamp".to_string();
 
 		let metadata = match std::fs::metadata(&success_stamp_route) {
 			Ok(m) => { m }
-			Err(e) => { return format!("APT-UNKNOWN: Failed to read {}: {}", success_stamp_route, e); } 
+			Err(e) => { return format!("APT-UNKNOWN: Failed to read {}: {}", success_stamp_route, e); }
 		};
 
 		update_stamp = UTC.timestamp(metadata.mtime(), metadata.mtime_nsec() as u32).to_string();
@@ -108,9 +108,9 @@ fn check_last_update (rootfs: &str) -> String {
 			Ok (output) => { output }
 			Err (err) => { return format!("LAST UPDATE ERROR: {}.", err); }
 		};
-		update_stamp = String::from_utf8_lossy(&stat_output.stdout).to_string();		
+		update_stamp = String::from_utf8_lossy(&stat_output.stdout).to_string();
 	}
-	
+
 
 	// Compare last update datetime with current datetime
 	let mut day_time: Vec<&str> = update_stamp.split('.').collect();
@@ -120,11 +120,11 @@ fn check_last_update (rootfs: &str) -> String {
 
 	let date_array: Vec<&str> = day_time[0].split('-').collect();
 	let time_array: Vec<&str> = day_time[1].split(':').collect();
-	
+
 	let last_update_datetime = UTC.ymd(date_array[0].parse().unwrap(), date_array[1].parse().unwrap(), date_array[2].parse().unwrap())
 				      .and_hms(time_array[0].parse().unwrap(), time_array[1].parse().unwrap(), time_array[2].parse().unwrap());
 
-	let current_datetime = UTC::now(); 
+	let current_datetime = UTC::now();
 
 	let diff = current_datetime - last_update_datetime;
 
@@ -183,7 +183,7 @@ fn check_packages(rootfs: &str) -> (isize, String) {
 
 	let mut dpkg_output;
 
-	if rootfs.is_empty() {	
+	if rootfs.is_empty() {
 
 		dpkg_output =
 			match process::Command::new ("dpkg")
@@ -193,7 +193,7 @@ fn check_packages(rootfs: &str) -> (isize, String) {
 			Err (_) => { return (0, "CHECK PACKAGES ERROR".to_string()); }
 		};
 	}
-	else { 		
+	else {
 
 		dpkg_output =
 			match process::Command::new ("sudo")
@@ -206,7 +206,7 @@ fn check_packages(rootfs: &str) -> (isize, String) {
 				.output () {
 			Ok (output) => { output }
 			Err (_) => { return (0, "CHECK PACKAGES ERROR".to_string()); }
-		};	
+		};
 	}
 
 	let mut xargs_output =
@@ -229,10 +229,10 @@ fn check_packages(rootfs: &str) -> (isize, String) {
 	// Check if the installed version is the latest available for each package
 	let output_lines: Vec<&str> = out.split("\n").collect();
 	if output_lines.len() == 1 { return (0, "CHECK PACKAGES ERROR".to_string()); }
-	
-	let mut package_list = vec![];	
-	let mut i = 0;	
-	
+
+	let mut package_list = vec![];
+	let mut i = 0;
+
 	while i < output_lines.len() {
 
 		let line: Vec<&str> = output_lines[i].split(':').collect();
@@ -288,22 +288,22 @@ fn main () {
 	let update_warning : f64 = match opts.warning.parse() {
 		Ok (f64) => { f64 }
 		Err (_) => {
-			println!("APT-UNKNOWN: Warning level must be a value between 0.0 and 1.0."); 
-			process::exit(3);	
+			println!("APT-UNKNOWN: Warning level must be a value between 0.0 and 1.0.");
+			process::exit(3);
 		}
 	};
 	let last_update_str = check_last_update(&opts.rootfs);
 
 	if last_update_str.contains("LAST UPDATE ERROR") {
-		println!("APT-UNKNOWN: Could not last update check: {}.", last_update_str); 
-		process::exit(3);	
+		println!("APT-UNKNOWN: Could not last update check: {}.", last_update_str);
+		process::exit(3);
 	}
 
 	let last_update : f64 = match last_update_str.parse() {
 		Ok (f64) => { f64 }
 		Err (_) => {
-			println!("APT-UNKNOWN: Error while parsing last update time."); 
-			process::exit(3);	
+			println!("APT-UNKNOWN: Error while parsing last update time.");
+			process::exit(3);
 		}
 	};
 
@@ -316,15 +316,15 @@ fn main () {
 	let reboot_needed = check_reboot(&opts.rootfs);
 
 	if reboot_needed.contains("CHECK REBOOT ERROR") {
-		println!("UNKNOWN: Could not execute reboot check: {}.", reboot_needed); 
-		process::exit(3);	
+		println!("UNKNOWN: Could not execute reboot check: {}.", reboot_needed);
+		process::exit(3);
 	}
 
 	let (num_packages, packages_update) = check_packages(&opts.rootfs);
 
 	if packages_update == "CHECK PACKAGES ERROR".to_string() {
-		println!("APT-UNKNOWN: Could not execute packages check."); 
-		process::exit(3);	
+		println!("APT-UNKNOWN: Could not execute packages check.");
+		process::exit(3);
 	}
 
 	let mut print_last_update = true;
@@ -339,38 +339,38 @@ fn main () {
 	}
 	if reboot_needed == "YES" {
 		print_reboot = false;
-	}	
+	}
 
 	if print_last_update == true && print_reboot == true && print_packages == true {
 		 println!("APT-OK: APT is up to date: Last update: {} hours ago, all packages up to date, reboot not required.", last_update_formated);
 		process::exit(0);
 	}
 	else if print_last_update == false && print_reboot == false && print_packages == false {
-		println!("APT-WARNING: Last update {} hours ago, {} packages need update, reboot needed.", last_update_formated, num_packages); 
+		println!("APT-WARNING: Last update {} hours ago, {} packages need update, reboot needed.", last_update_formated, num_packages);
 		process::exit(1);
 	}
 	else if print_last_update == false && print_reboot == false && print_packages == true {
-		println!("APT-WARNING: Last update {} hours ago, reboot needed.", last_update_formated); 
+		println!("APT-WARNING: Last update {} hours ago, reboot needed.", last_update_formated);
 		process::exit(1);
 	}
 	else if print_last_update == false && print_reboot == true && print_packages == false {
-		println!("APT-WARNING: Last update {} hours ago, {} packages need update.", last_update_formated, num_packages); 
+		println!("APT-WARNING: Last update {} hours ago, {} packages need update.", last_update_formated, num_packages);
 		process::exit(1);
 	}
 	else if print_last_update == true && print_reboot == false && print_packages == false {
-		println!("APT-WARNING: {} packages need update, reboot needed.", num_packages); 
+		println!("APT-WARNING: {} packages need update, reboot needed.", num_packages);
 		process::exit(1);
 	}
 	else if print_last_update == true && print_reboot == true && print_packages == false {
-		println!("APT-WARNING: {} packages need update.", num_packages); 
+		println!("APT-WARNING: {} packages need update.", num_packages);
 		process::exit(1);
 	}
 	else if print_last_update == true && print_reboot == false && print_packages == true {
-		println!("APT-WARNING: Reboot needed."); 
+		println!("APT-WARNING: Reboot needed.");
 		process::exit(1);
 	}
 	else if print_last_update == false && print_reboot == true && print_packages == true {
-		println!("APT-WARNING: Last update {} hours ago.", last_update_formated); 
+		println!("APT-WARNING: Last update {} hours ago.", last_update_formated);
 		process::exit(1);
 	}
 

@@ -29,7 +29,7 @@ fn parse_options () -> Option<Opts> {
 
 	let mut opts = Options::new();
 
-	opts.optflag (	
+	opts.optflag (
 			"",
 			"help",
 			"print this help menu");
@@ -63,7 +63,7 @@ fn parse_options () -> Option<Opts> {
 	let service = matches.opt_str ("service").unwrap ();
 
 	return Some (Opts {
-		container_name: container_name,	
+		container_name: container_name,
 		service: service,
 
 	});
@@ -135,26 +135,26 @@ fn main () {
 		Some (opts) => { opts }
 		None => { return }
 	};
-	
+
 	let mail_ports_msg = check_mail_ports(&opts.container_name, &opts.service);
 
 	println!("{}", mail_ports_msg);
 
 	if mail_ports_msg.contains("UNKNOWN") {
-		process::exit(3);	
+		process::exit(3);
 	}
 	else if mail_ports_msg.contains("OK") {
-		process::exit(0);	
+		process::exit(0);
 	}
 	else if mail_ports_msg.contains("WARNING") {
-		process::exit(1);	
+		process::exit(1);
 	}
 	else if mail_ports_msg.contains("CRITICAL") {
-		process::exit(2);	
+		process::exit(2);
 	}
 	else {
-		println!("MAIL-PORTS-UNKNOWN: Could not execute mail ports check. Unknown error."); 
-		process::exit(3);	
+		println!("MAIL-PORTS-UNKNOWN: Could not execute mail ports check. Unknown error.");
+		process::exit(3);
 	}
 
 }

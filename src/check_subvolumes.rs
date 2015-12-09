@@ -27,7 +27,7 @@ fn parse_options () -> Option<Opts> {
 
 	let mut opts = Options::new();
 
-	opts.optflag (	
+	opts.optflag (
 			"",
 			"help",
 			"print this help menu");
@@ -73,7 +73,7 @@ fn check_subvolumes(rootfs: &str) -> String {
 		Ok (output) => { output }
 		Err (err) => { return format!("SUBVOLUME ERROR: {}.", err); }
 	};
-	
+
 	let subvolume_list = String::from_utf8_lossy(&subvolume_list_output.stdout).to_string();
 	let subvolume_list_lines: Vec<&str> = subvolume_list.split('\n').collect();
 
@@ -82,14 +82,14 @@ fn check_subvolumes(rootfs: &str) -> String {
 
 	for subvolume in subvolume_list_lines.iter() {
 
-		if !subvolume.contains("rootfs") || 
+		if !subvolume.contains("rootfs") ||
 		   !subvolume.contains(rootfs) {
 			continue;
 		}
 
 		let subvolume_tokens: Vec<&str> = subvolume.split('/').collect();
 
-		let mut index = 0;		
+		let mut index = 0;
 
 		while index < subvolume_tokens.len() {
 
@@ -105,7 +105,7 @@ fn check_subvolumes(rootfs: &str) -> String {
 					let mut subvolume_path: String = "".to_string();
 
 					while index < subvolume_tokens.len() {
-					
+
 						subvolume_path = subvolume_path + "/" + subvolume_tokens[index];
 						index = index + 1;
 
@@ -131,7 +131,7 @@ fn check_subvolumes(rootfs: &str) -> String {
 	}
 
 	return message;
-	
+
 }
 
 fn main () {
@@ -142,23 +142,23 @@ fn main () {
 	};
 
 	let result = check_subvolumes(&opts.rootfs);
-	
+
 	if result.contains("SUBVOLUME ERROR") {
-		println!("SUBVOLUME-UNKNOWN: Subvolumes check failed: {}.", result); 
-		process::exit(3);	
+		println!("SUBVOLUME-UNKNOWN: Subvolumes check failed: {}.", result);
+		process::exit(3);
 	}
 	else if result.contains("WARNING") {
-		println!("{}", result); 
-		process::exit(1);	
+		println!("{}", result);
+		process::exit(1);
 	}
 	else if result.contains("OK") {
-		println!("SUBVOLUME-OK: {} doesn't have inner subvolumes.\n{}", opts.rootfs, result); 
-		process::exit(0);	
+		println!("SUBVOLUME-OK: {} doesn't have inner subvolumes.\n{}", opts.rootfs, result);
+		process::exit(0);
 	}
 	else {
-		println!("SUBVOLUME-UNKNOWN: Could not execute subvolumes check. Error.\n{}", result); 
-		process::exit(3);	
+		println!("SUBVOLUME-UNKNOWN: Could not execute subvolumes check. Error.\n{}", result);
+		process::exit(3);
 	}
-	
+
 }
 
