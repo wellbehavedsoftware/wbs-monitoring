@@ -267,9 +267,24 @@ fn check_git_sync(local: &str, remote_route: &str) -> String {
 	    Err (e) => panic!("failed to open `{}`: {}", path.display(), e),
 	};
 
-	let mut remote = match repo.find_remote(remote_route).or_else(|_| {repo.remote_anonymous(remote_route, None)}) {
-	    Ok (rem) => rem,
-	    Err (e) => panic!("failed to connecto to `{}`: {}", remote_route, e),
+	let mut remote =
+		match repo.find_remote (
+			remote_route
+		).or_else (|_|
+			repo.remote_anonymous (
+				remote_route,
+			)
+		) {
+
+		Ok (remote) =>
+			remote,
+
+		Err (error) =>
+			panic! (
+				"failed to connecto to `{}`: {}",
+				remote_route,
+				error),
+
 	};
 
 	let connection = match remote.connect(Direction::Fetch) {

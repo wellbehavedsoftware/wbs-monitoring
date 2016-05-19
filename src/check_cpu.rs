@@ -12,14 +12,36 @@ use std::io::Read;
 use std::path::Path;
 use regex::Regex;
 
-fn print_usage (program: &str, opts: Options) {
-	let brief = format!("Usage: {} [options]", program);
-	println!("{}", opts.usage(&brief));
+fn print_usage (
+	program: &str,
+	opts: Options,
+) {
+
+	let brief =
+		format! (
+			"Usage: {} [options]",
+			program);
+
+	println! (
+		"{}",
+		opts.usage (& brief));
+
 }
 
-fn print_help (program: &str, opts: Options) {
-	let brief = format!("Help: {} [options]", program);
-	println!("{}", opts.usage(&brief));
+fn print_help (
+	program: &str,
+	opts: Options,
+) {
+
+	let brief =
+		format! (
+			"Help: {} [options]",
+			program);
+
+	println! (
+		"{}",
+		opts.usage (& brief));
+
 }
 
 struct Opts {
@@ -27,44 +49,63 @@ struct Opts {
 	critical: String,
 }
 
-fn parse_options () -> Option<Opts> {
+fn parse_options () -> Option <Opts> {
 
-	let args = env::args ();
+	let args =
+		env::args ();
 
-	let mut opts = Options::new();
+	let mut opts =
+		Options::new ();
 
 	opts.optflag (
-			"",
-			"help",
-			"print this help menu");
+		"",
+		"help",
+		"print this help menu");
 
 	opts.reqopt (
-			"",
-			"warning",
-			"warning cpu usage level",
-			"<warning-level>");
+		"",
+		"warning",
+		"warning cpu usage level",
+		"<warning-level>");
 
 	opts.reqopt (
-			"",
-			"critical",
-			"critical cpu usage level",
-			"<critical-level>");
+		"",
+		"critical",
+		"critical cpu usage level",
+		"<critical-level>");
 
-	let matches = match opts.parse (args) {
-		Ok (m) => { m }
+	let matches =
+		match opts.parse (args) {
+
+		Ok (value) => { value }
+
 		Err (_) => {
-			print_usage ("check_cpu", opts);
-			process::exit(3);
+
+			print_usage (
+				"check_cpu",
+				opts);
+
+			process::exit (3);
+
 		}
+
 	};
 
 	if matches.opt_present ("help") {
-		print_help ("check_cpu", opts);
-		process::exit(3);
+
+		print_help (
+			"check_cpu",
+			opts);
+
+		process::exit (3);
+
 	}
 
-	let warning = matches.opt_str ("warning").unwrap ();
-	let critical = matches.opt_str ("critical").unwrap ();
+	let warning =
+		matches.opt_str ("warning").unwrap ();
+
+	let critical =
+		matches.opt_str ("critical").unwrap ();
 
 	return Some (Opts {
 		warning: warning,
@@ -74,62 +115,129 @@ fn parse_options () -> Option<Opts> {
 }
 
 
-fn check_cpu(warning_level: f64, critical_level: f64) -> String {
+fn check_cpu (warning_level: f64, critical_level: f64) -> String {
 
 	let stat_route = "/proc/stat";
-	let path = Path::new(&stat_route);
+
+	let path = Path::new (& stat_route);
 
 	let mut file = match File::open(&path) {
-	    Ok(file) => { file }
-	    Err(e)  => { return format!("MEMORY-UNKNOWN: Failed to read /proc/stat: {}", e); }
+
+	    Ok (file) => { file }
+
+	    Err (err)  => {
+	    	return format! (
+	    		"MEMORY-UNKNOWN: Failed to read /proc/stat: {}",
+	    		err);
+	    }
+
 	};
 
-	let mut stat: String = "".to_string();
-	file.read_to_string(&mut stat);
+	let mut stat: String = "".to_string ();
 
-	let stat_lines: Vec<&str> = stat.split('\n').collect();
+	file.read_to_string (&mut stat);
+
+	let stat_lines: Vec<&str> =
+		stat.split ('\n').collect ();
 
 	// Taking multiple spaces away from cpu line
-	let space_re = Regex::new(r" +").unwrap();
-	let normalized_cpu_line = space_re.replace_all(&stat_lines[0], " ");
 
-	let stat_cpu: Vec<&str> = normalized_cpu_line.split(' ').collect();
+	let space_re =
+		Regex::new (r" +").unwrap ();
+
+	let normalized_cpu_line =
+		space_re.replace_all (
+			& stat_lines [0],
+			" ");
+
+	let stat_cpu: Vec <&str> =
+		normalized_cpu_line.split (' ').collect ();
 
 	// Building the perfdata string
-	let user_str = stat_cpu[1];
-	let niced = stat_cpu[2];
-	let system = stat_cpu[3];
-	let idle_str = stat_cpu[4];
-	let iowait = stat_cpu[5];
-	let irq = stat_cpu[6];
-	let softirq = stat_cpu[7];
 
-	let mut perf_data = format!("user={}c;;;; niced={}c;;;; system={}c;;;; idle={}c;;;; iowait={}c;;;; irq={};;;; softirq={}c;;;;", user_str, niced, system, idle_str, iowait, irq, softirq);
+	let user_str = stat_cpu [1];
+	let niced = stat_cpu [2];
+	let system = stat_cpu [3];
+	let idle_str = stat_cpu [4];
+	let iowait = stat_cpu [5];
+	let irq = stat_cpu [6];
+	let softirq = stat_cpu [7];
 
-	let interesting_fields = [ "ctxt", "btime", "processes", "procs_running", "procs_blocked" ];
+	let mut perf_data =
+		format! (
+			"user={}c;;;; niced={}c;;;; system={}c;;;; idle={}c;;;; \
+			iowait={}c;;;; irq={};;;; softirq={}c;;;;",
+			user_str,
+			niced,
+			system,
+			idle_str,
+			iowait,
+			irq,
+			softirq);
 
-	let mut field_values: Vec<f64> = vec![];
+	let interesting_fields = [
+		"ctxt",
+		"btime",
+		"processes",
+		"procs_running",
+		"procs_blocked",
+	];
 
-	for field in interesting_fields.iter() {
+	let mut field_values: Vec <f64> = vec! [];
 
-		let expression = format!("{} (.+)\n", field);
-		let re = Regex::new(&expression).unwrap();
+	for field in interesting_fields.iter () {
 
-		for cap in re.captures_iter(&stat) {
-			let value = cap.at(1).unwrap_or("").trim();
-			let int_value: f64 = match value.parse() {
-				Ok(f64) => { f64 }
-				Err(e) => { return format!("CPU-UNKNOWN: {} should be a number!", e); }
+		let expression =
+			format! (
+				"{} (.+)\n",
+				field);
+
+		let re =
+			Regex::new (& expression).unwrap ();
+
+		for cap in re.captures_iter (& stat) {
+
+			let value =
+				cap.at (1).unwrap_or ("").trim ();
+
+			let int_value: f64 =
+				match value.parse () {
+
+				Ok (f64) => { f64 }
+
+				Err (e) => {
+					return format! (
+						"CPU-UNKNOWN: {} should be a number!",
+						e);
+				}
+
 			};
-			field_values.push(int_value);
 
-			if !field.contains("procs_running") && !field.contains("procs_blocked") {
-				perf_data = format!("{} {}={};;;;", perf_data, field, int_value);
+			field_values.push (int_value);
+
+			if ! field.contains ("procs_running")
+				&& ! field.contains("procs_blocked") {
+
+				perf_data =
+					format! (
+						"{} {}={};;;;",
+						perf_data,
+						field,
+						int_value);
+
 				break;
-			}
-			else {
-				perf_data = format!("{} {}={}c;;;;", perf_data, field, int_value);
+
+			} else {
+
+				perf_data =
+					format! (
+						"{} {}={}c;;;;",
+						perf_data,
+						field,
+						int_value);
+
 				break;
+
 			}
 
 		}
@@ -161,13 +269,24 @@ fn check_cpu(warning_level: f64, critical_level: f64) -> String {
 	let critical_level_fmt = format!("{0:.1$}", critical_level * 100.0, 1);
 
 	if cpu < warning_level {
+
 		return format!("CPU-OK: used {}%, warning {}%. | cpu={}%;{};{};; {}", cpu_used, warning_level_fmt, cpu_used, warning_level_fmt, critical_level_fmt, perf_data);
-	}
-	else if cpu >= warning_level && cpu < critical_level {
+
+	} else if cpu >= warning_level && cpu < critical_level {
+
 		return format!("CPU-WARNING: used {}%, critical {}%. | cpu={}%;{};{};; {}", cpu_used, critical_level_fmt, cpu_used, warning_level_fmt, critical_level_fmt, perf_data);
-	}
-	else {
-		return format!("CPU-CRITICAL: used {}%, critical {}%. | cpu={}%;{};{};; {}", cpu_used, critical_level_fmt, cpu_used, warning_level_fmt, critical_level_fmt, perf_data);
+
+	} else {
+
+		return format! (
+			"CPU-CRITICAL: used {}%, critical {}%. | cpu={}%;{};{};; {}",
+			cpu_used,
+			critical_level_fmt,
+			cpu_used,
+			warning_level_fmt,
+			critical_level_fmt,
+			perf_data);
+
 	}
 
 }

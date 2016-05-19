@@ -1,129 +1,108 @@
 [package]
-
 name = "icinga plugins"
-version = "0.0.1"
-authors = [ "Jose Luis <joseluis@wellbehavedsoftware.com>" ]
+version = "1.3.0"
+authors = [
+	"James Pharaoh <james@wellbehavedsoftware.com>",
+	"Jose Luis <joseluis@wellbehavedsoftware.com>"
+]
 
 [[bin]]
-
-name = "check_memory"
-
-[[bin]]
-
-name = "check_disk"
-
-[[bin]]
-
 name = "check_apt"
 
 [[bin]]
-
 name = "check_apt_cache"
 
 [[bin]]
-
-name = "check_disk_quota"
-
-[[bin]]
-
-name = "check_lxc_memory"
-
-[[bin]]
-
-name = "check_cpu"
-
-[[bin]]
-
-name = "check_hd_data"
-
-[[bin]]
-
-name = "check_md_raid"
-
-
-[[bin]]
-
 name = "check_authsmtp"
 
 [[bin]]
-
-name = "check_site"
-
-[[bin]]
-
-name = "check_cow"
-
-[[bin]]
-
-name = "ssh_command_handler"
-
-[[bin]]
-
-name = "check_subvolumes"
-
-[[bin]]
-
-name = "check_postfix"
-
-[[bin]]
-
-name = "check_dovecot"
-
-[[bin]]
-
 name = "check_btrfs"
 
 [[bin]]
-
-name = "check_lxc_cpu_overview"
-
-[[bin]]
-
-name = "check_snapshots"
+name = "check_cow"
 
 [[bin]]
+name = "check_cpu"
 
+[[bin]]
+name = "check_disk"
+
+[[bin]]
+name = "check_disk_quota"
+
+[[bin]]
+name = "check_dovecot"
+
+[[bin]]
+name = "check_hd_data"
+
+[[bin]]
 name = "check_lvm"
 
 [[bin]]
+name = "check_lxc_container"
 
+[[bin]]
+name = "check_lxc_cpu_overview"
+
+[[bin]]
+name = "check_lxc_memory"
+
+[[bin]]
+name = "check_md_raid"
+
+[[bin]]
+name = "check_memory"
+
+[[bin]]
+name = "check_postfix"
+
+[[bin]]
+name = "check_site"
+
+[[bin]]
+name = "check_snapshots"
+
+[[bin]]
+name = "check_subvolumes"
+
+[[bin]]
+name = "ssh_command_handler"
+
+
+[[bin]]
 name = "check_over_quota"
 
 [[bin]]
-
 name = "check_mail_ports"
 
 [[bin]]
-
 name = "check_github"
 
 [[bin]]
-
 name = "check_etcd"
 
 [[bin]]
-
 name = "check_git"
 
 [dependencies.getopts]
-getopts = "0.2.11"
+version = "*"
 
 [dependencies.curl]
-git = "https://github.com/wellbehavedsoftware/curl-rust.git"
-branch = "handle-new-options"
+version = "*"
 
 [dependencies.chrono]
-chrono = "0.2.14"
+version = "*"
 
 [dependencies.git2]
-git2 = "0.2.11"
+version = "*"
 
 [dependencies.regex]
-regex = "0.1.8"
+version = "*"
 
 [dependencies.time]
-time = "0.1.32"
+version = "*"
 
 [dependencies.serde_json]
-serde_json = "0.6.0"
+version = "*"
 

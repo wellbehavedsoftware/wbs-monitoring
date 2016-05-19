@@ -45,7 +45,8 @@ fn print_help (
 struct Opts {
 	warning: String,
 	critical: String,
-	subvolume: String,
+	subvolume_path: String,
+	subvolume_name: String,
 	limit: f64,
 }
 
@@ -76,9 +77,15 @@ fn parse_options () -> Opts {
 
 	opts.reqopt (
 		"",
-		"subvolume",
+		"path",
 		"path to the subvolume to be checked",
 		"PATH");
+
+	opts.reqopt (
+		"",
+		"subvolume",
+		"internal name of the subvolume to be checked",
+		"SUBVOLUME");
 
 	opts.reqopt (
 		"",
@@ -116,7 +123,12 @@ fn parse_options () -> Opts {
 				"critical"
 			).unwrap (),
 
-		subvolume:
+		subvolume_path:
+			matches.opt_str (
+				"path"
+			).unwrap (),
+
+		subvolume_name:
 			matches.opt_str (
 				"subvolume"
 			).unwrap (),
@@ -131,7 +143,8 @@ fn parse_options () -> Opts {
 }
 
 fn check_disk (
-	path: & str,
+	subvolume_path: & str,
+	subvolume_name: & str,
 	warning_level: f64,
 	critical_level: f64,
 	disk_limit: f64,
@@ -142,7 +155,7 @@ fn check_disk (
 			.arg ("/sbin/btrfs")
 			.arg ("subvolume")
 			.arg ("list")
-			.arg (path)
+			.arg (subvolume_path)
 			.output () {
 
 		Ok (ok) => ok,
@@ -161,21 +174,14 @@ fn check_disk (
 			& list_output.stdout
 		).to_string ();
 
-	let to_search_1 =
-		format! (
-			" @{}",
-			path);
-
-	let to_search_2 =
+	let to_search =
 		format! (
 			" {}",
-			& path [1..]);
+			subvolume_name);
 
 	let line =
 		match subvolume.split ('\n').find (
-			|line|
-				line.ends_with (& to_search_1)
-				|| line.ends_with (& to_search_2)
+			|line| line.ends_with (& to_search)
 		) {
 
 		Some (line) => line,
@@ -198,7 +204,7 @@ fn check_disk (
 			.arg ("/sbin/btrfs")
 			.arg ("qgroup")
 			.arg ("show")
-			.arg (path)
+			.arg (subvolume_path)
 			.arg ("-e")
 			.arg ("-r")
 			.output () {
@@ -388,7 +394,8 @@ fn main () {
 	};
 
 	let result = check_disk (
-		& opts.subvolume,
+		& opts.subvolume_path,
+		& opts.subvolume_name,
 		disk_warning,
 		disk_critical,
 		opts.limit);
