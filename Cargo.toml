@@ -6,6 +6,10 @@ authors = [
 	"Jose Luis <joseluis@wellbehavedsoftware.com>"
 ]
 
+[lib]
+name = "wbsmonitoring"
+path = "src/lib.rs"
+
 [[bin]]
 name = "check_apt"
 
