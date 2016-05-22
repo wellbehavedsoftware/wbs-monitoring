@@ -6,88 +6,121 @@ authors = [
 	"Jose Luis <joseluis@wellbehavedsoftware.com>"
 ]
 
+# ----------- core library
+
 [lib]
 name = "wbsmonitoring"
 path = "src/lib.rs"
 
-[[bin]]
-name = "check_apt"
+# ---------- wrappers
 
 [[bin]]
-name = "check_apt_cache"
+name = "check-lxc-container"
+path = "src/wrappers/check_lxc_container.rs"
+
+# ---------- legacy
 
 [[bin]]
-name = "check_authsmtp"
+name = "check-apt"
+path = "src/legacy/check_apt.rs"
 
 [[bin]]
-name = "check_btrfs"
+name = "check-apt-cache"
+path = "src/legacy/check_apt_cache.rs"
 
 [[bin]]
-name = "check_cow"
+name = "check-authsmtp"
+path = "src/legacy/check_authsmtp.rs"
 
 [[bin]]
-name = "check_cpu"
+name = "check-btrfs"
+path = "src/legacy/check_btrfs.rs"
 
 [[bin]]
-name = "check_disk"
+name = "check-cow"
+path = "src/legacy/check_cow.rs"
 
 [[bin]]
-name = "check_disk_quota"
+name = "check-cpu"
+path = "src/legacy/check_cpu.rs"
 
 [[bin]]
-name = "check_dovecot"
+name = "check-disk"
+path = "src/legacy/check_disk.rs"
 
 [[bin]]
-name = "check_hd_data"
+name = "check-disk-quota"
+path = "src/legacy/check_disk_quota.rs"
 
 [[bin]]
-name = "check_lvm"
+name = "check-dovecot"
+path = "src/legacy/check_dovecot.rs"
 
 [[bin]]
-name = "check_lxc_container"
+name = "check-hd-data"
+path = "src/legacy/check_hd_data.rs"
 
 [[bin]]
-name = "check_lxc_cpu_overview"
+name = "check-lvm"
+path = "src/legacy/check_lvm.rs"
 
 [[bin]]
-name = "check_lxc_memory"
+name = "check-lxc-cpu-overview"
+path = "src/legacy/check_lxc_cpu_overview.rs"
 
 [[bin]]
-name = "check_md_raid"
+name = "check-lxc-memory"
+path = "src/legacy/check_lxc_memory.rs"
 
 [[bin]]
-name = "check_memory"
+name = "check-md-raid"
+path = "src/legacy/check_md_raid.rs"
 
 [[bin]]
-name = "check_postfix"
+name = "check-memory"
+path = "src/legacy/check_memory.rs"
 
 [[bin]]
-name = "check_site"
+name = "check-postfix"
+path = "src/legacy/check_postfix.rs"
 
 [[bin]]
-name = "check_snapshots"
+name = "check-site"
+path = "src/legacy/check_site.rs"
 
 [[bin]]
-name = "check_subvolumes"
+name = "check-snapshots"
+path = "src/legacy/check_snapshots.rs"
 
 [[bin]]
-name = "ssh_command_handler"
-
-
-[[bin]]
-name = "check_over_quota"
+name = "check-subvolumes"
+path = "src/legacy/check_subvolumes.rs"
 
 [[bin]]
-name = "check_mail_ports"
+name = "ssh-command-handler"
+path = "src/legacy/ssh_command_handler.rs"
 
 [[bin]]
-name = "check_github"
+name = "check-over-quota"
+path = "src/legacy/check_over_quota.rs"
 
 [[bin]]
-name = "check_etcd"
+name = "check-mail-ports"
+path = "src/legacy/check_mail_ports.rs"
 
 [[bin]]
-name = "check_git"
+name = "check-github"
+path = "src/legacy/check_github.rs"
+
+[[bin]]
+name = "check-etcd"
+path = "src/legacy/check_etcd.rs"
+
+[[bin]]
+name = "check-git"
+path = "src/legacy/check_git.rs"
+
+# ---------- dependencies
 
 [dependencies.getopts]
 version = "*"
