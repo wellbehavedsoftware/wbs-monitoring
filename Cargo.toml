@@ -6,7 +6,7 @@ authors = [
 	"Jose Luis <joseluis@wellbehavedsoftware.com>"
 ]
 
-# ----------- core library
+# ---------- core library
 
 [lib]
 name = "wbsmonitoring"
@@ -15,14 +15,14 @@ path = "src/lib.rs"
 # ---------- wrappers
 
 [[bin]]
+name = "check-apt"
+path = "src/wrappers/check_apt.rs"
+
+[[bin]]
 name = "check-lxc-container"
 path = "src/wrappers/check_lxc_container.rs"
 
 # ---------- legacy
-
-[[bin]]
-name = "check-apt"
-path = "src/legacy/check_apt.rs"
 
 [[bin]]
 name = "check-apt-cache"

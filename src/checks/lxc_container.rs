@@ -67,7 +67,7 @@ for CheckLxcContainerProvider {
 
 	fn new_instance (
 		& self,
-		options_spec: & getopts::Options,
+		_options_spec: & getopts::Options,
 		options_matches: & getopts::Matches,
 	) -> Result <Box <PluginInstance>, Box <error::Error>> {
 
@@ -116,10 +116,8 @@ for CheckLxcContainerInstance {
 				"/var/lib/lxc/{}",
 				self.container_name);
 
-		let metadata =
-			match fs::metadata (
-				container_path,
-			) {
+		match fs::metadata (
+			container_path) {
 
 			Err (_) => {
 
@@ -128,7 +126,7 @@ for CheckLxcContainerInstance {
 
 			},
 
-			Ok (metadata) => {
+			Ok (_metadata) => {
 
 				self.check_present (
 					& mut check_result_builder)

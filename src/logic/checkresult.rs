@@ -1,5 +1,3 @@
-use getopts;
-
 use logic::pluginprovider::*;
 
 #[ derive (Clone, Copy, Debug) ]
@@ -150,6 +148,18 @@ impl CheckResult {
 		& self.status_messages
 	}
 
+	pub fn performance_data (
+		& self,
+	) -> & Vec <String> {
+		& self.performance_data
+	}
+
+	pub fn extra_information (
+		& self,
+	) -> & Vec <String> {
+		& self.extra_information
+	}
+
 }
 
 pub struct CheckResultBuilder {
@@ -196,6 +206,27 @@ impl CheckResultBuilder {
 			message.into ());
 
 		self.status = CheckStatus::Critical;
+
+	}
+
+	pub fn warning <IntoString: Into <String>> (
+		& mut self,
+		message: IntoString,
+	) {
+
+		self.status_messages.push (
+			message.into ());
+
+		self.status =
+			match self.status {
+
+			CheckStatus::Critical =>
+				CheckStatus::Critical,
+
+			_ =>
+				CheckStatus::Warning,
+
+		};
 
 	}
 

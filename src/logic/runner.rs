@@ -25,7 +25,7 @@ fn show_help (
 
 fn show_usage_error (
 	plugin_provider: & PluginProvider,
-	options_spec: & getopts::Options,
+	_options_spec: & getopts::Options,
 	error: & getopts::Fail,
 ) {
 
