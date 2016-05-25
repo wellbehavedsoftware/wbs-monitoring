@@ -169,6 +169,11 @@ for CheckAptInstance {
 				plugin_provider,
 				& mut check_result_builder));
 
+		try! (
+			self.check_package_upgrades (
+				plugin_provider,
+				& mut check_result_builder));
+
 		Ok (
 			check_result_builder.into_check_result (
 				plugin_provider,
@@ -351,6 +356,44 @@ impl CheckAptInstance {
 
 	}
 
+	fn check_package_upgrades (
+		& self,
+		_plugin_provider: & PluginProvider,
+		check_result_builder: & mut CheckResultBuilder,
+	) -> Result <(), Box <error::Error>> {
+
+		let mut summary: AptcUpgradeSummary =
+			AptcUpgradeSummary {
+				upgrade: 0,
+				remove: 0,
+				install: 0,
+				broken: 0,
+				bad: 0,
+				reserved05: 0,
+				reserved06: 0,
+				reserved07: 0,
+				reserved08: 0,
+				reserved09: 0,
+				reserved10: 0,
+				reserved11: 0,
+				reserved12: 0,
+				reserved13: 0,
+				reserved14: 0,
+				reserved15: 0,
+			};
+
+		let success =
+			unsafe {
+
+			aptc_upgrade_summary_get (
+				& mut summary)
+
+		};
+
+		Ok (())
+
+	}
+
 	/*
 	fn check_packages(rootfs: &str) -> (isize, String) {
 
@@ -517,6 +560,37 @@ fn file_age_if_exists_in_seconds (
 
 	Ok (Some (
 		elapsed_seconds))
+
+}
+
+#[ repr (C) ]
+struct AptcUpgradeSummary {
+	upgrade: u64,
+	remove: u64,
+	install: u64,
+	broken: u64,
+	bad: u64,
+	reserved05: u64,
+	reserved06: u64,
+	reserved07: u64,
+	reserved08: u64,
+	reserved09: u64,
+	reserved10: u64,
+	reserved11: u64,
+	reserved12: u64,
+	reserved13: u64,
+	reserved14: u64,
+	reserved15: u64,
+}
+
+#[ link (name = "apt-pkg") ]
+#[ link (name = "stdc++") ]
+#[ link (name = "aptc", kind = "static") ]
+extern "C" {
+
+	fn aptc_upgrade_summary_get (
+		summary: * mut AptcUpgradeSummary,
+	) -> bool;
 
 }
 

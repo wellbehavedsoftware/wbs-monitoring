@@ -5,6 +5,7 @@ authors = [
 	"James Pharaoh <james@wellbehavedsoftware.com>",
 	"Jose Luis <joseluis@wellbehavedsoftware.com>"
 ]
+build = "build.rs"
 
 # ---------- core library
 
