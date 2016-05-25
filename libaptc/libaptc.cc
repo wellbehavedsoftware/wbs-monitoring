@@ -3,6 +3,38 @@
 
 #include <signal.h>
 
+// ========== public interface
+
+struct AptcUpgradeSummary {
+	uint64_t upgrade;
+	uint64_t remove;
+	uint64_t install;
+	uint64_t broken;
+	uint64_t bad;
+	uint64_t reserved05;
+	uint64_t reserved06;
+	uint64_t reserved07;
+	uint64_t reserved08;
+	uint64_t reserved09;
+	uint64_t reserved10;
+	uint64_t reserved11;
+	uint64_t reserved12;
+	uint64_t reserved13;
+	uint64_t reserved14;
+	uint64_t reserved15;
+};
+
+extern "C" {
+
+	bool aptc_init ();
+
+	bool aptc_upgrade_summary_get (
+		AptcUpgradeSummary * summary);
+
+}
+
+// ========== internal stuff
+
 class AptCacheState {
 
 public:
@@ -10,23 +42,28 @@ public:
 	bool initialized;
 	bool failed;
 
+	bool debug;
+
 	AptCacheState () :
 		initialized (false),
-		failed (false) {
+		failed (false),
+		debug (false) {
 
 	}
 
 };
 
+#define debug(format, ...) \
+	if (state.debug) { fprintf (stderr, format, ## __VA_ARGS__); }
+
 static AptCacheState state;
 
-extern "C" {
-
-	bool aptc_init ();
-
-}
+// ========== implementation
 
 bool aptc_init () {
+
+	debug (
+		"Aptc initialize\n");
 
 	if (state.initialized) {
 		return true;
@@ -38,7 +75,7 @@ bool aptc_init () {
 
 	// init config
 
-	printf (
+	debug (
 		"  Init config\n");
 
 	{
@@ -55,7 +92,7 @@ bool aptc_init () {
 
 	// init system
 
-	printf (
+	debug (
 		"  Init system\n");
 
 	{
@@ -77,7 +114,7 @@ bool aptc_init () {
 
 error:
 
-	printf (
+	debug (
 		"  Error\n");
 
 	state.failed = true;
@@ -86,69 +123,72 @@ error:
 
 }
 
-void do_some_stuff () {
+bool aptc_upgrade_summary_get (
+		AptcUpgradeSummary * summary) {
 
-	pkgCacheFile cache_file;
+	if (! aptc_init ()) {
+		return false;
+	}
+
+	debug (
+		"Aptc upgrade summary get\n");
 
 	// simulate the upgrade
 
-	printf (
+	debug (
 		"  Open cache files\n");
 
+	pkgCacheFile cache_file;
+
 	if (! cache_file.Open ()) {
-		return;
+		return false;
 	}
 
-	printf (
+	debug (
 		"  Build caches\n");
 
 	if (! cache_file.BuildCaches ()) {
-		return;
+		return false;
 	}
 
-	printf (
+	debug (
 		"  Build dep cache\n");
 
 	if (! cache_file.BuildDepCache ()) {
-		return;
+		return false;
 	}
-
-	printf (
-		"  Show upgrade details\n");
 
 	pkgDepCache * dep_cache =
 		cache_file.GetDepCache ();
 
-	printf (
-		"    Upgrade %ld\n",
-		dep_cache->KeepCount ());
+	// update struct
 
-	printf (
-		"    Delete %ld\n",
-		dep_cache->DelCount ());
+	summary->upgrade =
+		dep_cache->KeepCount ();
 
-	printf (
-		"    Install %ld\n",
-		dep_cache->InstCount ());
+	summary->remove =
+		dep_cache->DelCount ();
 
-	printf (
-		"    Broken %ld\n",
-		dep_cache->BrokenCount ());
+	summary->install =
+		dep_cache->InstCount ();
 
-	printf (
-		"    Bad %ld\n",
-		dep_cache->BadCount ());
+	summary->broken =
+		dep_cache->BrokenCount ();
 
-	return;
+	summary->bad =
+		dep_cache->BadCount ();
 
-	printf (
+	// return
+	
+	return true;
+
+	/*
+	debug (
 		"  Find upgraded packages\n");
 
-	pkgCache * cache =
-		cache_file.GetPkgCache ();
-
 	for (
-		pkgCache::PkgIterator package = cache->PkgBegin ();
+		pkgCache::PkgIterator package =
+			dep_cache->PkgBegin ();
 		! package.end ();
 		package ++
 	) {
@@ -179,26 +219,48 @@ void do_some_stuff () {
 			<< std::endl;
 
 	}
+	*/
 
 }
 
+// ========== just for testing
+
+/*
 int main () {
 
-	printf (
-		"About to init\n");
+	state.debug = true;
 
-	if (! aptc_init ()) {
+	AptcUpgradeSummary summary;
 
-		printf (
-			"Init failed\n");
+	aptc_upgrade_summary_get (
+		& summary);
 
-	}
+	debug (
+		"Upgrade summary\n");
 
-	printf (
-		"About to do some stuff\n");
+	debug (
+		"  Upgrade %ld\n",
+		summary.upgrade);
 
-	do_some_stuff ();
+	debug (
+		"  Delete %ld\n",
+		summary.remove);
+
+	debug (
+		"  Install %ld\n",
+		summary.install);
+
+	debug (
+		"  Broken %ld\n",
+		summary.broken);
+
+	debug (
+		"  Bad %ld\n",
+		summary.bad);
+
+	return EXIT_SUCCESS;
 
 }
+*/
 
 // ex: noet ts=4 filetype=cc1

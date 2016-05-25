@@ -1,10 +1,17 @@
 /*
+
 !/.gitignore
+
 !/Cargo.toml
 !/Cargo.lock
+
 !/README.md
+
 !/src/
+
 !/libaptc
 /libaptc/*
+!/libaptc/Makefile
 !/libaptc/*.cc
+
 *~
