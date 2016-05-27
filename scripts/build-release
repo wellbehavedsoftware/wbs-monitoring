@@ -1,0 +1,80 @@
+#!/bin/bash
+
+set -euf -o pipefail
+
+version="$1"
+
+# ---------- check the version number
+
+if test -f ".git/refs/tags/$version"; then
+	echo "Version $version already exists"
+	false
+fi
+
+# ---------- update the version number
+
+sed_script="/tmp/sed-script-$$"
+
+cat >"$sed_script" <<-END
+	/^\[package\]$/, /^\[/ {
+		s/version = ".*"/version = "$version\"/
+	}
+END
+
+sed --in-place \
+	--regexp-extended \
+	--file "$sed_script" \
+	"Cargo.toml"
+
+rm "$sed_script"
+
+git reset "HEAD"
+git add "Cargo.toml"
+git commit --message "release $version"
+git stash --include-untracked
+
+# ---------- clean build
+
+cargo clean
+cargo build --release
+
+# ---------- create package
+
+rm -rf "dist/wbs-monitoring-$version"
+mkdir -p "dist/wbs-monitoring-$version"
+
+(
+
+	cd "target/release"
+
+	find "." \
+		-mindepth 1 \
+		-maxdepth 1 \
+		-type f \
+		-executable
+
+) | while read file; do
+
+	cp "target/release/$file" "dist/wbs-monitoring-$version/$file"
+
+done
+
+# ---------- create archive
+
+tar \
+	--create \
+	--xz \
+	--file "dist/wbs-monitoring-$version.tar.xz" \
+	--directory "dist" \
+	"wbs-monitoring-$version"
+
+# ---------- upload to server
+
+scp "dist/wbs-monitoring-$version.tar.xz" "dist:dist/wbs-monitoring/"
+
+# ---------- create tag
+
+git tag "$version"
+git push --tags
+
+# ex: noet ts=4 filetype=sh

@@ -1,0 +1,113 @@
+#!/bin/bash
+
+all_checks=(
+	"apt"
+	"lxc-container"
+)
+
+mkdir -p work/temp
+
+# ---------- create wrappers
+
+for check in "${all_checks[@]}"; do
+
+	check_underscore=$(
+		tr "-" "_" <<<"$check"
+	)
+
+	wrapper_temp=$(
+		mktemp "work/temp/$check-XXXXXXXX.rs"
+	)
+
+	cat <<-END | sed 's/^|\t//; s/^|//' >$wrapper_temp
+	|	// ###################################################################
+	|	// ##########################    WARNING    ##########################
+	|	// ###################################################################
+	|	// ##                                                               ##
+	|	// ##  This file is generated, please do not edit it directly.      ##
+	|	// ##  Instead, update the data, templates and code in              ##
+	|	// ##  scripts/generate-code and run that script.                   ##
+	|	// ##                                                               ##
+	|	// ###################################################################
+	|
+	|	extern crate wbsmonitoring;
+	|
+	|	use wbsmonitoring::checks;
+	|	use wbsmonitoring::logic;
+	|
+	|	fn main () {
+	|
+	|		let plugin_provider =
+	|			checks::$check_underscore::new ();
+	|
+	|		logic::run_from_command_line (
+	|			& * plugin_provider);
+	|
+	|	}
+	|
+	|	// ex: noet ts=4 filetype=rust
+	END
+
+	wrapper="src/wrappers/check_$check_underscore.rs"
+
+	if ! test -f "$wrapper"; then
+
+		echo >&2 "creating $wrapper"
+		mv "$wrapper_temp" "src/wrappers/check_$check_underscore.rs"
+
+	elif ! diff >/dev/null "$wrapper_temp" "$wrapper"; then
+
+		echo >&2 "updating $wrapper"
+		mv "$wrapper_temp" "src/wrappers/check_$check_underscore.rs"
+
+	else
+
+		rm "$wrapper_temp"
+
+	fi
+
+done
+
+# ---------- update cargo.toml
+
+cargo_temp=$(
+	mktemp "work/temp/cargo-XXXXXXXX.toml"
+)
+
+(
+
+	exec >"$cargo_temp"
+
+	echo ""
+
+	for check in "${all_checks[@]}"; do
+
+		check_underscore=$(
+			tr "-" "_" <<<"$check"
+		)
+
+		cat <<-END
+			[[bin]]
+			name = "check-$check"
+			path = "src/wrappers/check_$check_underscore.rs"
+		END
+
+		echo ""
+
+	done
+
+)
+
+sed \
+	--in-place \
+	--file <(
+		cat <<-END
+			/^# ---------- wrappers$/ r $cargo_temp
+			/^# ---------- wrappers$/, /^# ---------- / {
+				/^# ---------- / ! d
+			}
+		END
+	) \
+	"Cargo.toml"
+
+# ex: noet ts=4 filetype=bash
