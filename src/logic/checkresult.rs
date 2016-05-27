@@ -197,7 +197,7 @@ impl CheckResultBuilder {
 
 	}
 
-	pub fn critical <IntoString: Into <String>> (
+	pub fn unknown <IntoString: Into <String>> (
 		& mut self,
 		message: IntoString,
 	) {
@@ -205,7 +205,19 @@ impl CheckResultBuilder {
 		self.status_messages.push (
 			message.into ());
 
-		self.status = CheckStatus::Critical;
+		self.status =
+			match self.status {
+
+			CheckStatus::Critical =>
+				CheckStatus::Critical,
+
+			CheckStatus::Warning =>
+				CheckStatus::Warning,
+
+			_ =>
+				CheckStatus::Unknown,
+
+		};
 
 	}
 
@@ -227,6 +239,18 @@ impl CheckResultBuilder {
 				CheckStatus::Warning,
 
 		};
+
+	}
+
+	pub fn critical <IntoString: Into <String>> (
+		& mut self,
+		message: IntoString,
+	) {
+
+		self.status_messages.push (
+			message.into ());
+
+		self.status = CheckStatus::Critical;
 
 	}
 

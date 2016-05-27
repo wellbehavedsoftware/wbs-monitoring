@@ -107,26 +107,26 @@ for CheckAptProvider {
 		let update_warning_seconds =
 			try! (
 				option_hours_string_to_seconds (
-					& options_matches.opt_str (
-						"update-warning")));
+					options_matches,
+					"update-warning"));
 
 		let update_critical_seconds =
 			try! (
 				option_hours_string_to_seconds (
-					& options_matches.opt_str (
-						"update-critical")));
+					options_matches,
+					"update-critical"));
 
 		let reboot_warning_seconds =
 			try! (
 				option_hours_string_to_seconds (
-					& options_matches.opt_str (
-						"reboot-warning")));
+					options_matches,
+					"reboot-warning"));
 
 		let reboot_critical_seconds =
 			try! (
 				option_hours_string_to_seconds (
-					& options_matches.opt_str (
-						"reboot-critical")));
+					options_matches,
+					"reboot-critical"));
 
 		return Ok (Box::new (
 
@@ -159,20 +159,38 @@ for CheckAptInstance {
 		let mut check_result_builder =
 			CheckResultBuilder::new ();
 
-		try! (
-			self.check_elapsed_hours (
-				plugin_provider,
-				& mut check_result_builder));
+		self.check_elapsed_hours (
+			plugin_provider,
+			& mut check_result_builder,
+		).unwrap_or_else (
+			|error|
+			check_result_builder.unknown (
+				format! (
+					"error checking last update: {}",
+					error.description ()))
+		);
 
-		try! (
-			self.check_reboot_recommendation (
-				plugin_provider,
-				& mut check_result_builder));
+		self.check_reboot_recommendation (
+			plugin_provider,
+			& mut check_result_builder,
+		).unwrap_or_else (
+			|error|
+			check_result_builder.unknown (
+				format! (
+					"error checking reboot recommendation: {}",
+					error.description ()))
+		);
 
-		try! (
-			self.check_package_upgrades (
-				plugin_provider,
-				& mut check_result_builder));
+		self.check_package_upgrades (
+			plugin_provider,
+			& mut check_result_builder,
+		).unwrap_or_else (
+			|error|
+			check_result_builder.unknown (
+				format! (
+					"error checking package upgrades: {}",
+					error.description ()))
+		);
 
 		Ok (
 			check_result_builder.into_check_result (
@@ -342,13 +360,7 @@ impl CheckAptInstance {
 
 			},
 
-			None => {
-
-				check_result_builder.ok (
-					format! (
-						"no recommended reboot"));
-
-			},
+			_ => (),
 
 		};
 
@@ -390,131 +402,112 @@ impl CheckAptInstance {
 
 		};
 
+		if success {
+
+			let total =
+				summary.upgrade +
+				summary.remove +
+				summary.install +
+				summary.broken +
+				summary.bad;
+
+			if total == 0 {
+
+				check_result_builder.ok (
+					"no packages need upgrading");
+
+			} else {
+
+				if summary.upgrade > 0 {
+
+					check_result_builder.warning (
+						format! (
+							"{} packages need upgrading",
+							summary.upgrade));
+
+				}
+
+				if summary.remove > 0 {
+
+					check_result_builder.warning (
+						format! (
+							"{} packages can be removed",
+							summary.remove));
+
+				}
+
+				if summary.install > 0 {
+
+					check_result_builder.warning (
+						format! (
+							"{} packages need installing",
+							summary.install));
+
+				}
+
+				if summary.broken > 0 {
+
+					check_result_builder.critical (
+						format! (
+							"{} packages are broken",
+							summary.broken));
+
+				}
+
+				if summary.bad > 0 {
+
+					check_result_builder.critical (
+						format! (
+							"{} packages failed to install",
+							summary.bad));
+
+				}
+
+			}
+
+		} else {
+
+			check_result_builder.unknown (
+				"error checking package upgrades");
+
+		}
+
+		// TODO list packages to upgrade
+		// TODO show security updates
+
 		Ok (())
 
 	}
 
-	/*
-	fn check_packages(rootfs: &str) -> (isize, String) {
-
-		let mut packages_update_needed = "KO".to_string();
-
-		let mut dpkg_output;
-
-		if rootfs.is_empty() {
-
-			dpkg_output =
-				match process::Command::new ("dpkg")
-					.arg ("--get-selections".to_string ())
-					.output () {
-				Ok (output) => { output }
-				Err (_) => { return (0, "CHECK PACKAGES ERROR".to_string()); }
-			};
-		}
-		else {
-
-			dpkg_output =
-				match process::Command::new ("sudo")
-					.arg ("lxc-attach".to_string ())
-					.arg ("--name".to_string ())
-					.arg (&rootfs)
-					.arg ("--".to_string ())
-					.arg ("dpkg".to_string ())
-					.arg ("--get-selections".to_string ())
-					.output () {
-				Ok (output) => { output }
-				Err (_) => { return (0, "CHECK PACKAGES ERROR".to_string()); }
-			};
-		}
-
-		let mut xargs_output =
-			match process::Command::new ("xargs")
-				.arg ("apt-cache".to_string())
-				.arg ("policy".to_string())
-			        	.stdin(std::process::Stdio::piped())
-			       	.stdout(std::process::Stdio::piped())
-				.spawn () {
-			Ok (output) => { output }
-			Err (_) => {  return (0, "CHECK PACKAGES ERROR".to_string()); }
-			};
-
-		xargs_output.stdin.unwrap().write(String::from_utf8_lossy(&dpkg_output.stdout).as_bytes());
-		drop(dpkg_output);
-
-		let mut out: String = "".to_string();
-		xargs_output.stdout.as_mut().unwrap().read_to_string(&mut out);
-
-		// Check if the installed version is the latest available for each package
-		let output_lines: Vec<&str> = out.split("\n").collect();
-		if output_lines.len() == 1 { return (0, "CHECK PACKAGES ERROR".to_string()); }
-
-		let mut package_list = vec![];
-		let mut i = 0;
-
-		while i < output_lines.len() {
-
-			let line: Vec<&str> = output_lines[i].split(':').collect();
-			if line[0] == "  Installed" {
-				let package = format!("{}\n{}\n{}", output_lines[i-1], output_lines[i], output_lines[i+1]);
-				package_list.push(package);
-			}
-			i = i + 1;
-		}
-
-		let (num_packages, packages_msg) = packages_updated(package_list);
-
-		if !packages_msg.is_empty() {
-			packages_update_needed = packages_msg;
-		}
-
-		return (num_packages, packages_update_needed);
-
-	}
-
-	fn packages_updated(package_list: Vec<String>) -> (isize, String) {
-
-		let mut num_packages = 0;
-
-		let mut message: String = "".to_string();
-
-		for package in package_list.iter() {
-
-			let package_array: Vec<&str> = package.split('\n').collect();
-
-			let installed: Vec<&str> = package_array[1].trim().split(' ').collect();
-			let candidate: Vec<&str> = package_array[2].trim().split(' ').collect();
-
-			if (installed[1] != "(none)") && (installed[1] != candidate[1]) {
-				message = format!("{}APT-WARNING: {} new version available.\n", message, package_array[0]);
-				num_packages = num_packages + 1;
-
-			}
-
-		}
-
-		return (num_packages, message);
-	}
-	*/
-
 }
 
 fn option_hours_string_to_seconds (
-	hours_string_option: & Option <String>,
+	options_matches: & getopts::Matches,
+	option_name: & str,
 ) -> Result <Option <u64>, Box <error::Error>> {
 
-	match hours_string_option {
+	match options_matches.opt_str (
+		option_name) {
 
-		& Some (ref string) =>
-			Ok (Some (3600 * try! (
-				u64::from_str_radix (
-					string.as_str (),
-					10)))),
-
-		& None =>
+		None =>
 			Ok (None),
 
-	}
+		Some (option_string) => {
 
+			Ok (Some (3600 * try! (
+				u64::from_str_radix (
+					option_string.as_str (),
+					10,
+				).map_err (
+					|_|
+					format! (
+						"Invalid value for {}",
+						option_name),
+				))))
+
+		},
+
+	}
 }
 
 fn file_age_if_exists_in_seconds (
@@ -531,7 +524,7 @@ fn file_age_if_exists_in_seconds (
 		Err (io_error) =>
 			match io_error.kind () {
 
-			io::ErrorKind::PermissionDenied =>
+			io::ErrorKind::NotFound =>
 				return Ok (
 					None),
 
