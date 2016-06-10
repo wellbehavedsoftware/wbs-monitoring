@@ -20,6 +20,10 @@ name = "check-apt"
 path = "src/wrappers/check_apt.rs"
 
 [[bin]]
+name = "check-authsmtp"
+path = "src/wrappers/check_authsmtp.rs"
+
+[[bin]]
 name = "check-lxc-container"
 path = "src/wrappers/check_lxc_container.rs"
 
@@ -28,10 +32,6 @@ path = "src/wrappers/check_lxc_container.rs"
 [[bin]]
 name = "check-apt-cache"
 path = "src/legacy/check_apt_cache.rs"
-
-[[bin]]
-name = "check-authsmtp"
-path = "src/legacy/check_authsmtp.rs"
 
 [[bin]]
 name = "check-btrfs"
@@ -144,3 +144,5 @@ version = "*"
 [dependencies.serde_json]
 version = "*"
 
+[dependencies.RustyXML]
+version = "*"

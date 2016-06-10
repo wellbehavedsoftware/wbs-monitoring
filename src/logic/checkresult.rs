@@ -254,6 +254,23 @@ impl CheckResultBuilder {
 
 	}
 
+	pub fn extra_information <IntoString: Into <String>> (
+		& mut self,
+		information_temp: IntoString,
+	) {
+
+		let information =
+			information_temp.into ();
+
+		for information_line in information.trim ().split ("\n") {
+
+			self.extra_information.push (
+				information_line.to_string ());
+
+		}
+
+	}
+
 	// transformer
 
 	pub fn into_check_result (

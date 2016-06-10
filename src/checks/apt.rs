@@ -24,11 +24,11 @@ struct CheckAptInstance {
 
 	root_filesystem: Option <String>,
 
-	update_warning_seconds: Option <u64>,
-	update_critical_seconds: Option <u64>,
+	update_warning: Option <time::Duration>,
+	update_critical: Option <time::Duration>,
 
-	reboot_warning_seconds: Option <u64>,
-	reboot_critical_seconds: Option <u64>,
+	reboot_warning: Option <time::Duration>,
+	reboot_critical: Option <time::Duration>,
 
 }
 
@@ -104,27 +104,27 @@ for CheckAptProvider {
 				"root-filesystem",
 			);
 
-		let update_warning_seconds =
+		let update_warning =
 			try! (
-				option_hours_string_to_seconds (
+				arghelper::parse_duration (
 					options_matches,
 					"update-warning"));
 
-		let update_critical_seconds =
+		let update_critical =
 			try! (
-				option_hours_string_to_seconds (
+				arghelper::parse_duration (
 					options_matches,
 					"update-critical"));
 
-		let reboot_warning_seconds =
+		let reboot_warning =
 			try! (
-				option_hours_string_to_seconds (
+				arghelper::parse_duration (
 					options_matches,
 					"reboot-warning"));
 
-		let reboot_critical_seconds =
+		let reboot_critical =
 			try! (
-				option_hours_string_to_seconds (
+				arghelper::parse_duration (
 					options_matches,
 					"reboot-critical"));
 
@@ -134,11 +134,11 @@ for CheckAptProvider {
 
 				root_filesystem: root_filesystem,
 
-				update_warning_seconds: update_warning_seconds,
-				update_critical_seconds: update_critical_seconds,
+				update_warning: update_warning,
+				update_critical: update_critical,
 
-				reboot_warning_seconds: reboot_warning_seconds,
-				reboot_critical_seconds: reboot_critical_seconds,
+				reboot_warning: reboot_warning,
+				reboot_critical: reboot_critical,
 
 			}
 
@@ -217,51 +217,50 @@ impl CheckAptInstance {
 					& "".to_string ()));
 
 		match try! (
-			file_age_if_exists_in_seconds (
+			file_age_if_exists (
 				update_success_stamp_path.as_str ())) {
 
-			Some (elapsed_seconds) => {
+			Some (elapsed) => {
 
-				let elapsed_hours =
-					elapsed_seconds / 3600;
+				let elapsed_seconds =
+					elapsed.as_secs ();
 
 				if
-					self.update_critical_seconds.is_some ()
+
+					self.update_critical.is_some ()
 
 					&& elapsed_seconds
-						> * self.update_critical_seconds.as_ref ().unwrap ()
+						> self.update_critical.unwrap ().as_secs ()
 
 				{
 
 					check_result_builder.critical (
 						format! (
 							"last update {} hours ago (critical is {})",
-							elapsed_hours,
-							self.update_critical_seconds.as_ref ().unwrap ()
-								/ 3600));
+							elapsed_seconds / 3600,
+							self.update_critical.unwrap ().as_secs () / 3600));
 
 				} else if
 
-					self.update_warning_seconds.is_some ()
+					self.update_warning.is_some ()
 
 					&& elapsed_seconds
-						> * self.update_warning_seconds.as_ref ().unwrap ()
+						> self.update_warning.unwrap ().as_secs ()
 
 				{
 
 					check_result_builder.warning (
 						format! (
 							"last update {} hours ago (warning is {})",
-							elapsed_hours,
-							self.update_warning_seconds.as_ref ().unwrap ()
-								/ 3600));
+							elapsed_seconds / 3600,
+							self.update_warning.unwrap ().as_secs () / 3600));
 
 				} else {
 
 					check_result_builder.ok (
 						format! (
 							"last update {} hours ago",
-							elapsed_hours));
+							elapsed_seconds / 3600));
 
 				}
 
@@ -269,13 +268,13 @@ impl CheckAptInstance {
 
 			None => {
 
-				if self.update_critical_seconds.is_some () {
+				if self.update_critical.is_some () {
 
 					check_result_builder.critical (
 						format! (
 							"no record of successful update"));
 
-				} else if self.update_warning_seconds.is_some () {
+				} else if self.update_warning.is_some () {
 
 					check_result_builder.warning (
 						format! (
@@ -310,51 +309,49 @@ impl CheckAptInstance {
 					& "".to_string ()));
 
 		match try! (
-			file_age_if_exists_in_seconds (
+			file_age_if_exists (
 				reboot_required_path.as_str ())) {
 
-			Some (elapsed_seconds) => {
+			Some (elapsed_duration) => {
 
-				let elapsed_hours =
-					elapsed_seconds / 3600;
+				let elapsed_seconds =
+					elapsed_duration.as_secs ();
 
 				if
-					self.reboot_critical_seconds.is_some ()
+					self.reboot_critical.is_some ()
 
 					&& elapsed_seconds
-						> * self.reboot_critical_seconds.as_ref ().unwrap ()
+						> self.reboot_critical.unwrap ().as_secs ()
 
 				{
 
 					check_result_builder.critical (
 						format! (
 							"reboot recommended for {} hours (critical is {})",
-							elapsed_hours,
-							self.reboot_critical_seconds.as_ref ().unwrap ()
-								/ 3600));
+							elapsed_seconds / 3600,
+							self.reboot_critical.unwrap ().as_secs () / 3600));
 
 				} else if
 
-					self.reboot_warning_seconds.is_some ()
+					self.reboot_warning.is_some ()
 
 					&& elapsed_seconds
-						> * self.reboot_warning_seconds.as_ref ().unwrap ()
+						> self.reboot_warning.unwrap ().as_secs ()
 
 				{
 
 					check_result_builder.warning (
 						format! (
 							"reboot recommended for {} hours (warning is {})",
-							elapsed_hours,
-							self.reboot_warning_seconds.as_ref ().unwrap ()
-								/ 3600));
+							elapsed_seconds / 3600,
+							self.reboot_warning.unwrap ().as_secs () / 3600));
 
 				} else {
 
 					check_result_builder.ok (
 						format! (
 							"reboot recommended for {} hours",
-							elapsed_hours));
+							elapsed_seconds / 3600));
 
 				}
 
@@ -481,38 +478,9 @@ impl CheckAptInstance {
 
 }
 
-fn option_hours_string_to_seconds (
-	options_matches: & getopts::Matches,
-	option_name: & str,
-) -> Result <Option <u64>, Box <error::Error>> {
-
-	match options_matches.opt_str (
-		option_name) {
-
-		None =>
-			Ok (None),
-
-		Some (option_string) => {
-
-			Ok (Some (3600 * try! (
-				u64::from_str_radix (
-					option_string.as_str (),
-					10,
-				).map_err (
-					|_|
-					format! (
-						"Invalid value for {}",
-						option_name),
-				))))
-
-		},
-
-	}
-}
-
-fn file_age_if_exists_in_seconds (
+fn file_age_if_exists (
 	file_path: & str,
-) -> Result <Option <u64>, Box <error::Error>> {
+) -> Result <Option <time::Duration>, Box <error::Error>> {
 
 	let metadata =
 		match fs::metadata (
@@ -548,11 +516,8 @@ fn file_age_if_exists_in_seconds (
 			time::SystemTime::now ().duration_since (
 				timestamp));
 
-	let elapsed_seconds =
-		elapsed_duration.as_secs ();
-
 	Ok (Some (
-		elapsed_seconds))
+		elapsed_duration))
 
 }
 

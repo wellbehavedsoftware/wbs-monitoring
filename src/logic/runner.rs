@@ -197,6 +197,14 @@ pub fn run_from_command_line (
 		check_result.status_message (),
 	);
 
+	for extra_line in check_result.extra_information () {
+
+		println! (
+			"{}",
+			extra_line);
+
+	}
+
 	process::exit (
 		* check_result.status () as i32);
 
