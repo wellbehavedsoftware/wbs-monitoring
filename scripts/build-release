@@ -77,6 +77,6 @@ scp "dist/wbs-monitoring-$version.tar.xz" "dist:dist/wbs-monitoring/"
 # ---------- create tag
 
 git tag "$version"
-git push --tags
+git push origin master --tags
 
 # ex: noet ts=4 filetype=sh
