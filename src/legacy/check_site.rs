@@ -5,11 +5,12 @@ extern crate curl;
 extern crate time;
 
 use getopts::Options;
+
 use std::env;
-use std::option::{ Option };
+use std::error;
 use std::process;
-use std::thread;
-use curl::http;
+
+use curl::easy;
 use time::PreciseTime;
 
 fn print_usage (program: &str, opts: Options) {
@@ -132,141 +133,191 @@ fn parse_options () -> Option<Opts> {
 
 }
 
-fn check_site (host: &str, uri: &str, text: &str, secure: bool, headers: &Vec<String>, warning: f64, critical: f64, timeout: f64) -> String {
+fn check_site (
+	host: & str,
+	uri: & str,
+	text: & str,
+	secure: bool,
+	headers: & Vec <String>,
+	warning: f64,
+	critical: f64,
+	timeout: f64,
+) -> Result <String, Box <error::Error>> {
 
-	let mut prefix: String;
-
-	if secure { prefix = "https://".to_string(); }
-	else { prefix = "http://".to_string(); }
+	let prefix =
+		if secure {
+			"https://".to_string ()
+		} else {
+			"http://".to_string ()
+		};
 
 	let url = prefix + host + uri;
 
-	let headers_copy = headers.clone();
+	let start =
+		PreciseTime::now ();
 
-	let start = PreciseTime::now();
+   	let mut curl_easy =
+   		easy::Easy::new ();
 
-	let child = thread::spawn(move || {
+	try! (
+		curl_easy.get (
+			true));
 
-	   	let mut http_handle = http::handle();
+	try! (
+		curl_easy.url (
+			url.as_str ()));
 
-		let mut http_request = http_handle.get (url);
+	let mut curl_headers =
+		easy::List::new ();
 
-		http_request = http_request.header("Accept-Language", "en");
+	try! (
+		curl_headers.append (
+			"Accept-Language: en"));
 
-		for header in headers_copy {
-			let header_parts: Vec<&str> = header.splitn (2, ": ").collect ();
-			http_request = http_request.header (header_parts [0], header_parts [1]);
-		}
+	for header in headers {
 
-		let resp = http_request.exec().unwrap();
+		try! (
+			curl_headers.append (
+				header.as_str ()));
 
-		let code_string = resp.get_code().to_string();
+	}
 
-		let url_code = String::from_utf8_lossy(resp.get_body()).to_string();
+	try! (
+		curl_easy.http_headers (
+			curl_headers));
 
-		return format!("{}:::{}", code_string, url_code);
-	});
+	let mut response_buffer: Vec <u8> =
+		vec! [];
 
+	{
+
+		let mut curl_transfer =
+			curl_easy.transfer ();
+
+		try! (
+			curl_transfer.write_function (
+				|data| {
+
+			response_buffer.extend_from_slice (
+				data);
+
+			Ok (data.len ())
+
+		}));
+
+		try! (
+			curl_transfer.perform ());
+
+	}
+
+	let response_code =
+		try! (
+			curl_easy.response_code ());
+
+	let response_body =
+		try! (
+			String::from_utf8 (
+				response_buffer));
 
 	// Wait for the call to finish
-	let res = child.join();
 
-	let end = PreciseTime::now();
+	let end =
+		PreciseTime::now ();
 
 	let millis = start.to(end).num_milliseconds() as f64;
 	let mut millis_message = "".to_string();
 
 	if millis <= warning {
-		millis_message = format!("TIMEOUT-OK: The request took {} milliseconds.", millis);
-	}
-	else if millis > warning && millis <= critical {
-		millis_message = format!("TIMEOUT-WARNING: The request took {} milliseconds.", millis);
-	}
-	else if millis > critical && millis <= timeout {
-		millis_message = format!("TIMEOUT-CRITICAL: The request took {} milliseconds.", millis);
-	}
-	else if millis > timeout {
-		return format!("TIMEOUT-CRITICAL: The timed out at {} milliseconds.", millis);
-	}
 
-	// Get the child's process results
-	let response_string = match res {
-		Ok (value) => { value }
-		Err (_) => {
-			return format!("SITE-CRITICAL: The check could not be performed. No response received.");
-		}
-	};
+		millis_message =
+			format! (
+				"TIMEOUT-OK: The request took {} milliseconds.",
+				millis);
 
-	let tokens: Vec<&str> = response_string.split(":::").collect();
+	} else if millis > warning && millis <= critical {
 
-	let code_string: String = tokens[0].to_string();
-	let url_code: String = tokens[1].to_string();
+		millis_message =
+			format! (
+				"TIMEOUT-WARNING: The request took {} milliseconds.",
+				millis);
+
+	} else if millis > critical && millis <= timeout {
+
+		millis_message =
+			format! (
+				"TIMEOUT-CRITICAL: The request took {} milliseconds.",
+				millis);
+
+	} else if millis > timeout {
+
+		return Ok (
+			format! (
+				"TIMEOUT-CRITICAL: The timed out at {} milliseconds.",
+				millis));
+
+	}
 
 	// Code check and text
-	let informational = 	vec![100isize, 101, 102];
-	let success = 		vec![200isize, 201, 202, 203, 204, 205, 206, 208, 226];
-	let redirection = 	vec![300isize, 301, 302, 303, 304, 305, 306, 308];
-	let client_error = 	vec![400isize, 401, 402, 403, 404, 405, 406, 407, 408, 409, 410,
-				411, 412, 413, 414, 415, 416, 417, 418, 419, 420, 422,
-				423, 424, 426, 428, 429, 431, 440, 444, 450, 451, 494,
-				495, 496, 497, 498, 499];
-	let server_error =	vec![500isize, 501, 502, 503, 504, 505, 506, 507, 508, 509, 510,
-				511, 520, 521, 522, 523, 524, 598, 599];
 
+	let result_message =
+		if response_code < 200 || response_code >= 300 {
 
+		if response_body.contains (text) {
 
-	let response_code : isize = match code_string.to_string().parse() {
-		Ok (isize) => { isize }
-		Err (_) => {
-			return "SITE-UNKNOWN: The check could not be performed. No response received.".to_string();
+			format! (
+				"SITE-CRITICAL: {}. Text \"{}\" found.",
+				response_code,
+				text)
+
+		} else {
+
+			format! (
+				"SITE-CRITICAL: {}. Text \"{}\" not found.",
+				response_code,
+				text)
+
 		}
+
+	} else {
+
+		if response_body.contains (text) {
+
+			format! (
+				"SITE-OK: {}. Text \"{}\" found.",
+				response_code,
+				text)
+
+		} else {
+
+			format! (
+				"SITE-WARNING: {}. Text \"{}\" not found.",
+				response_code,
+				text)
+
+		}
+
 	};
-
-	let mut result_message: String = "".to_string();
-
-	if informational.contains(&response_code) {
-		if url_code.contains(text) {
-			result_message = format!("SITE-UNKNOWN: {}. Text \"{}\" found.", code_string.clone(), text);
-		}
-		else {
-			result_message = format!("SITE-UNKNOWN: {}. Text \"{}\" not found.", code_string.clone(), text);
-		}
-	}
-	else if success.contains(&response_code) {
-		if url_code.contains(text) {
-			result_message = format!("SITE-OK: {}. Text \"{}\" found.", code_string.clone(), text);
-		}
-		else {
-			result_message = format!("SITE-WARNING: {}. Text \"{}\" not found.", code_string.clone(), text);
-		}
-	}
-	else if redirection.contains(&response_code) {
-		if url_code.contains(text) {
-			result_message = format!("SITE-WARNING: {}. Text \"{}\" found.", code_string.clone(), text);
-		}
-		else {
-			result_message = format!("SITE-WARNING: {}. Text \"{}\" not found.", code_string.clone(), text);
-		}
-	}
-	else if client_error.contains(&response_code) || server_error.contains(&response_code) {
-		if url_code.contains(text) {
-			result_message = format!("SITE-CRITICAL: {}. Text \"{}\" found.", code_string.clone(), text);
-		}
-		else {
-			result_message = format!("SITE-CRITICAL: {}. Text \"{}\" not found.", code_string.clone(), text);
-		}
-	}
-	else {
-		result_message = "SITE-UNKNOWN: check_site failed.".to_string();
-	}
 
 	// Final message including result and timeout info
 
 	if (millis_message.contains("CRITICAL") && (result_message.contains("WARNING") || result_message.contains("OK"))) || (millis_message.contains("WARNING") && result_message.contains("OK")) {
-		return format!("{}\n{} | response_time={}ms;;;;", millis_message, result_message, millis);
-	}
-	else {
-		return format!("{}\n{} | response_time={}ms;;;;", result_message, millis_message, millis);
+
+		Ok (
+			format! (
+				"{}\n{} | response_time={}ms;;;;",
+				millis_message,
+				result_message,
+				millis))
+
+	} else {
+
+		Ok (
+			format! (
+				"{}\n{} | response_time={}ms;;;;",
+				result_message,
+				millis_message,
+				millis))
+
 	}
 
 }
@@ -312,8 +363,21 @@ fn main () {
 		}
 	};
 
-	let site_res = check_site(hostname, uri, text, secure, & headers, warning, critical, timeout);
-	println!("{}", site_res);
+	let site_res =
+		check_site (
+			hostname,
+			uri,
+			text,
+			secure,
+			& headers,
+			warning,
+			critical,
+			timeout,
+		).unwrap ();
+
+	println! (
+		"{}",
+		site_res);
 
 	if site_res.contains("UNKNOWN") {
 		process::exit(3);
