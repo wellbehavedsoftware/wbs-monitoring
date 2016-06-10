@@ -28,15 +28,17 @@ sed --in-place \
 
 rm "$sed_script"
 
-git reset "HEAD"
-git add "Cargo.toml"
-git commit --message "release $version"
-git stash --include-untracked
-
 # ---------- clean build
 
 cargo clean
 cargo build --release
+
+# ---------- git commit
+
+git reset "HEAD"
+git add "Cargo.toml" "Cargo.lock"
+git commit --message "release $version"
+git stash --include-untracked
 
 # ---------- create package
 
