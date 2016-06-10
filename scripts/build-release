@@ -4,6 +4,10 @@ set -euf -o pipefail
 
 version="$1"
 
+trusty_container="mufasa-trusty"
+trusty_root="/var/lib/lxc/$trusty_container/rootfs"
+trusty_project="$trusty_root/home/ubuntu/wbs-monitoring"
+
 # ---------- check the version number
 
 if test -f ".git/refs/tags/$version"; then
@@ -28,10 +32,34 @@ sed --in-place \
 
 rm "$sed_script"
 
-# ---------- clean build
+# ---------- clean and sync
 
 cargo clean
-cargo build --release
+(cd libaptc && make clean)
+
+sudo rsync \
+	--archive \
+	--delete \
+	--exclude "/.git" \
+	--exclude "/dist" \
+	--exclude "/target" \
+	--exclude "/temp" \
+	--exclude "/work" \
+	"./" \
+	"$trusty_project/"
+
+# ---------- build packages
+
+scripts/build-package "$version" "xenial"
+
+sudo lxc-attach --name "$trusty_container" -- \
+sudo -H -u ubuntu \
+bash -c "/home/ubuntu/wbs-monitoring/scripts/build-package $version trusty"
+
+sudo rsync \
+	--archive \
+	"$trusty_project/dist/" \
+	"dist/"
 
 # ---------- git commit
 
@@ -40,39 +68,10 @@ git add "Cargo.toml" "Cargo.lock"
 git commit --message "release $version"
 git stash --include-untracked
 
-# ---------- create package
-
-rm -rf "dist/wbs-monitoring-$version"
-mkdir -p "dist/wbs-monitoring-$version"
-
-(
-
-	cd "target/release"
-
-	find "." \
-		-mindepth 1 \
-		-maxdepth 1 \
-		-type f \
-		-executable
-
-) | while read file; do
-
-	cp "target/release/$file" "dist/wbs-monitoring-$version/$file"
-
-done
-
-# ---------- create archive
-
-tar \
-	--create \
-	--xz \
-	--file "dist/wbs-monitoring-$version.tar.xz" \
-	--directory "dist" \
-	"wbs-monitoring-$version"
-
 # ---------- upload to server
 
-scp "dist/wbs-monitoring-$version.tar.xz" "dist:dist/wbs-monitoring/"
+scp "dist/wbs-monitoring-$version-xenial.tar.xz" "dist:dist/wbs-monitoring/"
+scp "dist/wbs-monitoring-$version-trusty.tar.xz" "dist:dist/wbs-monitoring/"
 
 # ---------- create tag
 
