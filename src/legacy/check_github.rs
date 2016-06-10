@@ -2,24 +2,19 @@
 
 extern crate getopts;
 extern crate curl;
-extern crate time;
 extern crate serde_json;
+extern crate time;
 
-use getopts::Options;
 use std::env;
-use std::option::{ Option };
+use std::error;
 use std::process;
-use std::thread;
-use curl::http;
-use time::PreciseTime;
-use serde_json::Value;
 
-fn print_usage (program: &str, opts: Options) {
+fn print_usage (program: &str, opts: getopts::Options) {
 	let brief = format!("Usage: {} [options]", program);
 	println!("{}", opts.usage(&brief));
 }
 
-fn print_help (program: &str, opts: Options) {
+fn print_help (program: &str, opts: getopts::Options) {
 	let brief = format!("Help: {} [options]", program);
 	println!("{}", opts.usage(&brief));
 }
@@ -35,7 +30,7 @@ fn parse_options () -> Option<Opts> {
 
 	let args = env::args ();
 
-	let mut opts = Options::new();
+	let mut opts = getopts::Options::new();
 
 	opts.optflag (
 			"",
@@ -94,62 +89,142 @@ fn parse_options () -> Option<Opts> {
 
 }
 
-fn check_github (owner: &str, repository: &str, version: &str, timeout: f64) -> String {
+fn check_github (
+	owner: & str,
+	repository: & str,
+	version: & str,
+	timeout: f64,
+) -> Result <String, Box <error::Error>> {
 
-	let prefix = "https://api.github.com/repos".to_string();
+	let prefix =
+		"https://api.github.com/repos".to_string ();
 
-	let url = format!("{}/{}/{}/releases/latest", prefix, owner, repository);
+	let url =
+		format! (
+			"{}/{}/{}/releases/latest",
+			prefix,
+			owner,
+			repository);
 
-	let start = PreciseTime::now();
+	let start =
+		time::PreciseTime::now ();
 
-	let child = thread::spawn(move || {
+	let mut curl_easy =
+		curl::easy::Easy::new ();
 
-	   	let mut http_handle = http::handle();
+	try! (
+		curl_easy.get (
+			true));
 
-		let mut http_request = http_handle.get (url);
+	try! (
+		curl_easy.url (
+			url.as_str ()));
 
-		http_request = http_request.header("Accept-Language", "en");
-		http_request = http_request.header("User-Agent", "well-behaved-software");
+	let mut curl_headers =
+		curl::easy::List::new ();
 
-		let resp = http_request.exec().unwrap();
+	try! (
+		curl_headers.append (
+			"Accept-Language: en"));
 
-		let url_code = String::from_utf8_lossy(resp.get_body()).to_string();
+	try! (
+		curl_headers.append (
+			"User-Agent: check-github (wbs-monitoring)"));
 
-		return format!("{}", url_code);
-	});
+	try! (
+		curl_easy.http_headers (
+			curl_headers));
 
-	// Wait for the call to finish
-	let res = child.join();
+	let mut response_buffer: Vec <u8> =
+		vec! [];
 
-	let end = PreciseTime::now();
+	{
+
+		let mut curl_transfer =
+			curl_easy.transfer ();
+
+		try! (
+			curl_transfer.write_function (
+				|data| {
+
+			response_buffer.extend_from_slice (
+				data);
+
+			Ok (data.len ())
+
+		}));
+
+		try! (
+			curl_transfer.perform ());
+
+	}
+
+	/*
+	let response_code =
+		try! (
+			curl_easy.response_code ());
+	*/
+
+	let response_body =
+		try! (
+			String::from_utf8 (
+				response_buffer));
+
+	let end =
+		time::PreciseTime::now ();
 
 	let millis = start.to(end).num_milliseconds() as f64;
 
 	if millis > timeout {
-		return format!("GITHUB-CRITICAL: The check timed out at {} milliseconds.", millis);
+
+		return Ok (
+			format! (
+				"GITHUB-CRITICAL: The check timed out at {} milliseconds.",
+				millis));
+
 	}
 
-	// Get the child's process results
-	let result = match res {
-		Ok (value) => { value }
-		Err (_) => {
-			return format!("GITHUB-CRITICAL: The check could not be performed. No response received.");
-		}
-	};
+	let data: serde_json::Value =
+		serde_json::from_str (
+			& response_body,
+		).unwrap ();
 
-	let data: Value = serde_json::from_str(&result).unwrap();
 	let obj = data.as_object().unwrap();
 	let release = obj.get("tag_name").unwrap().as_string().unwrap();
 
-	if release != version && (release.contains("rc") || release.contains("alpha") || release.contains("beta")) {
-		return format!("GITHUB-WARNING: {} new version available ({}). {} currently installed.", repository, release, version);
-	}
-	else if release != version {
-		return format!("GITHUB-WARNING: {} new release available ({}). {} currently installed.", repository, release, version);
-	}
-	else {
-		return format!("GITHUB-OK: {} version is up to date.", repository);
-	}
+	Ok (
+
+		if release != version && (
+			release.contains ("rc")
+			|| release.contains ("alpha")
+			|| release.contains ("beta")
+		) {
+
+			format! (
+				"GITHUB-WARNING: {} new version available ({}). \
+				{} currently installed.",
+				repository,
+				release,
+				version)
+
+		} else if release != version {
+
+			format! (
+				"GITHUB-WARNING: {} new release available ({}). \
+				{} currently installed.",
+				repository,
+				release,
+				version)
+
+		} else {
+
+			format! (
+				"GITHUB-OK: {} version is up to date.",
+				repository)
+
+		}
+
+	)
 
 }
 
@@ -175,7 +250,14 @@ fn main () {
 		}
 	};
 
-	let github_res = check_github(owner, repository, version, timeout);
+	let github_res =
+		check_github (
+			owner,
+			repository,
+			version,
+			timeout,
+		).unwrap ();
+
 	println!("{}", github_res);
 
 	if github_res.contains("UNKNOWN") {

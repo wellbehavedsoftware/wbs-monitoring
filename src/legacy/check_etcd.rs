@@ -1,23 +1,18 @@
-//Rust file
-
 extern crate getopts;
 extern crate curl;
 extern crate time;
 
-use getopts::Options;
 use std::env;
-use std::option::{ Option };
+use std::error;
 use std::process;
 use std::thread;
-use curl::http;
-use time::PreciseTime;
 
-fn print_usage (program: &str, opts: Options) {
+fn print_usage (program: &str, opts: getopts::Options) {
 	let brief = format!("Usage: {} [options]", program);
 	println!("{}", opts.usage(&brief));
 }
 
-fn print_help (program: &str, opts: Options) {
+fn print_help (program: &str, opts: getopts::Options) {
 	let brief = format!("Help: {} [options]", program);
 	println!("{}", opts.usage(&brief));
 }
@@ -36,7 +31,7 @@ fn parse_options () -> Option<Opts> {
 
 	let args = env::args ();
 
-	let mut opts = Options::new();
+	let mut opts = getopts::Options::new();
 
 	opts.optflag (
 			"",
@@ -123,80 +118,131 @@ fn parse_options () -> Option<Opts> {
 
 }
 
-fn check_etcd (host: &str, uri: &str, secure: bool, headers: &Vec<String>, warning: f64, critical: f64, timeout: f64) -> String {
+fn check_etcd (
+	host: & str,
+	uri: & str,
+	secure: bool,
+	headers: & Vec <String>,
+	warning: f64,
+	critical: f64,
+	timeout: f64,
+) -> Result <String, Box <error::Error>> {
 
-	let mut prefix: String;
+	let url =
+		"http://10.109.160.17:2380/metrics";
 
-	let url = "http://10.109.160.17:2380/metrics";
+	let start =
+		time::PreciseTime::now ();
 
-	let headers_copy = headers.clone();
+	let mut curl_easy =
+		curl::easy::Easy::new ();
 
-	let start = PreciseTime::now();
+	try! (
+		curl_easy.get (
+			true));
 
-	let child = thread::spawn(move || {
+	try! (
+		curl_easy.url (
+			url));
 
-	   	let mut http_handle = http::handle();
+	let mut curl_headers =
+		curl::easy::List::new ();
 
-		let mut http_request = http_handle.get (url);
+	try! (
+		curl_headers.append (
+			"Accept-Language: en"));
 
-		http_request = http_request.header("Accept-Language", "en");
+	try! (
+		curl_headers.append (
+			"User-Agent: check-github (wbs-monitoring)"));
 
-		for header in headers_copy {
-			let header_parts: Vec<&str> = header.splitn (2, ": ").collect ();
-			http_request = http_request.header (header_parts [0], header_parts [1]);
-		}
+	for header in headers {
 
-		let resp = http_request.exec().unwrap();
-println!("{:?}",resp.get_body());
+		try! (
+			curl_headers.append (
+				header.as_str ()));
 
-		let code_string = resp.get_code().to_string();
+	}
 
-		let url_code = match std::str::from_utf8(resp.get_body()) {
+	try! (
+		curl_easy.http_headers (
+			curl_headers));
 
-			Ok(str) => { str }
-			Err(e) => { return format!("ETCD-UNKNOWN: Error while requesting the metrics: {}.",e); }
+	let mut response_buffer: Vec <u8> =
+		vec! [];
 
-		};
+	{
 
-		return format!("{}:::{}", code_string, url_code);
-	});
+		let mut curl_transfer =
+			curl_easy.transfer ();
 
+		try! (
+			curl_transfer.write_function (
+				|data| {
 
-	// Wait for the call to finish
-	let res = child.join();
+			response_buffer.extend_from_slice (
+				data);
 
-	let end = PreciseTime::now();
+			Ok (data.len ())
 
-	let millis = start.to(end).num_milliseconds() as f64;
+		}));
+
+		try! (
+			curl_transfer.perform ());
+
+	}
+
+	let response_code =
+		try! (
+			curl_easy.response_code ());
+
+	let response_body =
+		try! (
+			String::from_utf8 (
+				response_buffer));
+
+	let end =
+		time::PreciseTime::now ();
+
+	let millis =
+		start.to (end).num_milliseconds () as f64;
+
 	let mut millis_message = "".to_string();
 
 	if millis <= warning {
-		millis_message = format!("TIMEOUT-OK: The request took {} milliseconds.", millis);
-	}
-	else if millis > warning && millis <= critical {
-		millis_message = format!("TIMEOUT-WARNING: The request took {} milliseconds.", millis);
-	}
-	else if millis > critical && millis <= timeout {
-		millis_message = format!("TIMEOUT-CRITICAL: The request took {} milliseconds.", millis);
-	}
-	else if millis > timeout {
-		return format!("TIMEOUT-CRITICAL: The timed out at {} milliseconds.", millis);
+
+		millis_message =
+			format! (
+				"TIMEOUT-OK: The request took {} milliseconds.",
+				millis);
+
+	} else if millis > warning && millis <= critical {
+
+		millis_message =
+			format! (
+				"TIMEOUT-WARNING: The request took {} milliseconds.",
+				millis);
+
+	} else if millis > critical && millis <= timeout {
+
+		millis_message =
+			format! (
+				"TIMEOUT-CRITICAL: The request took {} milliseconds.",
+				millis);
+
+	} else if millis > timeout {
+
+		return Ok (
+			format! (
+				"TIMEOUT-CRITICAL: The timed out at {} milliseconds.",
+				millis));
+
 	}
 
-	// Get the child's process results
-	let response_string = match res {
-		Ok (value) => { value }
-		Err (_) => {
-			return format!("SITE-CRITICAL: The check could not be performed. No response received.");
-		}
-	};
+	println! (
+		"{}",
+		response_body);
 
-	let tokens: Vec<&str> = response_string.split(":::").collect();
-
-	let code_string: String = tokens[0].to_string();
-	let url_code: String = tokens[1].to_string();
-
-	println!("{}", response_string);
 /*
 	// Code check and text
 	let informational = 	vec![100isize, 101, 102];
@@ -264,7 +310,8 @@ println!("{:?}",resp.get_body());
 	else {
 		return format!("{}\n{} | response_time={}ms;;;;", result_message, millis_message, millis);
 	}*/
-	return "OK".to_string();
+
+	Ok ("OK".to_string ())
 
 }
 
@@ -308,9 +355,18 @@ fn main () {
 		}
 	};
 
-	let etcd_res = check_etcd(hostname, uri, secure, & headers, warning, critical, timeout);
+	let etcd_res =
+		check_etcd (
+			hostname,
+			uri,
+			secure,
+			& headers,
+			warning,
+			critical,
+			timeout,
+		).unwrap ();
 
-	println!("{}", etcd_res);
+	println! ("{}", etcd_res);
 
 	if etcd_res.contains("UNKNOWN") {
 
