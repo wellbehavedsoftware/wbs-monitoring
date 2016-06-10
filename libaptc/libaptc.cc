@@ -1,6 +1,7 @@
 #include <apt-pkg/cachefile.h>
 #include <apt-pkg/pkgcache.h>
 
+#include <inttypes.h>
 #include <signal.h>
 
 // ========== public interface
