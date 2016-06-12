@@ -135,6 +135,9 @@ version = "*"
 [dependencies.git2]
 version = "*"
 
+[dependencies.libc]
+version = "*"
+
 [dependencies.regex]
 version = "*"
 

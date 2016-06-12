@@ -1,6 +1,8 @@
 extern crate getopts;
+extern crate libc;
 
 use std::error;
+use std::error::Error;
 use std::fs;
 use std::io;
 use std::os::unix::fs::MetadataExt;
@@ -22,7 +24,8 @@ struct CheckAptProvider {
 
 struct CheckAptInstance {
 
-	root_filesystem: Option <String>,
+	root_filesystem_prefix: String,
+	root_filesystem_path: String,
 
 	update_warning: Option <time::Duration>,
 	update_critical: Option <time::Duration>,
@@ -99,10 +102,15 @@ for CheckAptProvider {
 		options_matches: & getopts::Matches,
 	) -> Result <Box <PluginInstance>, Box <error::Error>> {
 
-		let root_filesystem =
+		let root_filesystem_prefix =
 			options_matches.opt_str (
 				"root-filesystem",
-			);
+			).unwrap_or ("".to_string ());
+
+		let root_filesystem_path =
+			options_matches.opt_str (
+				"root-filesystem",
+			).unwrap_or ("/".to_string ());
 
 		let update_warning =
 			try! (
@@ -132,7 +140,8 @@ for CheckAptProvider {
 
 			CheckAptInstance {
 
-				root_filesystem: root_filesystem,
+				root_filesystem_prefix: root_filesystem_prefix,
+				root_filesystem_path: root_filesystem_path,
 
 				update_warning: update_warning,
 				update_critical: update_critical,
@@ -159,38 +168,49 @@ for CheckAptInstance {
 		let mut check_result_builder =
 			CheckResultBuilder::new ();
 
-		self.check_elapsed_hours (
-			plugin_provider,
-			& mut check_result_builder,
-		).unwrap_or_else (
-			|error|
-			check_result_builder.unknown (
-				format! (
-					"error checking last update: {}",
-					error.description ()))
-		);
+		let root_filesystem_exists =
+			try! (
+				self.check_root_filesystem (
+					& mut check_result_builder));
 
-		self.check_reboot_recommendation (
-			plugin_provider,
-			& mut check_result_builder,
-		).unwrap_or_else (
-			|error|
-			check_result_builder.unknown (
-				format! (
-					"error checking reboot recommendation: {}",
-					error.description ()))
-		);
+		if root_filesystem_exists {
 
-		self.check_package_upgrades (
-			plugin_provider,
-			& mut check_result_builder,
-		).unwrap_or_else (
-			|error|
-			check_result_builder.unknown (
-				format! (
-					"error checking package upgrades: {}",
-					error.description ()))
-		);
+			self.check_elapsed_hours (
+				plugin_provider,
+				& mut check_result_builder,
+			).unwrap_or_else (
+				|error|
+
+				check_result_builder.unknown (
+					format! (
+						"error checking last update: {}",
+						error.description ()))
+
+			);
+
+			self.check_reboot_recommendation (
+				plugin_provider,
+				& mut check_result_builder,
+			).unwrap_or_else (
+				|error|
+				check_result_builder.unknown (
+					format! (
+						"error checking reboot recommendation: {}",
+						error.description ()))
+			);
+
+			self.check_package_upgrades (
+				plugin_provider,
+				& mut check_result_builder,
+			).unwrap_or_else (
+				|error|
+				check_result_builder.unknown (
+					format! (
+						"error checking package upgrades: {}",
+						error.description ()))
+			);
+
+		}
 
 		Ok (
 			check_result_builder.into_check_result (
@@ -204,6 +224,33 @@ for CheckAptInstance {
 
 impl CheckAptInstance {
 
+	fn check_root_filesystem (
+		& self,
+		check_result_builder: & mut CheckResultBuilder,
+	) -> Result <bool, Box <error::Error>> {
+
+		match fs::metadata (
+			& self.root_filesystem_path) {
+
+			Ok (_metadata) =>
+				Ok (true),
+
+			Err (io_error) => {
+
+				check_result_builder.unknown (
+					format! (
+						"unable to see root filesystem: {}: {}",
+						self.root_filesystem_path,
+						io_error.description ()));
+
+				Ok (false)
+
+			},
+
+		}
+
+	}
+
 	fn check_elapsed_hours (
 		& self,
 		_plugin_provider: & PluginProvider,
@@ -213,8 +260,7 @@ impl CheckAptInstance {
 		let update_success_stamp_path =
 			format! (
 				"{}/var/lib/apt/periodic/update-success-stamp",
-				self.root_filesystem.as_ref ().unwrap_or (
-					& "".to_string ()));
+				self.root_filesystem_prefix);
 
 		match try! (
 			file_age_if_exists (
@@ -305,8 +351,7 @@ impl CheckAptInstance {
 		let reboot_required_path =
 			format! (
 				"{}/var/run/reboot-required",
-				self.root_filesystem.as_ref ().unwrap_or (
-					& "".to_string ()));
+				self.root_filesystem_prefix);
 
 		match try! (
 			file_age_if_exists (
@@ -394,6 +439,10 @@ impl CheckAptInstance {
 		let success =
 			unsafe {
 
+			aptc_configuration_set_string (
+				"Dir".as_ptr () as * const i8,
+				self.root_filesystem_path.as_ptr () as * const i8);
+
 			aptc_upgrade_summary_get (
 				& mut summary)
 
@@ -419,14 +468,14 @@ impl CheckAptInstance {
 
 					check_result_builder.warning (
 						format! (
-							"{} packages need upgrading",
+							"{} packages need upgrading (warning)",
 							summary.upgrade));
 
 				}
 
 				if summary.remove > 0 {
 
-					check_result_builder.warning (
+					check_result_builder.ok (
 						format! (
 							"{} packages can be removed",
 							summary.remove));
@@ -435,7 +484,7 @@ impl CheckAptInstance {
 
 				if summary.install > 0 {
 
-					check_result_builder.warning (
+					check_result_builder.ok (
 						format! (
 							"{} packages need installing",
 							summary.install));
@@ -446,7 +495,7 @@ impl CheckAptInstance {
 
 					check_result_builder.critical (
 						format! (
-							"{} packages are broken",
+							"{} packages are broken (critical)",
 							summary.broken));
 
 				}
@@ -455,7 +504,7 @@ impl CheckAptInstance {
 
 					check_result_builder.critical (
 						format! (
-							"{} packages failed to install",
+							"{} packages failed to install (critical)",
 							summary.bad));
 
 				}
@@ -545,6 +594,11 @@ struct AptcUpgradeSummary {
 #[ link (name = "stdc++") ]
 #[ link (name = "aptc", kind = "static") ]
 extern "C" {
+
+	fn aptc_configuration_set_string (
+		name: * const libc::c_char,
+		value: * const libc::c_char,
+	);
 
 	fn aptc_upgrade_summary_get (
 		summary: * mut AptcUpgradeSummary,

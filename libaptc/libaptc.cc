@@ -32,6 +32,10 @@ extern "C" {
 	bool aptc_upgrade_summary_get (
 		AptcUpgradeSummary * summary);
 
+	void aptc_configuration_set_string (
+		const char * name,
+		const char * value);
+
 }
 
 // ========== internal stuff
@@ -60,6 +64,16 @@ public:
 static AptCacheState state;
 
 // ========== implementation
+
+void aptc_configuration_set_string (
+		const char * name,
+		const char * value) {
+
+	_config->Set (
+		name,
+		value);
+
+}
 
 bool aptc_init () {
 
