@@ -48,7 +48,7 @@ impl CheckStatus {
 				"CRITICAL",
 
 			CheckStatus::Unknown =>
-				"UNKNOWM",
+				"UNKNOWN",
 
 		}
 
