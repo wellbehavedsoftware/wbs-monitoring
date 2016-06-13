@@ -36,6 +36,8 @@ extern "C" {
 		const char * name,
 		const char * value);
 
+	const char * aptc_error_message ();
+
 }
 
 // ========== internal stuff
@@ -48,6 +50,7 @@ public:
 	bool failed;
 
 	bool debug;
+	string error_message;
 
 	AptCacheState () :
 		initialized (false),
@@ -72,6 +75,12 @@ void aptc_configuration_set_string (
 	_config->Set (
 		name,
 		value);
+
+}
+
+const char * aptc_error_message () {
+
+	return state.error_message.c_str ();
 
 }
 
@@ -100,7 +109,12 @@ bool aptc_init () {
 				* _config);
 
 		if (! init_config_result) {
+
+			state.error_message =
+				"Call to pkgInitConfig failed";
+
 			return false;
+
 		}
 
 	}
@@ -118,7 +132,12 @@ bool aptc_init () {
 				_system);
 
 		if (! init_system_result) {
+
+			state.error_message =
+				"Call to pkgInitSystem failed";
+
 			goto error;
+
 		}
 
 	}
@@ -156,21 +175,36 @@ bool aptc_upgrade_summary_get (
 	pkgCacheFile cache_file;
 
 	if (! cache_file.Open ()) {
+
+		state.error_message =
+			"Call to pkgCacheFile.Open failed";
+
 		return false;
+
 	}
 
 	debug (
 		"  Build caches\n");
 
 	if (! cache_file.BuildCaches ()) {
+
+		state.error_message =
+			"Call to pkgCacheFile.BuildCaches failed";
+
 		return false;
+
 	}
 
 	debug (
 		"  Build dep cache\n");
 
 	if (! cache_file.BuildDepCache ()) {
+
+		state.error_message =
+			"Call to pkgCacheFile.BuildDepCache failed";
+
 		return false;
+
 	}
 
 	pkgDepCache * dep_cache =

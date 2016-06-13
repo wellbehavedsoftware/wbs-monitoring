@@ -416,105 +416,80 @@ impl CheckAptInstance {
 		check_result_builder: & mut CheckResultBuilder,
 	) -> Result <(), Box <error::Error>> {
 
-		let mut summary: AptcUpgradeSummary =
-			AptcUpgradeSummary {
-				upgrade: 0,
-				remove: 0,
-				install: 0,
-				broken: 0,
-				bad: 0,
-				reserved05: 0,
-				reserved06: 0,
-				reserved07: 0,
-				reserved08: 0,
-				reserved09: 0,
-				reserved10: 0,
-				reserved11: 0,
-				reserved12: 0,
-				reserved13: 0,
-				reserved14: 0,
-				reserved15: 0,
-			};
+		try! (
+			aptc::configuration_set_string (
+				"Dir",
+				& self.root_filesystem_path));
 
-		let success =
-			unsafe {
+		try! (
+			aptc::configuration_set_string (
+				"Dir::State::Status",
+				format! (
+					"{}/var/lib/dpkg/status",
+					self.root_filesystem_path)));
 
-			aptc_configuration_set_string (
-				"Dir".as_ptr () as * const i8,
-				self.root_filesystem_path.as_ptr () as * const i8);
+		let summary =
+			try! (
+				aptc::upgrade_summary_get ());
 
-			aptc_upgrade_summary_get (
-				& mut summary)
+		let total =
+			summary.upgrade +
+			summary.remove +
+			summary.install +
+			summary.broken +
+			summary.bad;
 
-		};
+		if total == 0 {
 
-		if success {
-
-			let total =
-				summary.upgrade +
-				summary.remove +
-				summary.install +
-				summary.broken +
-				summary.bad;
-
-			if total == 0 {
-
-				check_result_builder.ok (
-					"no packages need upgrading");
-
-			} else {
-
-				if summary.upgrade > 0 {
-
-					check_result_builder.warning (
-						format! (
-							"{} packages need upgrading (warning)",
-							summary.upgrade));
-
-				}
-
-				if summary.remove > 0 {
-
-					check_result_builder.ok (
-						format! (
-							"{} packages can be removed",
-							summary.remove));
-
-				}
-
-				if summary.install > 0 {
-
-					check_result_builder.ok (
-						format! (
-							"{} packages need installing",
-							summary.install));
-
-				}
-
-				if summary.broken > 0 {
-
-					check_result_builder.critical (
-						format! (
-							"{} packages are broken (critical)",
-							summary.broken));
-
-				}
-
-				if summary.bad > 0 {
-
-					check_result_builder.critical (
-						format! (
-							"{} packages failed to install (critical)",
-							summary.bad));
-
-				}
-
-			}
+			check_result_builder.ok (
+				"no packages need upgrading");
 
 		} else {
 
-			check_result_builder.unknown (
-				"error checking package upgrades");
+			if summary.upgrade > 0 {
+
+				check_result_builder.warning (
+					format! (
+						"{} packages need upgrading (warning)",
+						summary.upgrade));
+
+			}
+
+			if summary.remove > 0 {
+
+				check_result_builder.ok (
+					format! (
+						"{} packages can be removed",
+						summary.remove));
+
+			}
+
+			if summary.install > 0 {
+
+				check_result_builder.ok (
+					format! (
+						"{} packages need installing",
+						summary.install));
+
+			}
+
+			if summary.broken > 0 {
+
+				check_result_builder.critical (
+					format! (
+						"{} packages are broken (critical)",
+						summary.broken));
+
+			}
+
+			if summary.bad > 0 {
+
+				check_result_builder.critical (
+					format! (
+						"{} packages failed to install (critical)",
+						summary.bad));
+
+			}
 
 		}
 
@@ -570,39 +545,158 @@ fn file_age_if_exists (
 
 }
 
-#[ repr (C) ]
-struct AptcUpgradeSummary {
-	upgrade: u64,
-	remove: u64,
-	install: u64,
-	broken: u64,
-	bad: u64,
-	reserved05: u64,
-	reserved06: u64,
-	reserved07: u64,
-	reserved08: u64,
-	reserved09: u64,
-	reserved10: u64,
-	reserved11: u64,
-	reserved12: u64,
-	reserved13: u64,
-	reserved14: u64,
-	reserved15: u64,
+mod aptc {
+
+	use std::error;
+	use std::ffi;
+	use std::ptr;
+
+	use logic::*;
+
+	use checks::apt::aptc_extern;
+
+	pub use checks::apt::aptc_extern::UpgradeSummary;
+
+	pub fn configuration_set_string <
+		NameAsStr: AsRef <str>,
+		ValueAsStr: AsRef <str>,
+	> (
+		name_as_str: NameAsStr,
+		value_as_str: ValueAsStr,
+	) -> Result <(), Box <error::Error>> {
+
+		let name =
+			try! (
+				ffi::CString::new (
+					name_as_str.as_ref ()));
+
+		let value =
+			try! (
+				ffi::CString::new (
+					value_as_str.as_ref ()));
+
+		unsafe {
+
+			aptc_extern::aptc_configuration_set_string (
+				name.as_ptr (),
+				value.as_ptr ());
+
+		}
+
+		Ok (())
+
+	}
+
+	pub fn upgrade_summary_get (
+	) -> Result <UpgradeSummary, Box <error::Error>> {
+
+		let mut summary =
+			UpgradeSummary {
+				upgrade: 0,
+				remove: 0,
+				install: 0,
+				broken: 0,
+				bad: 0,
+				reserved05: 0,
+				reserved06: 0,
+				reserved07: 0,
+				reserved08: 0,
+				reserved09: 0,
+				reserved10: 0,
+				reserved11: 0,
+				reserved12: 0,
+				reserved13: 0,
+				reserved14: 0,
+				reserved15: 0,
+			};
+
+		let success =
+			unsafe {
+				aptc_extern::aptc_upgrade_summary_get (
+					& mut summary)
+			};
+
+		if success {
+
+			Ok (summary)
+
+		} else {
+
+			let error_c_string =
+				unsafe {
+					aptc_extern::aptc_error_message ()
+				};
+
+			Err (
+				Box::new (
+					SimpleError::from (
+
+				if error_c_string == ptr::null () {
+
+					"unknown error".to_string ()
+
+				} else {
+
+					let error_c_str =
+						unsafe {
+							ffi::CStr::from_ptr (
+								error_c_string)
+						};
+
+					error_c_str.to_string_lossy ().into_owned ()
+
+				}
+
+			)))
+
+		}
+
+	}
+
 }
 
-#[ link (name = "apt-pkg") ]
-#[ link (name = "stdc++") ]
-#[ link (name = "aptc", kind = "static") ]
-extern "C" {
+mod aptc_extern {
 
-	fn aptc_configuration_set_string (
-		name: * const libc::c_char,
-		value: * const libc::c_char,
-	);
+	extern crate libc;
 
-	fn aptc_upgrade_summary_get (
-		summary: * mut AptcUpgradeSummary,
-	) -> bool;
+	#[ repr (C) ]
+	pub struct UpgradeSummary {
+		pub upgrade: u64,
+		pub remove: u64,
+		pub install: u64,
+		pub broken: u64,
+		pub bad: u64,
+		pub reserved05: u64,
+		pub reserved06: u64,
+		pub reserved07: u64,
+		pub reserved08: u64,
+		pub reserved09: u64,
+		pub reserved10: u64,
+		pub reserved11: u64,
+		pub reserved12: u64,
+		pub reserved13: u64,
+		pub reserved14: u64,
+		pub reserved15: u64,
+	}
+
+	#[ link (name = "apt-pkg") ]
+	#[ link (name = "stdc++") ]
+	#[ link (name = "aptc", kind = "static") ]
+	extern "C" {
+
+		pub fn aptc_configuration_set_string (
+			name: * const libc::c_char,
+			value: * const libc::c_char,
+		);
+
+		pub fn aptc_upgrade_summary_get (
+			summary: * mut UpgradeSummary,
+		) -> bool;
+
+		pub fn aptc_error_message (
+		) -> * const libc::c_char;
+
+	}
 
 }
 
