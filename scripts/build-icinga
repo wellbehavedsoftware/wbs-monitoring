@@ -1,0 +1,87 @@
+#!/bin/bash
+
+set -euf -o pipefail
+
+icinga_version="$1"
+icinga_build="$2"
+
+function title () {
+
+	echo "" >&2
+	echo "---------- $1 ---------- "
+	echo "" >&2
+
+}
+
+if test -d "work/icinga2"; then
+
+	title "pulling latest updates for icinga"
+
+	cd "work/icinga2"
+
+	git clean -xdf .
+	git checkout master
+	git pull
+
+else
+
+	title "cloning icinga into work/icinga2"
+
+	mkdir -p "work"
+	cd "work"
+
+	git clone "https://github.com/Icinga/icinga2"
+
+fi
+
+title "checking out version $icinga_version"
+
+git branch "$icinga_version-$icinga_build" "v$icinga_version"
+git checkout "$icinga_version-$icinga_build"
+
+mkdir "build-$icinga_version-$icinga_build"
+cd "build-$icinga_version-$icinga_build"
+
+title "running cmake"
+
+cmake .. \
+	-DCMAKE_INSTALL_PREFIX="/opt/icinga-$icinga_version-$icinga_build"
+
+title "running make"
+
+make
+
+title "running make install"
+
+sudo make install
+
+title "creating icinga-$icinga_version-$icinga_build.tar.xz"
+
+cd "../../.."
+
+rsync \
+	--archive \
+	--exclude "/var" \
+	--exclude "/etc" \
+	"/opt/icinga-$icinga_version-$icinga_build/" \
+	"dist/icinga-$icinga_version-$icinga_build/"
+
+sudo rm -rf "/opt/icinga2-$icinga_version-$icinga_build/"
+
+cd "dist"
+
+tar \
+	--create \
+	--xz \
+	--file "icinga-$icinga_version-$icinga_build.tar.xz" \
+	"icinga-$icinga_version-$icinga_build"
+
+title "uploading icinga-$icinga_version-$icinga_build.tar.xz"
+
+scp \
+	"icinga-$icinga_version-$icinga_build.tar.xz" \
+	"dist:dist/icinga/icinga-$icinga_version-$icinga_build.tar.xz"
+
+title "build complete"
+
+# ex: noet ts=4 filetype=bash
