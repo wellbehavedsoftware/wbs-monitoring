@@ -3,6 +3,7 @@
 all_checks=(
 	"apt"
 	"authsmtp"
+	"disk-space"
 	"lxc-container"
 )
 

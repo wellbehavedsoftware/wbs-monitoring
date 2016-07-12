@@ -1,4 +1,5 @@
 pub mod arghelper;
+pub mod checkhelper;
 pub mod checkresult;
 pub mod simpleerror;
 pub mod pluginprovider;

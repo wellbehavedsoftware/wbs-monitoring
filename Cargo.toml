@@ -24,6 +24,10 @@ name = "check-authsmtp"
 path = "src/wrappers/check_authsmtp.rs"
 
 [[bin]]
+name = "check-disk-space"
+path = "src/wrappers/check_disk_space.rs"
+
+[[bin]]
 name = "check-lxc-container"
 path = "src/wrappers/check_lxc_container.rs"
 
@@ -40,10 +44,6 @@ path = "src/legacy/check_cow.rs"
 [[bin]]
 name = "check-cpu"
 path = "src/legacy/check_cpu.rs"
-
-[[bin]]
-name = "check-disk"
-path = "src/legacy/check_disk.rs"
 
 [[bin]]
 name = "check-disk-quota"
