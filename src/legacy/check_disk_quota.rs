@@ -151,8 +151,7 @@ fn check_disk (
 ) -> CheckResult {
 
 	let list_output =
-		match process::Command::new ("sudo")
-			.arg ("/sbin/btrfs")
+		match process::Command::new ("/sbin/btrfs")
 			.arg ("subvolume")
 			.arg ("list")
 			.arg (subvolume_path)
@@ -200,8 +199,7 @@ fn check_disk (
 			line.split (' ').nth (1).unwrap ());
 
 	let qgroup_output =
-		match process::Command::new ("sudo")
-			.arg ("/sbin/btrfs")
+		match process::Command::new ("/sbin/btrfs")
 			.arg ("qgroup")
 			.arg ("show")
 			.arg (subvolume_path)
