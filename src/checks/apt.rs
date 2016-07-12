@@ -193,10 +193,12 @@ for CheckAptInstance {
 				& mut check_result_builder,
 			).unwrap_or_else (
 				|error|
+
 				check_result_builder.unknown (
 					format! (
 						"error checking reboot recommendation: {}",
 						error.description ()))
+
 			);
 
 			self.check_package_upgrades (
@@ -204,10 +206,25 @@ for CheckAptInstance {
 				& mut check_result_builder,
 			).unwrap_or_else (
 				|error|
+
 				check_result_builder.unknown (
 					format! (
 						"error checking package upgrades: {}",
 						error.description ()))
+
+			);
+
+			self.check_apt_cache (
+				plugin_provider,
+				& mut check_result_builder,
+			).unwrap_or_else (
+				|error|
+
+				check_result_builder.unknown (
+					format! (
+						"error checking apt cache: {}",
+						error.description ()))
+
 			);
 
 		}
@@ -495,6 +512,140 @@ impl CheckAptInstance {
 
 		// TODO list packages to upgrade
 		// TODO show security updates
+
+		Ok (())
+
+	}
+
+	fn check_apt_cache (
+		& self,
+		_plugin_provider: & PluginProvider,
+		check_result_builder: & mut CheckResultBuilder,
+	) -> Result <(), Box <error::Error>> {
+
+		let mut extra_files: Vec <String> =
+			vec! [];
+
+		try! (
+			self.check_apt_cache_directory (
+				check_result_builder,
+				& mut extra_files,
+				"/var/cache/apt",
+				& vec! [
+					"apt-file".to_string (),
+					"archives".to_string (),
+					"pkgcache.bin".to_string (),
+					"srcpkgcache.bin".to_string (),
+				]));
+
+		try! (
+			self.check_apt_cache_directory (
+				check_result_builder,
+				& mut extra_files,
+				"/var/cache/apt/archives",
+				& vec! [
+					"lock".to_string (),
+					"partial".to_string (),
+				]));
+
+		try! (
+			self.check_apt_cache_directory (
+				check_result_builder,
+				& mut extra_files,
+				"/var/cache/apt/archives/partial",
+				& vec! []));
+
+		if ! extra_files.is_empty () {
+
+			check_result_builder.warning (
+				format! (
+					"Apt cache contains {} files",
+					extra_files.len ()));
+
+			check_result_builder.extra_information (
+				"");
+
+			check_result_builder.extra_information (
+				"Extra files in APT cache:");
+
+			check_result_builder.extra_information (
+				"");
+
+			for extra_file in extra_files {
+
+				check_result_builder.extra_information (
+					extra_file);
+
+			}
+
+		}
+
+		Ok (())
+
+	}
+
+	fn check_apt_cache_directory (
+		& self,
+		check_result_builder: & mut CheckResultBuilder,
+		extra_files: & mut Vec <String>,
+		directory_name: & str,
+		allowed_file_names: & Vec <String>,
+	) -> Result <(), Box <error::Error>> {
+
+		let full_directory_name =
+			format! (
+				"{}{}",
+				self.root_filesystem_path,
+				directory_name);
+
+		for entry_result in
+			try! (
+				fs::read_dir (
+					full_directory_name)) {
+
+			match entry_result {
+
+				Ok (entry) => {
+
+					let entry_file_name =
+						entry.file_name ()
+							.to_string_lossy ()
+							.into_owned ();
+
+					if ! allowed_file_names.contains (
+						& entry_file_name) {
+
+						let entry_path =
+							entry.path ()
+								.to_string_lossy ()
+								.into_owned ();
+
+						let entry_path_from_root =
+							& entry_path [
+								self.root_filesystem_path.len () .. ];
+
+						extra_files.push (
+							entry_path_from_root.to_string ());
+
+					}
+
+				},
+
+				Err (error) => {
+
+					check_result_builder.unknown (
+						format! (
+							"Error reading apt cache directory: {}: {}",
+							directory_name,
+							error));
+
+					break;
+
+				},
+
+			};
+
+		}
 
 		Ok (())
 

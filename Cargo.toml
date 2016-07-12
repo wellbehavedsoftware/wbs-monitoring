@@ -30,10 +30,6 @@ path = "src/wrappers/check_lxc_container.rs"
 # ---------- legacy
 
 [[bin]]
-name = "check-apt-cache"
-path = "src/legacy/check_apt_cache.rs"
-
-[[bin]]
 name = "check-btrfs"
 path = "src/legacy/check_btrfs.rs"
 
