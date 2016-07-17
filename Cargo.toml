@@ -24,6 +24,10 @@ name = "check-authsmtp"
 path = "src/wrappers/check_authsmtp.rs"
 
 [[bin]]
+name = "check-btrfs"
+path = "src/wrappers/check_btrfs.rs"
+
+[[bin]]
 name = "check-disk-space"
 path = "src/wrappers/check_disk_space.rs"
 
@@ -32,10 +36,6 @@ name = "check-lxc-container"
 path = "src/wrappers/check_lxc_container.rs"
 
 # ---------- legacy
-
-[[bin]]
-name = "check-btrfs"
-path = "src/legacy/check_btrfs.rs"
 
 [[bin]]
 name = "check-cow"
@@ -129,6 +129,9 @@ version = "*"
 version = "*"
 
 [dependencies.git2]
+version = "*"
+
+[dependencies.ioctl]
 version = "*"
 
 [dependencies.libc]
