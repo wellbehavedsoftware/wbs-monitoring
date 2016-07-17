@@ -2,8 +2,6 @@ extern crate getopts;
 extern crate libc;
 
 use std::error;
-use std::ffi;
-use std::mem;
 
 use logic::*;
 use lowlevel::*;
