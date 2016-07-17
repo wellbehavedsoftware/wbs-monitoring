@@ -154,10 +154,21 @@ impl CheckBtrfsInstance {
 		check_result_builder: & mut CheckResultBuilder,
 	) -> Result <(), Box <error::Error>> {
 
-		let space_infos: Vec <btrfs::BtrfsSpaceInfo> =
+		let space_infos =
 			try! (
 				btrfs::get_space_info (
 					& self.path));
+
+		for space_info in space_infos {
+
+			println! (
+				"space info: {:?}, {:?}, {}, {}",
+				space_info.group_type,
+				space_info.group_profile,
+				space_info.total_bytes,
+				space_info.used_bytes);
+
+		}
 
 		Ok (())
 

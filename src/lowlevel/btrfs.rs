@@ -9,12 +9,146 @@ use std::slice;
 
 // ---------- public interface
 
-pub struct BtrfsSpaceInfo {
-	total_bytes: u64,
-	used_bytes: u64,
+#[ derive (Debug) ]
+pub enum GroupType {
+	Data,
+	System,
+	MetaData,
+	DataAndMetaData,
+	GlobalReserve,
+	Unknown,
 }
 
-// ---------- c ffi structs
+impl From <u64> for GroupType {
+
+	fn from (
+		flags: u64,
+	) -> GroupType {
+
+		match flags & BLOCK_GROUP_TYPE_AND_RESERVED_MASK {
+
+			BLOCK_GROUP_DATA =>
+				GroupType::Data,
+
+			BLOCK_GROUP_SYSTEM =>
+				GroupType::System,
+
+			BLOCK_GROUP_METADATA =>
+				GroupType::MetaData,
+
+			BLOCK_GROUP_DATA_AND_METADATA =>
+				GroupType::DataAndMetaData,
+
+			BLOCK_GROUP_RESERVED =>
+				GroupType::GlobalReserve,
+
+			_ =>
+				GroupType::Unknown,
+
+		}
+
+	}
+
+}
+
+#[ derive (Debug) ]
+pub enum GroupProfile {
+	Single,
+	Raid0,
+	Raid1,
+	Raid5,
+	Raid6,
+	Dup,
+	Raid10,
+	Unknown,
+}
+
+impl From <u64> for GroupProfile {
+
+	fn from (
+		flags: u64,
+	) -> GroupProfile {
+
+		match flags & BLOCK_GROUP_PROFILE_MASK {
+
+			0 =>
+				GroupProfile::Single,
+
+			BLOCK_GROUP_RAID0 =>
+				GroupProfile::Raid0,
+
+			BLOCK_GROUP_RAID1 =>
+				GroupProfile::Raid1,
+
+			BLOCK_GROUP_RAID5 =>
+				GroupProfile::Raid5,
+
+			BLOCK_GROUP_RAID6 =>
+				GroupProfile::Raid6,
+
+			BLOCK_GROUP_DUP =>
+				GroupProfile::Dup,
+
+			BLOCK_GROUP_RAID10 =>
+				GroupProfile::Raid10,
+
+			_ =>
+				GroupProfile::Unknown,
+
+		}
+
+	}
+
+}
+
+pub struct BtrfsSpaceInfo {
+	pub group_type: GroupType,
+	pub group_profile: GroupProfile,
+	pub total_bytes: u64,
+	pub used_bytes: u64,
+}
+
+// ---------- c ffi stuff
+
+const AVAIL_ALLOC_BIT_SINGLE: u64 = 1 << 48;
+
+const BLOCK_GROUP_DATA: u64 = 1 << 0;
+const BLOCK_GROUP_SYSTEM: u64 = 1 << 1;
+const BLOCK_GROUP_METADATA: u64 = 1 << 2;
+
+const BLOCK_GROUP_RAID0: u64 = 1 << 3;
+const BLOCK_GROUP_RAID1: u64 = 1 << 4;
+const BLOCK_GROUP_DUP: u64 = 1 << 5;
+const BLOCK_GROUP_RAID10: u64 = 1 << 6;
+const BLOCK_GROUP_RAID5: u64 = 1 << 7;
+const BLOCK_GROUP_RAID6: u64 = 1 << 8;
+
+const BLOCK_GROUP_RESERVED: u64 = AVAIL_ALLOC_BIT_SINGLE;
+
+const BLOCK_GROUP_DATA_AND_METADATA: u64 = (
+	BLOCK_GROUP_DATA
+	| BLOCK_GROUP_METADATA
+);
+
+const BLOCK_GROUP_TYPE_MASK: u64 = (
+	BLOCK_GROUP_DATA
+	| BLOCK_GROUP_SYSTEM
+	| BLOCK_GROUP_METADATA
+);
+
+const BLOCK_GROUP_TYPE_AND_RESERVED_MASK: u64 = (
+	BLOCK_GROUP_TYPE_MASK
+	| BLOCK_GROUP_RESERVED
+);
+
+const BLOCK_GROUP_PROFILE_MASK: u64 = (
+	BLOCK_GROUP_RAID0
+	| BLOCK_GROUP_RAID1
+	| BLOCK_GROUP_RAID5
+	| BLOCK_GROUP_RAID6
+	| BLOCK_GROUP_DUP
+	| BLOCK_GROUP_RAID10
+);
 
 #[ repr (C) ]
 #[ derive (Copy, Clone) ]
@@ -138,16 +272,6 @@ pub fn get_space_info (
 
 	}
 
-	for c_space_info in c_space_info.infos.iter () {
-
-		println! (
-			"space slot: {}, {}, {}",
-			c_space_info.flags,
-			c_space_info.total_bytes,
-			c_space_info.used_bytes);
-
-	}
-
 	// create return value
 
 	let mut space_infos: Vec <BtrfsSpaceInfo> =
@@ -157,6 +281,8 @@ pub fn get_space_info (
 
 		space_infos.push (
 			BtrfsSpaceInfo {
+				group_type: GroupType::from (c_space_info.flags),
+				group_profile: GroupProfile::from (c_space_info.flags),
 				used_bytes: c_space_info.used_bytes,
 				total_bytes: c_space_info.total_bytes,
 			}
