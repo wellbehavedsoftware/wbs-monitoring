@@ -9,7 +9,7 @@ use std::slice;
 
 // ---------- public interface
 
-#[ derive (Debug) ]
+#[ derive (Debug, Eq, PartialEq) ]
 pub enum GroupType {
 	Data,
 	System,

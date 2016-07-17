@@ -25,6 +25,9 @@ struct CheckBtrfsInstance {
 	space_ratio_warning: Option <f64>,
 	space_ratio_critical: Option <f64>,
 
+	balance_ratio_warning: Option <f64>,
+	balance_ratio_critical: Option <f64>,
+
 }
 
 impl PluginProvider
@@ -72,6 +75,18 @@ for CheckBtrfsProvider {
 			"free disk space critical threshold",
 			"RATIO");
 
+		options_spec.optopt (
+			"",
+			"balance-ratio-warning",
+			"block balance warning threshold",
+			"RATIO");
+
+		options_spec.optopt (
+			"",
+			"balance-ratio-critical",
+			"block balance critical threshold",
+			"RATIO");
+
 		options_spec
 
 	}
@@ -103,6 +118,20 @@ for CheckBtrfsProvider {
 					options_matches,
 					"space-ratio-critical"));
 
+		// balance ratio
+
+		let balance_ratio_warning =
+			try! (
+				arghelper::parse_decimal_fraction (
+					options_matches,
+					"balance-ratio-warning"));
+
+		let balance_ratio_critical =
+			try! (
+				arghelper::parse_decimal_fraction (
+					options_matches,
+					"balance-ratio-critical"));
+
 		// return
 
 		Ok (Box::new (
@@ -113,6 +142,9 @@ for CheckBtrfsProvider {
 
 				space_ratio_warning: space_ratio_warning,
 				space_ratio_critical: space_ratio_critical,
+
+				balance_ratio_warning: balance_ratio_warning,
+				balance_ratio_critical: balance_ratio_critical,
 
 			}
 
@@ -134,7 +166,7 @@ for CheckBtrfsInstance {
 			CheckResultBuilder::new ();
 
 		try! (
-			self.check_btrfs_df (
+			self.check_btrfs_space_info (
 				& mut check_result_builder));
 
 		Ok (
@@ -149,7 +181,7 @@ for CheckBtrfsInstance {
 
 impl CheckBtrfsInstance {
 
-	fn check_btrfs_df (
+	fn check_btrfs_space_info (
 		& self,
 		check_result_builder: & mut CheckResultBuilder,
 	) -> Result <(), Box <error::Error>> {
@@ -159,16 +191,40 @@ impl CheckBtrfsInstance {
 				btrfs::get_space_info (
 					& self.path));
 
-		for space_info in space_infos {
+		let data_space_infos =
+			space_infos.iter ().filter (
+				|space_info|
+				space_info.group_type
+					== btrfs::GroupType::Data
+			);
 
-			println! (
-				"space info: {:?}, {:?}, {}, {}",
-				space_info.group_type,
-				space_info.group_profile,
-				space_info.total_bytes,
-				space_info.used_bytes);
+		let (total_space, used_space) =
+			data_space_infos.fold (
+				(0, 0),
+				|(total, used), space_info|
+				(
+					total + space_info.total_bytes,
+					used + space_info.used_bytes,
+				));
 
-		}
+		let free_space =
+			total_space - used_space;
+
+		let balance_space_ratio: f64 =
+			free_space as f64
+			/ total_space as f64;
+
+		try! (
+			checkhelper::check_ratio_lesser_than (
+				check_result_builder,
+				self.balance_ratio_warning,
+				self.balance_ratio_critical,
+				& format! (
+					"data block free space is {}",
+					checkhelper::display_data_size_ratio (
+						free_space,
+						total_space)),
+				balance_space_ratio));
 
 		Ok (())
 
