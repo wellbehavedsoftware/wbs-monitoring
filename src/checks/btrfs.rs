@@ -4,7 +4,7 @@ extern crate libc;
 use std::error;
 
 use logic::*;
-use lowlevel::*;
+use lowlevel::btrfs;
 
 pub fn new (
 ) -> Box <PluginProvider> {
