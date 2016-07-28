@@ -94,10 +94,6 @@ name = "check-subvolumes"
 path = "src/legacy/check_subvolumes.rs"
 
 [[bin]]
-name = "ssh-command-handler"
-path = "src/legacy/ssh_command_handler.rs"
-
-[[bin]]
 name = "check-over-quota"
 path = "src/legacy/check_over_quota.rs"
 
