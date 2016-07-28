@@ -190,7 +190,7 @@ fn check_github (
 		).unwrap ();
 
 	let obj = data.as_object().unwrap();
-	let release = obj.get("tag_name").unwrap().as_string().unwrap();
+	let release = obj.get("tag_name").unwrap().as_str().unwrap();
 
 	Ok (
 
