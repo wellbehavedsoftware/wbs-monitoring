@@ -1,3 +1,7 @@
+extern crate uuid;
+
+use std::ffi;
+
 use lowlevel::btrfs::ctypes;
 
 #[ derive (Debug, Eq, PartialEq) ]
@@ -30,6 +34,22 @@ pub struct SpaceInfo {
 	pub used_bytes: u64,
 }
 
+#[ derive (Debug, Eq, PartialEq) ]
+pub struct FilesystemInfo {
+	pub max_id: u64,
+	pub num_devices: u64,
+	pub filesystem_id: uuid::Uuid,
+}
+
+#[ derive (Debug, Eq, PartialEq) ]
+pub struct DeviceInfo {
+	pub device_id: u64,
+	pub uuid: uuid::Uuid,
+	pub bytes_used: u64,
+	pub total_bytes: u64,
+	pub path: ffi::OsString,
+}
+
 impl From <u64> for GroupType {
 
 	fn from (
@@ -55,6 +75,31 @@ impl From <u64> for GroupType {
 
 			_ =>
 				GroupType::Unknown,
+
+		}
+
+	}
+
+}
+
+impl GroupProfile {
+
+	pub fn from_string (
+		string_value: & str,
+	) -> Option <GroupProfile> {
+
+		match string_value {
+
+			"single" => Some (GroupProfile::Single),
+			"raid0" => Some (GroupProfile::Raid0),
+			"raid1" => Some (GroupProfile::Raid1),
+			"raid5" => Some (GroupProfile::Raid5),
+			"raid6" => Some (GroupProfile::Raid6),
+			"dup" => Some (GroupProfile::Dup),
+			"raid10" => Some (GroupProfile::Raid10),
+			"unknown" => Some (GroupProfile::Unknown),
+
+			_ => None,
 
 		}
 

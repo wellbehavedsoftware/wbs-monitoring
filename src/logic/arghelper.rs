@@ -1,9 +1,58 @@
 use getopts;
 
 use std::error;
+use std::marker;
 use std::time;
 
 use logic::simpleerror::*;
+
+pub trait EnumArg where Self: marker::Sized {
+
+	fn from_string (
+		string_value: & str,
+	) -> Option <Self>;
+
+}
+
+pub fn parse_enum <EnumType: EnumArg> (
+	options_matches: & getopts::Matches,
+	option_name: & str,
+) -> Result <Option <EnumType>, Box <error::Error>> {
+
+	match options_matches.opt_str (
+		option_name) {
+
+		None =>
+			Ok (None),
+
+		Some (option_string) =>
+			match EnumType::from_string (
+				& option_string) {
+
+			Some (option_enum) =>
+				Ok (
+
+				Some (
+					option_enum)
+
+			),
+
+			None =>
+				Err (
+
+				Box::new (
+					SimpleError::from (
+						format! (
+							"Invalid value for {}",
+								option_name)))
+
+			),
+
+		},
+
+	}
+
+}
 
 pub fn parse_decimal_fraction (
 	options_matches: & getopts::Matches,
@@ -27,6 +76,52 @@ pub fn parse_decimal_fraction (
 							"Invalid value for {}",
 							option_name),
 					))))
+
+		},
+
+	}
+
+}
+
+pub fn parse_positive_integer (
+	options_matches: & getopts::Matches,
+	option_name: & str,
+) -> Result <Option <u64>, Box <error::Error>> {
+
+	match options_matches.opt_str (
+		option_name) {
+
+		None =>
+			Ok (None),
+
+		Some (option_string) => {
+
+			let value =
+				try! (
+					option_string.parse::<u64> (
+					).map_err (
+						|_|
+						format! (
+							"Parameter {} must be a positive integer",
+							option_name),
+					));
+
+			if value < 1 {
+
+				return Err (
+					Box::new (
+						SimpleError::from (
+							format! (
+								"Parameter {} must be a positive integer, but got {}",
+								option_name,
+								value)))
+				);
+
+			}
+
+			Ok (Some (
+				value
+			))
 
 		},
 

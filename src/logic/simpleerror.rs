@@ -53,4 +53,18 @@ impl From <String> for SimpleError {
 
 }
 
+impl <'a> From <& 'a str> for SimpleError {
+
+	fn from (
+		description: & 'a str,
+	) -> SimpleError {
+
+		SimpleError {
+			description: description.to_string (),
+		}
+
+	}
+
+}
+
 // ex: noet ts=4 filetype=rust

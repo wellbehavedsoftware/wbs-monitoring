@@ -119,13 +119,13 @@ path = "src/legacy/check_git.rs"
 
 # ---------- dependencies
 
-[dependencies.getopts]
+[dependencies.chrono]
 version = "*"
 
 [dependencies.curl]
 version = "*"
 
-[dependencies.chrono]
+[dependencies.getopts]
 version = "*"
 
 [dependencies.git2]
@@ -140,11 +140,14 @@ version = "*"
 [dependencies.regex]
 version = "*"
 
-[dependencies.time]
+[dependencies.RustyXML]
 version = "*"
 
 [dependencies.serde_json]
 version = "*"
 
-[dependencies.RustyXML]
+[dependencies.time]
+version = "*"
+
+[dependencies.uuid]
 version = "*"

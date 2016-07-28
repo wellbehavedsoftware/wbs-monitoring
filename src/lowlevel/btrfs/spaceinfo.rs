@@ -6,7 +6,6 @@ use std::iter;
 use std::iter::FromIterator;
 use std::slice;
 
-use lowlevel;
 use lowlevel::btrfs;
 use lowlevel::btrfs::ctypes;
 use lowlevel::btrfs::ioctl;
@@ -14,16 +13,10 @@ use lowlevel::btrfs::ioctl;
 // ---------- get space info
 
 pub fn get_space_info (
-	path: & str,
+	file_descriptor: libc::c_int,
 ) -> Result <Vec <btrfs::SpaceInfo>, Box <error::Error>> {
 
 	// open directory
-
-	let file_descriptor =
-		try! (
-			lowlevel::FileDescriptor::open (
-				path,
-				libc::O_DIRECTORY));
 
 	let mut num_spaces = 0;
 	let mut c_space_info;
@@ -33,7 +26,7 @@ pub fn get_space_info (
 		c_space_info =
 			try! (
 				get_c_space_info (
-					file_descriptor.get_value (),
+					file_descriptor,
 					num_spaces));
 
 		if c_space_info.args.total_spaces
