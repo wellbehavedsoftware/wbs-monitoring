@@ -6,6 +6,52 @@ use std::time;
 
 use logic::simpleerror::*;
 
+// ==================== boolean arguments
+
+pub fn check_if_present (
+	option_matches: & getopts::Matches,
+	option_name: & str,
+) -> Result <bool, Box <error::Error>> {
+
+	Ok (
+
+		option_matches.opt_present (
+			option_name)
+
+	)
+
+}
+
+// ==================== string arguments
+
+pub fn parse_string_required (
+	option_matches: & getopts::Matches,
+	option_name: & str,
+) -> Result <String, Box <error::Error>> {
+
+	match option_matches.opt_str (
+		option_name,
+	) {
+
+		None => Err (
+
+			Box::new (
+				SimpleError::from (
+					format! (
+						"Required argument '{}' not present",
+						option_name)))
+
+		),
+
+		Some (value) =>
+			Ok (value),
+
+	}
+
+}
+
+// ==================== enum arguments
+
 pub trait EnumArg where Self: marker::Sized {
 
 	fn from_string (
@@ -54,6 +100,8 @@ pub fn parse_enum <EnumType: EnumArg> (
 
 }
 
+// ==================== fractional arguments
+
 pub fn parse_decimal_fraction (
 	options_matches: & getopts::Matches,
 	option_name: & str,
@@ -82,6 +130,8 @@ pub fn parse_decimal_fraction (
 	}
 
 }
+
+// ==================== integer arguments
 
 pub fn parse_positive_integer (
 	options_matches: & getopts::Matches,
@@ -128,6 +178,30 @@ pub fn parse_positive_integer (
 	}
 
 }
+
+pub fn parse_positive_integer_or_default (
+	options_matches: & getopts::Matches,
+	option_name: & str,
+	default_value: u64,
+) -> Result <u64, Box <error::Error>> {
+
+	Ok (
+
+		try! (
+
+			parse_positive_integer (
+				options_matches,
+				option_name)
+
+		).unwrap_or (
+			default_value,
+		)
+
+	)
+
+}
+
+// ==================== duration arguments
 
 pub fn parse_duration (
 	options_matches: & getopts::Matches,

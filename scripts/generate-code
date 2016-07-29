@@ -5,6 +5,7 @@ all_checks=(
 	"authsmtp"
 	"btrfs"
 	"disk-space"
+	"http"
 	"lxc-container"
 )
 

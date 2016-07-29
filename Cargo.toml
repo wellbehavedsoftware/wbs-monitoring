@@ -32,6 +32,10 @@ name = "check-disk-space"
 path = "src/wrappers/check_disk_space.rs"
 
 [[bin]]
+name = "check-http"
+path = "src/wrappers/check_http.rs"
+
+[[bin]]
 name = "check-lxc-container"
 path = "src/wrappers/check_lxc_container.rs"
 
@@ -80,10 +84,6 @@ path = "src/legacy/check_memory.rs"
 [[bin]]
 name = "check-postfix"
 path = "src/legacy/check_postfix.rs"
-
-[[bin]]
-name = "check-site"
-path = "src/legacy/check_site.rs"
 
 [[bin]]
 name = "check-snapshots"
