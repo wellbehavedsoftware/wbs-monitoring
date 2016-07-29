@@ -260,4 +260,24 @@ pub fn parse_duration (
 
 }
 
+pub fn parse_duration_or_default (
+	options_matches: & getopts::Matches,
+	option_name: & str,
+	default_value: & time::Duration,
+) -> Result <time::Duration, Box <error::Error>> {
+
+	Ok (
+
+		try! (
+			parse_duration (
+				options_matches,
+				option_name)
+		).unwrap_or (
+			default_value.to_owned (),
+		)
+
+	)
+
+}
+
 // ex: noet ts=4 filetype=rust

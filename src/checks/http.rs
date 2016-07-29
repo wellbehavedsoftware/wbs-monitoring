@@ -34,7 +34,7 @@ struct CheckHttpInstance {
 
 	send_headers: Vec <(String, String)>,
 
-	expect_status: u64,
+	expect_status_code: Vec <u64>,
 	expect_headers: Vec <(String, String)>,
 
 	response_time_warning: Option <time::Duration>,
@@ -102,7 +102,27 @@ for CheckHttpProvider {
 			"",
 			"path",
 			"path to request, defaults to /",
-			"HOURS");
+			"PATH");
+
+		// timings
+
+		options_spec.optopt (
+			"",
+			"response-time-warning",
+			"total response time warning threshold",
+			"DURATION");
+
+		options_spec.optopt (
+			"",
+			"response-time-critical",
+			"total response time critical threshold",
+			"DURATION");
+
+		options_spec.optopt (
+			"",
+			"timeout",
+			"maximum time to wait for server response, defaults to 60 seconds",
+			"DURATION");
 
 		// return
 
@@ -160,8 +180,8 @@ for CheckHttpProvider {
 
 			// response
 
-			expect_status:
-				200,
+			expect_status_code:
+				vec! [ 200 ],
 
 			expect_headers:
 				vec! [],
@@ -169,14 +189,24 @@ for CheckHttpProvider {
 			// timings
 
 			response_time_warning:
-				None,
+				try! (
+					arghelper::parse_duration (
+						options_matches,
+						"response-time-warning")),
 
 			response_time_critical:
-				None,
+				try! (
+					arghelper::parse_duration (
+						options_matches,
+						"response-time-critical")),
 
 			timeout:
-				time::Duration::new (60, 0),
-				
+				try! (
+					arghelper::parse_duration_or_default (
+						options_matches,
+						"timeout",
+						& time::Duration::new (60, 0))),
+
 		}))
 
 	}
@@ -197,7 +227,8 @@ for CheckHttpInstance {
 		// perform http request
 
 		try! (
-			self.perform_request ());
+			self.check_http (
+				& mut check_result_builder));
 
 		// return
 
@@ -220,10 +251,106 @@ struct HttpResponse {
 
 enum PerformRequestResult {
 	Success (HttpResponse),
-	Timeout,
+	Timeout (time::Duration),
 }
 
 impl CheckHttpInstance {
+
+	fn check_http (
+		& self,
+		check_result_builder: & mut CheckResultBuilder,
+	) -> Result <(), Box <error::Error>> {
+
+		match try! (
+			self.perform_request ()) {
+
+			PerformRequestResult::Success (http_response) =>
+				try! (
+					self.process_response (
+						check_result_builder,
+						& http_response)),
+
+			PerformRequestResult::Timeout (duration) =>
+				check_result_builder.critical (
+					format! (
+						"request timed out after {}",
+						checkhelper::display_duration_long (
+							& duration))),
+
+		}
+
+		Ok (())
+
+	}
+
+	fn process_response (
+		& self,
+		check_result_builder: & mut CheckResultBuilder,
+		http_response: & HttpResponse,
+	) -> Result <(), Box <error::Error>> {
+
+		try! (
+			self.check_response_content (
+				check_result_builder,
+				http_response));
+
+		try! (
+			self.check_response_timing (
+				check_result_builder,
+				http_response));
+
+		Ok (())
+
+	}
+
+	fn check_response_content (
+		& self,
+		check_result_builder: & mut CheckResultBuilder,
+		http_response: & HttpResponse,
+	) -> Result <(), Box <error::Error>> {
+
+		if self.expect_status_code.contains (
+			& http_response.status_code,
+		) {
+
+			check_result_builder.ok (
+				format! (
+					"status {}",
+					http_response.status_code));
+
+		} else {
+
+			check_result_builder.critical (
+				format! (
+					"status {}",
+					http_response.status_code));
+
+		}
+
+		Ok (())
+
+	}
+
+	fn check_response_timing (
+		& self,
+		check_result_builder: & mut CheckResultBuilder,
+		http_response: & HttpResponse,
+	) -> Result <(), Box <error::Error>> {
+
+		try! (
+			checkhelper::check_duration_less_than (
+				check_result_builder,
+				& self.response_time_warning,
+				& self.response_time_critical,
+				& format! (
+					"request took {}",
+					checkhelper::display_duration_long (
+						& http_response.duration)),
+				& http_response.duration));
+
+		Ok (())
+
+	}
 
 	fn perform_request (
 		& self,
