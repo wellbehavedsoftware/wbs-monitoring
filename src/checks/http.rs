@@ -90,7 +90,7 @@ for CheckHttpProvider {
 			"secure",
 			"use a secure connection, ie SSL or TLS");
 
-		// url options
+		// request options
 
 		options_spec.optopt (
 			"",
@@ -103,6 +103,12 @@ for CheckHttpProvider {
 			"path",
 			"path to request, defaults to /",
 			"PATH");
+
+		options_spec.optmulti (
+			"",
+			"send-header",
+			"header to send, eg 'name: value'",
+			"NAME:VALUE");
 
 		// timings
 
@@ -176,7 +182,12 @@ for CheckHttpProvider {
 				"/".to_string (),
 
 			send_headers:
-				vec! [],			
+				try! (
+					parse_headers (
+						try! (
+							arghelper::parse_string_multiple (
+								options_matches,
+								"send-header")))),
 
 			// response
 
@@ -383,26 +394,24 @@ impl CheckHttpInstance {
 
 		// setup request headers
 
-		/*
 		let mut curl_headers =
-			easy::List::new ();
+			curl::easy::List::new ();
 
-		try! (
-			curl_headers.append (
-				"Accept-Language: en"));
-
-		for header in headers {
+		for & (ref header_name, ref header_value)
+			in self.send_headers.iter () {
 
 			try! (
 				curl_headers.append (
-					header.as_str ()));
+					& format! (
+						"{}: {}",
+						header_name,
+						header_value)));
 
 		}
 
 		try! (
 			curl_easy.http_headers (
 				curl_headers));
-		*/
 
 		// perform request
 
@@ -511,6 +520,65 @@ impl CheckHttpInstance {
 		))
 
 	}
+
+}
+
+fn parse_headers (
+	header_strings: Vec <String>,
+) -> Result <Vec <(String, String)>, Box <error::Error>> {
+
+	let mut header_tuples: Vec <(String, String)> =
+		vec! [];
+
+	for header_string in header_strings.iter () {
+
+		header_tuples.push (
+			try! (
+				parse_header (
+					header_string)));
+
+	}
+
+	Ok (header_tuples)
+
+}
+
+fn parse_header (
+	header_string: & str,
+) -> Result <(String, String), Box <error::Error>> {
+
+	let split_position =
+		match header_string.find (
+			':') {
+
+		Some (pos) => pos,
+
+		None =>
+			return Err (
+
+			Box::new (
+				SimpleError::from (
+					"Header strings must be 'name:value' format"))
+
+		),
+
+	};
+
+	let (name_raw, rest_raw) =
+		header_string.split_at (
+			split_position);
+
+	let value_raw =
+		& rest_raw [1..];
+
+	Ok (
+
+		(
+			name_raw.trim ().to_string (),
+			value_raw.trim ().to_string (),
+		)
+
+	)
 
 }
 

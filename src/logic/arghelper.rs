@@ -50,6 +50,20 @@ pub fn parse_string_required (
 
 }
 
+pub fn parse_string_multiple (
+	option_matches: & getopts::Matches,
+	option_name: & str,
+) -> Result <Vec <String>, Box <error::Error>> {
+
+	Ok (
+
+		option_matches.opt_strs (
+			option_name)
+
+	)
+
+}
+
 // ==================== enum arguments
 
 pub trait EnumArg where Self: marker::Sized {
