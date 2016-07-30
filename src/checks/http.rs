@@ -1,10 +1,10 @@
 extern crate getopts;
-extern crate curl;
 
 use std::error;
 use std::time;
 
 use logic::*;
+use lowlevel::http;
 
 pub fn new (
 ) -> Box <PluginProvider> {
@@ -18,24 +18,20 @@ pub fn new (
 struct CheckHttpProvider {
 }
 
-enum HttpMethod {
-	Get,
-	Post,
-}
-
 struct CheckHttpInstance {
 
 	address: String,
 	port: u64,
 	secure: bool,
 
-	method: HttpMethod,
+	method: http::HttpMethod,
 	path: String,
 
 	send_headers: Vec <(String, String)>,
 
 	expect_status_code: Vec <u64>,
 	expect_headers: Vec <(String, String)>,
+	expect_body_text: Option <String>,
 
 	response_time_warning: Option <time::Duration>,
 	response_time_critical: Option <time::Duration>,
@@ -110,6 +106,26 @@ for CheckHttpProvider {
 			"header to send, eg 'name: value'",
 			"NAME:VALUE");
 
+		// response options
+
+		options_spec.optopt (
+			"",
+			"expect-status-code",
+			"status code to expect, defaults to 200",
+			"CODE");
+
+		options_spec.optmulti (
+			"",
+			"expect-header",
+			"header to expect, eg 'name: value'",
+			"NAME:VALUE");
+
+		options_spec.optopt (
+			"",
+			"expect-body-text",
+			"text to expect in body",
+			"TEXT");
+
 		// timings
 
 		options_spec.optopt (
@@ -176,7 +192,7 @@ for CheckHttpProvider {
 			// request
 
 			method:
-				HttpMethod::Get,
+				http::HttpMethod::Get,
 
 			path:
 				"/".to_string (),
@@ -192,10 +208,25 @@ for CheckHttpProvider {
 			// response
 
 			expect_status_code:
-				vec! [ 200 ],
+				try! (
+					arghelper::parse_positive_integer_multiple_or_default (
+						options_matches,
+						"expect-status-code",
+						& vec! [ 200 ])),
 
 			expect_headers:
-				vec! [],
+				try! (
+					parse_headers (
+						try! (
+							arghelper::parse_string_multiple (
+								options_matches,
+								"expect-header")))),
+
+			expect_body_text:
+				try! (
+					arghelper::parse_string (
+						options_matches,
+						"expect-body-text")),
 
 			// timings
 
@@ -253,18 +284,6 @@ for CheckHttpInstance {
 
 }
 
-struct HttpResponse {
-	status_code: u64,
-	//status_message: String,
-	body: String,
-	duration: time::Duration,
-}
-
-enum PerformRequestResult {
-	Success (HttpResponse),
-	Timeout (time::Duration),
-}
-
 impl CheckHttpInstance {
 
 	fn check_http (
@@ -272,16 +291,32 @@ impl CheckHttpInstance {
 		check_result_builder: & mut CheckResultBuilder,
 	) -> Result <(), Box <error::Error>> {
 
-		match try! (
-			self.perform_request ()) {
+		let http_request =
+			http::HttpRequest {
 
-			PerformRequestResult::Success (http_response) =>
+			address: & self.address,
+			port: self.port,
+			secure: self.secure,
+
+			method: self.method,
+			path: & self.path,
+			headers: & self.send_headers,
+
+			timeout: self.timeout,
+
+		};
+
+		match try! (
+			http::perform_request (
+				& http_request)) {
+
+			http::PerformRequestResult::Success (http_response) =>
 				try! (
 					self.process_response (
 						check_result_builder,
 						& http_response)),
 
-			PerformRequestResult::Timeout (duration) =>
+			http::PerformRequestResult::Timeout (duration) =>
 				check_result_builder.critical (
 					format! (
 						"request timed out after {}",
@@ -297,11 +332,21 @@ impl CheckHttpInstance {
 	fn process_response (
 		& self,
 		check_result_builder: & mut CheckResultBuilder,
-		http_response: & HttpResponse,
+		http_response: & http::HttpResponse,
 	) -> Result <(), Box <error::Error>> {
 
 		try! (
-			self.check_response_content (
+			self.check_response_status_code (
+				check_result_builder,
+				http_response));
+
+		try! (
+			self.check_response_headers (
+				check_result_builder,
+				http_response));
+
+		try! (
+			self.check_response_body (
 				check_result_builder,
 				http_response));
 
@@ -314,10 +359,10 @@ impl CheckHttpInstance {
 
 	}
 
-	fn check_response_content (
+	fn check_response_status_code (
 		& self,
 		check_result_builder: & mut CheckResultBuilder,
-		http_response: & HttpResponse,
+		http_response: & http::HttpResponse,
 	) -> Result <(), Box <error::Error>> {
 
 		if self.expect_status_code.contains (
@@ -342,10 +387,57 @@ impl CheckHttpInstance {
 
 	}
 
+	fn check_response_headers (
+		& self,
+		check_result_builder: & mut CheckResultBuilder,
+		_http_response: & http::HttpResponse,
+	) -> Result <(), Box <error::Error>> {
+
+		if ! self.expect_headers.is_empty () {
+
+			check_result_builder.unknown (
+				"TODO expect header option is not yet supported");
+
+		}
+
+		Ok (())
+
+	}
+
+	fn check_response_body (
+		& self,
+		check_result_builder: & mut CheckResultBuilder,
+		http_response: & http::HttpResponse,
+	) -> Result <(), Box <error::Error>> {
+
+		if self.expect_body_text.is_some () {
+
+			let expect_body_text =
+				self.expect_body_text.as_ref ().unwrap ();
+
+			if http_response.body.contains (
+				expect_body_text) {
+
+				check_result_builder.ok (
+					"body text matched");
+
+			} else {
+
+				check_result_builder.critical (
+					"body text not matched");
+
+			}
+
+		}
+
+		Ok (())
+
+	}
+
 	fn check_response_timing (
 		& self,
 		check_result_builder: & mut CheckResultBuilder,
-		http_response: & HttpResponse,
+		http_response: & http::HttpResponse,
 	) -> Result <(), Box <error::Error>> {
 
 		try! (
@@ -360,164 +452,6 @@ impl CheckHttpInstance {
 				& http_response.duration));
 
 		Ok (())
-
-	}
-
-	fn perform_request (
-		& self,
-	) -> Result <PerformRequestResult, Box <error::Error>> {
-
-		// setup request
-
-		let url =
-			format! (
-				"{}://{}:{}{}",
-				if self.secure { "https" } else { "http" },
-				self.address,
-				self.port,
-				self.path);
-
-	   	let mut curl_easy =
-	   		curl::easy::Easy::new ();
-
-		try! (
-			curl_easy.get (
-				true));
-
-		try! (
-			curl_easy.url (
-				url.as_str ()));
-
-		try! (
-			curl_easy.timeout (
-				self.timeout));
-
-		// setup request headers
-
-		let mut curl_headers =
-			curl::easy::List::new ();
-
-		for & (ref header_name, ref header_value)
-			in self.send_headers.iter () {
-
-			try! (
-				curl_headers.append (
-					& format! (
-						"{}: {}",
-						header_name,
-						header_value)));
-
-		}
-
-		try! (
-			curl_easy.http_headers (
-				curl_headers));
-
-		// perform request
-
-		let mut response_buffer: Vec <u8> =
-			vec! [];
-
-		let start_time =
-			time::Instant::now ();
-
-		{
-
-			let mut curl_transfer =
-				curl_easy.transfer ();
-
-			try! (
-				curl_transfer.write_function (
-					|data| {
-
-				response_buffer.extend_from_slice (
-					data);
-
-				Ok (data.len ())
-
-			}));
-
-			try! (
-				curl_transfer.perform ());
-
-		}
-
-		let end_time =
-			time::Instant::now ();
-
-		let duration =
-			end_time.duration_since (
-				start_time);
-
-		// process response
-
-		let response_status_code =
-			try! (
-				curl_easy.response_code ()
-			) as u64;
-
-		println! (
-			"response status code: {}",
-			response_status_code);
-
-		let response_body =
-			try! (
-				String::from_utf8 (
-					response_buffer));
-
-		println! (
-			"response body: {}",
-			response_body);
-
-		println! (
-			"response duration: {:?}",
-			duration);
-
-		/*
-		let millis = start.to(end).num_milliseconds() as f64;
-		let mut millis_message = "".to_string();
-
-		if millis <= warning {
-
-			millis_message =
-				format! (
-					"TIMEOUT-OK: The request took {} milliseconds.",
-					millis);
-
-		} else if millis > warning && millis <= critical {
-
-			millis_message =
-				format! (
-					"TIMEOUT-WARNING: The request took {} milliseconds.",
-					millis);
-
-		} else if millis > critical && millis <= timeout {
-
-			millis_message =
-				format! (
-					"TIMEOUT-CRITICAL: The request took {} milliseconds.",
-					millis);
-
-		} else if millis > timeout {
-
-			return Ok (
-				format! (
-					"TIMEOUT-CRITICAL: The timed out at {} milliseconds.",
-					millis));
-
-		}
-		*/
-
-		Ok (
-			PerformRequestResult::Success (
-
-			HttpResponse {
-				status_code: response_status_code,
-				body: response_body,
-				duration: duration,
-			}
-
-		))
 
 	}
 

@@ -24,6 +24,20 @@ pub fn check_if_present (
 
 // ==================== string arguments
 
+pub fn parse_string (
+	option_matches: & getopts::Matches,
+	option_name: & str,
+) -> Result <Option <String>, Box <error::Error>> {
+
+	Ok (
+
+		option_matches.opt_str (
+			option_name)
+
+	)
+
+}
+
 pub fn parse_string_required (
 	option_matches: & getopts::Matches,
 	option_name: & str,
@@ -210,6 +224,75 @@ pub fn parse_positive_integer_or_default (
 		).unwrap_or (
 			default_value,
 		)
+
+	)
+
+}
+
+pub fn parse_positive_integer_multiple (
+	option_matches: & getopts::Matches,
+	option_name: & str,
+) -> Result <Vec <u64>, Box <error::Error>> {
+
+	let mut return_values: Vec <u64> =
+		vec! [];
+
+	for option_value in option_matches.opt_strs (
+		option_name) {
+
+		let integer_value =
+			try! (
+				option_value.parse::<u64> (
+				).map_err (
+					|_|
+					format! (
+						"Parameter {} must be a positive integer",
+						option_name),
+				));
+
+		if integer_value < 1 {
+
+			return Err (
+				Box::new (
+					SimpleError::from (
+						format! (
+							"Parameter {} must be a positive integer, but got {}",
+							option_name,
+							integer_value)))
+			);
+
+		}
+
+		return_values.push (
+			integer_value);
+
+	}
+
+	Ok (
+		return_values
+	)
+
+}
+
+pub fn parse_positive_integer_multiple_or_default (
+	option_matches: & getopts::Matches,
+	option_name: & str,
+	default_value: & [u64],
+) -> Result <Vec <u64>, Box <error::Error>> {
+
+	let return_values =
+		try! (
+			parse_positive_integer_multiple (
+				option_matches,
+				option_name));
+
+	Ok (
+
+		if return_values.is_empty () {
+			default_value.to_owned ()
+		} else {
+			return_values
+		}
 
 	)
 
