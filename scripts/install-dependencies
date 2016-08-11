@@ -1,0 +1,11 @@
+#!/bin/bash
+
+packages=(
+	"cmake"
+	"libapt-pkg-dev"
+	"libssl-dev"
+)
+
+sudo apt install "${packages[@]}"
+
+# ex: noet ts=4 filetype=sh
