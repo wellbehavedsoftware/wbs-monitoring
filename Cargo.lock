@@ -1,6 +1,6 @@
 [root]
 name = "WBS Monitoring"
-version = "1.5.0"
+version = "1.6.0"
 dependencies = [
  "RustyXML 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "chrono 0.2.25 (registry+https://github.com/rust-lang/crates.io-index)",

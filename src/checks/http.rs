@@ -195,7 +195,11 @@ for CheckHttpProvider {
 				http::HttpMethod::Get,
 
 			path:
-				"/".to_string (),
+				try! (
+					arghelper::parse_string_or_default (
+						options_matches,
+						"path",
+						"/")),
 
 			send_headers:
 				try! (

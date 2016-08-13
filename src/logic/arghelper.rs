@@ -38,6 +38,24 @@ pub fn parse_string (
 
 }
 
+pub fn parse_string_or_default (
+	option_matches: & getopts::Matches,
+	option_name: & str,
+	default_value: & str,
+) -> Result <String, Box <error::Error>> {
+
+	Ok (
+
+		option_matches.opt_str (
+			option_name,
+		).unwrap_or_else (
+			|| default_value.to_owned (),
+		)
+
+	)
+
+}
+
 pub fn parse_string_required (
 	option_matches: & getopts::Matches,
 	option_name: & str,
