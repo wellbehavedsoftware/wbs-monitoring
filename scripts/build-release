@@ -133,7 +133,7 @@ scp \
 
 for target in "${targets[@]}"; do
 
-	echo "Uploading $project_source-target.tar.xz to dist"
+	echo "Uploading $project_source-$target.tar.xz to dist"
 
 	scp \
 		"dist/$project_source-$target.tar.xz" \
