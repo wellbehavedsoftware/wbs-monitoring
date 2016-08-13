@@ -4,18 +4,37 @@ set -euf -o pipefail
 
 version="$1"
 
-trusty_container="mufasa-trusty"
-trusty_root="/var/lib/lxc/$trusty_container/rootfs"
-trusty_project="$trusty_root/home/ubuntu/wbs-monitoring"
+targets=(
+	"trusty"
+	"xenial"
+)
+
+function header () {
+	echo "" >&2
+	echo "#################### $1" >&2
+	echo "" >&2
+}
 
 # ---------- check the version number
 
 if test -f ".git/refs/tags/$version"; then
+
+	header "Sanity check failed"
+
 	echo "Version $version already exists"
+	echo "Build aborted"
+
+	echo ""
+
 	false
+
 fi
 
 # ---------- update the version number
+
+header "Preparing for build"
+
+echo "Updating version number in Cargo.toml"
 
 sed_script="/tmp/sed-script-$$"
 
@@ -32,36 +51,72 @@ sed --in-place \
 
 rm "$sed_script"
 
-# ---------- clean and sync
+# ---------- create the archive to build
 
+echo "Cleaning build"
+
+( cd libaptc; make clean )
 cargo clean
-(cd libaptc && make clean)
 
-sudo rsync \
+echo "Creating source archive"
+
+project_source="wbs-monitoring-$version"
+
+mkdir -p "dist"
+
+rsync \
 	--archive \
 	--delete \
+	--delete-excluded \
 	--exclude "/.git" \
 	--exclude "/dist" \
 	--exclude "/target" \
-	--exclude "/temp" \
-	--exclude "/work" \
 	"./" \
-	"$trusty_project/"
+	"dist/$project_source/"
 
-# ---------- build packages
+tar --create --xz \
+	--file "dist/$project_source.tar.xz" \
+	--directory "dist" \
+	"$project_source"
 
-scripts/build-package "$version" "xenial"
+# ---------- iterate targets
 
-sudo lxc-attach --name "$trusty_container" -- \
-sudo -H -u ubuntu \
-bash -c "/home/ubuntu/wbs-monitoring/scripts/build-package $version trusty"
+for target in "${targets[@]}"; do
 
-sudo rsync \
-	--archive \
-	"$trusty_project/dist/" \
-	"dist/"
+	header "Building for $target"
+
+	project_target="$project_source-$target"
+
+	# ---------- sync to target
+
+	lxc file push \
+		"dist/$project_source.tar.xz" \
+		"build-$target/root/$project_source.tar.xz"
+
+	lxc exec "build-$target" -- \
+		rm -rf "$project_source"
+
+	lxc exec "build-$target" -- \
+		tar --extract --xz --file "$project_source.tar.xz"
+
+	# ---------- build and retrieve
+
+	lxc exec "build-$target" -- \
+		"$project_source/scripts/build-package" \
+		"$version" \
+		"$target"
+
+	lxc file pull \
+		"build-$target/root/$project_source/dist/$project_target.tar.xz" \
+		"dist/$project_target.tar.xz"
+
+done
 
 # ---------- git commit
+
+header "Finalising"
+
+echo "Committing changes to git"
 
 git reset "HEAD"
 git add "Cargo.toml" "Cargo.lock"
@@ -70,12 +125,29 @@ git stash --include-untracked
 
 # ---------- upload to server
 
-scp "dist/wbs-monitoring-$version-xenial.tar.xz" "dist:dist/wbs-monitoring/"
-scp "dist/wbs-monitoring-$version-trusty.tar.xz" "dist:dist/wbs-monitoring/"
+echo "Uploading $project_source.tar.xz to dist"
+
+scp \
+	"dist/$project_source.tar.xz" \
+	"dist:dist/wbs-monitoring/"
+
+for target in "${targets[@]}"; do
+
+	echo "Uploading $project_source-target.tar.xz to dist"
+
+	scp \
+		"dist/$project_source-$target.tar.xz" \
+		"dist:dist/wbs-monitoring/"
+
+done
 
 # ---------- create tag
 
+echo "Pushing changes to git"
+
 git tag "$version"
 git push origin master --tags
+
+header "Build complete"
 
 # ex: noet ts=4 filetype=sh
