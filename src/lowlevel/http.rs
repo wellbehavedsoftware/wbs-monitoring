@@ -30,6 +30,7 @@ pub struct HttpRequest <'a> {
 pub struct HttpResponse {
 	pub status_code: u64,
 	//status_message: String,
+	pub headers: Vec <(String, String)>,
 	pub body: String,
 	pub duration: time::Duration,
 }
@@ -104,7 +105,13 @@ pub fn perform_request (
 
 	// perform request
 
-	let mut response_buffer: Vec <u8> =
+	let mut response_status_line: Option <String> =
+		None;
+
+	let mut response_headers_buffer: Vec <(String, String)> =
+		vec! [];
+
+	let mut response_body_buffer: Vec <u8> =
 		vec! [];
 
 	let start_time =
@@ -116,10 +123,71 @@ pub fn perform_request (
 			curl_easy.transfer ();
 
 		try! (
+			curl_transfer.header_function (
+				|header_data_raw| {
+
+			let header_string_raw =
+				String::from_utf8_lossy (
+					header_data_raw,
+				);
+
+			let header_string =
+				header_string_raw.trim ();
+
+			if header_string.is_empty () {
+				return true;
+			}
+
+			match response_status_line {
+
+				Some (_) => {
+
+					let header_parts_raw: Vec <& str> =
+						header_string.splitn (
+							2,
+							":",
+						).collect ();
+
+					if header_parts_raw.len () != 2 {
+						return false;
+					}
+
+					let header_name =
+						header_parts_raw [0].trim ();
+
+					let header_value =
+						header_parts_raw [1].trim ();
+
+					response_headers_buffer.push (
+						(
+							header_name.to_owned (),
+							header_value.to_owned (),
+						)
+					);
+
+					true
+
+				},
+
+				None => {
+
+					response_status_line =
+						Some (
+							header_string.to_owned ());
+
+					true
+
+				},
+
+			}
+
+		}));
+
+		try! (
 			curl_transfer.write_function (
 				|data| {
 
-			response_buffer.extend_from_slice (
+			response_body_buffer.extend_from_slice (
 				data);
 
 			Ok (data.len ())
@@ -148,13 +216,14 @@ pub fn perform_request (
 	let response_body =
 		try! (
 			String::from_utf8 (
-				response_buffer));
+				response_body_buffer));
 
 	Ok (
 		PerformRequestResult::Success (
 
 		HttpResponse {
 			status_code: response_status_code,
+			headers: response_headers_buffer,
 			body: response_body,
 			duration: duration,
 		}

@@ -1,5 +1,6 @@
 extern crate getopts;
 
+use std::collections::HashMap;
 use std::error;
 use std::time;
 
@@ -394,13 +395,101 @@ impl CheckHttpInstance {
 	fn check_response_headers (
 		& self,
 		check_result_builder: & mut CheckResultBuilder,
-		_http_response: & http::HttpResponse,
+		http_response: & http::HttpResponse,
 	) -> Result <(), Box <error::Error>> {
 
 		if ! self.expect_headers.is_empty () {
 
-			check_result_builder.unknown (
-				"TODO expect header option is not yet supported");
+			let mut matched_headers: Vec <(String, String)> =
+				vec! [];
+
+			let mut missing_headers: Vec <(String, String)> =
+				vec! [];
+
+			let mut mismatched_headers: Vec <(String, String, String)> =
+				vec! [];
+
+			let response_headers_map: HashMap <String, String> =
+				http_response.headers.iter ().map (
+					|& (ref header_name, ref header_value)|
+					(
+						header_name.to_lowercase (),
+						header_value.to_owned (),
+					)
+				).collect ();
+
+			for & (ref expect_header_name, ref expect_header_value)
+			in self.expect_headers.iter () {
+
+				match response_headers_map.get (
+					& expect_header_name.to_lowercase ()) {
+
+					None => {
+
+						missing_headers.push (
+							(
+								expect_header_name.to_owned (),
+								expect_header_value.to_owned (),
+							)
+						);
+
+					},
+
+					Some (actual_header_value) => {
+
+						if actual_header_value == expect_header_value {
+
+							matched_headers.push (
+								(
+									expect_header_name.to_owned (),
+									expect_header_value.to_owned (),
+								)
+							);
+
+						} else {
+
+							mismatched_headers.push (
+								(
+									expect_header_name.to_owned (),
+									expect_header_value.to_owned (),
+									actual_header_value.to_owned (),
+								)
+							);
+
+						}
+
+					},
+
+				}
+
+			}
+
+			if ! matched_headers.is_empty () {
+
+				check_result_builder.ok (
+					format! (
+						"matched {} headers",
+						matched_headers.len ()));
+
+			}
+
+			if ! missing_headers.is_empty () {
+
+				check_result_builder.warning (
+					format! (
+						"missing {} headers",
+						missing_headers.len ()));
+
+			}
+
+			if ! mismatched_headers.is_empty () {
+
+				check_result_builder.critical (
+					format! (
+						"failed to match {} headers",
+						mismatched_headers.len ()));
+
+			}
 
 		}
 
