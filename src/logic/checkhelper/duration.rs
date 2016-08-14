@@ -87,7 +87,7 @@ fn display_duration_generic (
 	} else if seconds >= 10 {
 
 		format! (
-			"{}.{:1}{}",
+			"{}.{:01}{}",
 			seconds,
 			microseconds / 100_000,
 			duration_format.seconds_plural)
@@ -95,7 +95,7 @@ fn display_duration_generic (
 	} else if seconds >= 1 {
 
 		format! (
-			"{}.{:2}{}",
+			"{}.{:02}{}",
 			seconds,
 			microseconds / 10_000_000,
 			if seconds == 1 {
@@ -114,7 +114,7 @@ fn display_duration_generic (
 	} else if microseconds >= 10_000 {
 
 		format! (
-			"{}.{:1}{}",
+			"{}.{:01}{}",
 			microseconds / 1000,
 			(microseconds % 1000) / 100,
 			duration_format.milliseconds_plural)
@@ -122,7 +122,7 @@ fn display_duration_generic (
 	} else if microseconds >= 1_000 {
 
 		format! (
-			"{}.{:2}{}",
+			"{}.{:02}{}",
 			microseconds / 1000,
 			(microseconds % 1000) / 10,
 			if microseconds == 1_000 {
