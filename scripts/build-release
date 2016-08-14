@@ -51,14 +51,15 @@ sed --in-place \
 
 rm "$sed_script"
 
+# ---------- perform local build
+
+header "Building locally"
+
+cargo build --release
+
 # ---------- create the archive to build
 
-echo "Cleaning build"
-
-( cd libaptc; make clean )
-cargo clean
-
-echo "Creating source archive"
+header "Creating source archive"
 
 project_source="wbs-monitoring-$version"
 
@@ -71,6 +72,8 @@ rsync \
 	--exclude "/.git" \
 	--exclude "/dist" \
 	--exclude "/target" \
+	--exclude "*.o" \
+	--exclude "*.a" \
 	"./" \
 	"dist/$project_source/"
 
