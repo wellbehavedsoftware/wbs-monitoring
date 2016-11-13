@@ -465,15 +465,17 @@ impl CheckBtrfsInstance {
 				btrfs::get_space_info (
 					file_descriptor));
 
+		/*
 		let data_space_infos =
 			space_infos.iter ().filter (
 				|space_info|
 				space_info.group_type
 					== btrfs::GroupType::Data
 			);
+		*/
 
 		let (total_space, used_space) =
-			data_space_infos.fold (
+			space_infos.iter ().fold (
 				(0, 0),
 				|(total, used), space_info|
 				(
@@ -494,7 +496,7 @@ impl CheckBtrfsInstance {
 				self.balance_ratio_warning,
 				self.balance_ratio_critical,
 				& format! (
-					"data block free space is {}",
+					"block free space is {}",
 					checkhelper::display_data_size_ratio (
 						free_space,
 						total_space)),
