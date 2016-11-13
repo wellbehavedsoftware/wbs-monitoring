@@ -8,6 +8,6 @@ fn main () {
 		.unwrap ();
 
 	println! (
-		"cargo:rustc-link-search=libaptc");
+		"cargo:rustc-link-search=native=libaptc");
 
 }
