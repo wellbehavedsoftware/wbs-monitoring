@@ -115,6 +115,9 @@ path = "src/legacy/check_git.rs"
 
 # ---------- dependencies
 
+[dependencies.btrfs]
+version = "*"
+
 [dependencies.chrono]
 version = "*"
 
@@ -125,9 +128,6 @@ version = "*"
 version = "*"
 
 [dependencies.git2]
-version = "*"
-
-[dependencies.ioctl]
 version = "*"
 
 [dependencies.libc]

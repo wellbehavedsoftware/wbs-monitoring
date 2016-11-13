@@ -5,7 +5,7 @@ use std::error;
 
 use logic::*;
 use lowlevel;
-use lowlevel::btrfs;
+use btrfs;
 
 pub fn new (
 ) -> Box <PluginProvider> {
