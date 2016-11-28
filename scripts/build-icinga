@@ -2,8 +2,10 @@
 
 set -euf -o pipefail
 
+source "/etc/lsb-release"
+
 icinga_version="$1"
-icinga_build="$2"
+icinga_build="$DISTRIB_CODENAME-$2"
 
 system_dependencies=(
 	"bison"
