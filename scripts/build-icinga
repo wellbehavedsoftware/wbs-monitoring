@@ -5,6 +5,16 @@ set -euf -o pipefail
 icinga_version="$1"
 icinga_build="$2"
 
+system_dependencies=(
+	"bison"
+	"flex"
+	"libboost-program-options-dev"
+	"libboost-regex-dev"
+	"libboost-system-dev"
+	"libboost-test-dev"
+	"libboost-thread-dev"
+)
+
 function title () {
 
 	echo "" >&2
@@ -12,6 +22,10 @@ function title () {
 	echo "" >&2
 
 }
+
+title "installing system dependencies"
+
+sudo apt install "${system_dependencies[@]}"
 
 if test -d "work/icinga2"; then
 
