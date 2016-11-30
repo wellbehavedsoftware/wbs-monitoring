@@ -82,7 +82,7 @@ for CheckHttpProvider {
 			"",
 			"port",
 			"port to connect to, defaults to 80 or 443",
-			"HOURS");
+			"PORT");
 
 		options_spec.optflag (
 			"",
