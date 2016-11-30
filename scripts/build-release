@@ -9,6 +9,8 @@ targets=(
 	"xenial"
 )
 
+dist="ubuntu@kiara-dist.vpn.wbsoft.co:dist/wbs-monitoring"
+
 function header () {
 	echo "" >&2
 	echo "#################### $1" >&2
@@ -145,7 +147,7 @@ for target in "${targets[@]}"; do
 
 	scp \
 		"dist/$project_source-$target.tar.xz" \
-		"dist:dist/wbs-monitoring/"
+		"$dist/"
 
 done
 
