@@ -1,3 +1,5 @@
+#![ allow (unused_parens) ]
+
 extern crate getopts;
 
 use std::collections::HashMap;
