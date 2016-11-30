@@ -1,6 +1,6 @@
 [package]
 name = "WBS Monitoring"
-version = "1.6.4"
+version = "1.6.5"
 authors = [
 	"James Pharaoh <james@wellbehavedsoftware.com>",
 	"Jose Luis <joseluis@wellbehavedsoftware.com>"
