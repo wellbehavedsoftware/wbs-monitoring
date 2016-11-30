@@ -76,6 +76,7 @@ rsync \
 	--exclude "/.git" \
 	--exclude "/dist" \
 	--exclude "/target" \
+	--exclude "/work" \
 	--exclude "*.o" \
 	--exclude "*.a" \
 	"./" \
