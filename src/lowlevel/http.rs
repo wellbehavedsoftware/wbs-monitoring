@@ -39,9 +39,27 @@ pub struct HttpResponse {
 pub enum PerformRequestResult {
 	Success (HttpResponse),
 	Timeout (time::Duration),
+	Failure (String),
 }
 
 pub fn perform_request (
+	http_request: & HttpRequest,
+) -> PerformRequestResult {
+
+	perform_request_real (
+		http_request,
+	).unwrap_or_else (
+		|error|
+
+		PerformRequestResult::Failure (
+			error.description ().to_owned (),
+		)
+
+	)
+
+}
+
+pub fn perform_request_real (
 	http_request: & HttpRequest,
 ) -> Result <PerformRequestResult, Box <error::Error>> {
 

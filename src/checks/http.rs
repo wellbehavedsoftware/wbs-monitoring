@@ -311,15 +311,22 @@ impl CheckHttpInstance {
 
 		};
 
-		match try! (
+		match (
 			http::perform_request (
-				& http_request)) {
+				& http_request)
+		) {
 
 			http::PerformRequestResult::Success (http_response) =>
 				try! (
 					self.process_response (
 						check_result_builder,
 						& http_response)),
+
+			http::PerformRequestResult::Failure (reason) =>
+				check_result_builder.critical (
+					format! (
+						"failed to connect: {}",
+						reason)),
 
 			http::PerformRequestResult::Timeout (duration) =>
 				check_result_builder.critical (
