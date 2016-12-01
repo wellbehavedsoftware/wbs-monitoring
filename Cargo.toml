@@ -39,6 +39,10 @@ path = "src/wrappers/check_http.rs"
 name = "check-lxc-container"
 path = "src/wrappers/check_lxc_container.rs"
 
+[[bin]]
+name = "check-snapshots"
+path = "src/wrappers/check_snapshots.rs"
+
 # ---------- legacy
 
 [[bin]]
@@ -86,10 +90,6 @@ name = "check-postfix"
 path = "src/legacy/check_postfix.rs"
 
 [[bin]]
-name = "check-snapshots"
-path = "src/legacy/check_snapshots.rs"
-
-[[bin]]
 name = "check-subvolumes"
 path = "src/legacy/check_subvolumes.rs"
 
@@ -128,6 +128,9 @@ version = "*"
 version = "*"
 
 [dependencies.git2]
+version = "*"
+
+[dependencies.glob]
 version = "*"
 
 [dependencies.libc]

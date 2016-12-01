@@ -208,7 +208,8 @@ pub fn parse_positive_integer (
 					Box::new (
 						SimpleError::from (
 							format! (
-								"Parameter {} must be a positive integer, but got {}",
+								"Parameter {} must be a positive integer, but \
+								got {}",
 								option_name,
 								value)))
 				);
@@ -274,7 +275,8 @@ pub fn parse_positive_integer_multiple (
 				Box::new (
 					SimpleError::from (
 						format! (
-							"Parameter {} must be a positive integer, but got {}",
+							"Parameter {} must be a positive integer, but got \
+							{}",
 							option_name,
 							integer_value)))
 			);

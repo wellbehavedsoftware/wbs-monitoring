@@ -1,9 +1,17 @@
-use std::error;
 use std::time;
 
 use logic::*;
 
 struct DurationFormat <'a> {
+
+	days_singular: & 'a str,
+	days_plural: & 'a str,
+
+	hours_singular: & 'a str,
+	hours_plural: & 'a str,
+
+	minutes_singular: & 'a str,
+	minutes_plural: & 'a str,
 
 	seconds_singular: & 'a str,
 	seconds_plural: & 'a str,
@@ -19,6 +27,15 @@ struct DurationFormat <'a> {
 const DURATION_FORMAT_LONG: DurationFormat <'static> =
 	DurationFormat {
 
+		days_singular: " day",
+		days_plural: " days",
+
+		hours_singular: " hour",
+		hours_plural: " hours",
+
+		minutes_singular: " minute",
+		minutes_plural: " minutes",
+
 		seconds_singular: " second",
 		seconds_plural: " seconds",
 
@@ -32,6 +49,15 @@ const DURATION_FORMAT_LONG: DurationFormat <'static> =
 
 const DURATION_FORMAT_SHORT: DurationFormat <'static> =
 	DurationFormat {
+
+		days_singular: "d",
+		days_plural: "d",
+
+		hours_singular: "h",
+		hours_plural: "h",
+
+		minutes_singular: "m",
+		minutes_plural: "m",
 
 		seconds_singular: "s",
 		seconds_plural: "s",
@@ -77,12 +103,60 @@ fn display_duration_generic (
 
 	// TODO higher durations
 
-	if seconds >= 100 {
+	if seconds >= 8_640_000 {
 
 		format! (
 			"{}{}",
-			seconds,
-			duration_format.seconds_plural)
+			seconds / 86_400,
+			duration_format.days_plural)
+
+	} else if seconds >= 864_000 {
+
+		format! (
+			"{}.{:01}{}",
+			seconds / 86_400,
+			seconds * 10 / 86_400 % 10,
+			duration_format.days_plural)
+
+	} else if seconds >= 86_400 {
+
+		format! (
+			"{}.{:02}{}",
+			seconds / 86_400,
+			seconds * 100 / 86_400 % 100,
+			duration_format.days_plural)
+
+	} else if seconds >= 36_000 {
+
+		format! (
+			"{}.{:01}{}",
+			seconds / 3_600,
+			seconds * 10 / 3_600 % 10,
+			duration_format.hours_plural)
+
+	} else if seconds >= 6_000 {
+
+		format! (
+			"{}.{:02}{}",
+			seconds / 3_600,
+			seconds * 100 / 3_600 % 100,
+			duration_format.hours_plural)
+
+	} else if seconds >= 600 {
+
+		format! (
+			"{}.{:01}{}",
+			seconds / 60,
+			seconds * 10 / 60 % 10,
+			duration_format.minutes_plural)
+
+	} else if seconds >= 100 {
+
+		format! (
+			"{}.{:02}{}",
+			seconds / 60,
+			seconds * 100 / 60 % 100,
+			duration_format.minutes_plural)
 
 	} else if seconds >= 10 {
 
@@ -131,7 +205,7 @@ fn display_duration_generic (
 				duration_format.milliseconds_plural
 			})
 
-	} else {
+	} else if microseconds >= 1{
 
 		format! (
 			"{}{}",
@@ -141,6 +215,10 @@ fn display_duration_generic (
 			} else {
 				duration_format.microseconds_plural
 			})
+
+	} else {
+
+		"0".to_string ()
 
 	}
 
@@ -152,7 +230,7 @@ pub fn check_duration_less_than (
 	critical_limit: & Option <time::Duration>,
 	message: & str,
 	value: & time::Duration,
-) -> Result <(), Box <error::Error>> {
+) {
 
 	if critical_limit.is_some ()
 		&& * value > critical_limit.unwrap () {
@@ -182,8 +260,6 @@ pub fn check_duration_less_than (
 				message));
 
 	}
-
-	Ok (())
 
 }
 

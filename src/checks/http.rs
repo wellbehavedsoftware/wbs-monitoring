@@ -542,16 +542,15 @@ impl CheckHttpInstance {
 		http_response: & http::HttpResponse,
 	) -> Result <(), Box <error::Error>> {
 
-		try! (
-			checkhelper::check_duration_less_than (
-				check_result_builder,
-				& self.response_time_warning,
-				& self.response_time_critical,
-				& format! (
-					"request took {}",
-					checkhelper::display_duration_long (
-						& http_response.duration)),
-				& http_response.duration));
+		checkhelper::check_duration_less_than (
+			check_result_builder,
+			& self.response_time_warning,
+			& self.response_time_critical,
+			& format! (
+				"request took {}",
+				checkhelper::display_duration_long (
+					& http_response.duration)),
+			& http_response.duration);
 
 		Ok (())
 

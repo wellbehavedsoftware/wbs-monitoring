@@ -73,8 +73,8 @@ pub fn perform_request_real (
 			http_request.port,
 			http_request.path);
 
-   	let mut curl_easy =
-   		curl::easy::Easy::new ();
+	let mut curl_easy =
+		curl::easy::Easy::new ();
 
 	if http_request.method != HttpMethod::Get {
 

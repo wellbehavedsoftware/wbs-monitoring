@@ -7,7 +7,7 @@ pub struct SimpleError {
 }
 
 impl error::Error for SimpleError {
-	
+
 	fn description (
 		& self,
 	) -> & str {

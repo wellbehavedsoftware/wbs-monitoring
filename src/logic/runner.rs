@@ -33,7 +33,7 @@ fn show_usage_error (
 		"");
 
 	match error {
-	
+
 		& getopts::Fail::OptionMissing (
 			ref argument_name,
 		) => {
@@ -49,7 +49,7 @@ fn show_usage_error (
 			println! (
 				"{:?}",
 				error),
-	
+
 	}
 
 	println! (
