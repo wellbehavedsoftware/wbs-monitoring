@@ -265,104 +265,104 @@ for CheckSnapshotsInstance {
 					).unwrap ()),
 				& most_recent_time);
 
+			// local
+
+			if most_recent_local_snapshot.is_some () {
+
+				let most_recent_local_time = (
+					now - most_recent_local_snapshot.unwrap ()
+				).to_std ().unwrap ();
+
+				check_duration_less_than (
+					& mut check_result_builder,
+					& self.local_warning_time,
+					& self.local_critical_time,
+					& format! (
+						"local snapshot on {}",
+						time::strftime (
+							"%Y-%m-%d",
+							& most_recent_local_snapshot.unwrap (),
+						).unwrap ()),
+					& most_recent_local_time);
+
+			} else if self.local_pattern.is_some () {
+
+				if self.local_critical_time.is_some () {
+
+					check_result_builder.critical (
+						"no local snapshots (critical)");
+
+				} else if self.local_warning_time.is_some () {
+
+					check_result_builder.warning (
+						"no local snapshots (warning)");
+
+				} else {
+
+					check_result_builder.ok (
+						"no local snapshots");
+
+				}
+
+			}
+
+			// archive
+
+			if most_recent_archive_snapshot.is_some () {
+
+				let most_recent_archive_time = (
+					now - most_recent_archive_snapshot.unwrap ()
+				).to_std ().unwrap ();
+
+				check_duration_less_than (
+					& mut check_result_builder,
+					& self.archive_warning_time,
+					& self.archive_critical_time,
+					& format! (
+						"archive snapshot on {}",
+						time::strftime (
+							"%Y-%m-%d",
+							& most_recent_archive_snapshot.unwrap (),
+						).unwrap ()),
+					& most_recent_archive_time);
+
+			} else if self.archive_pattern.is_some () {
+
+				if self.archive_critical_time.is_some () {
+
+					check_result_builder.critical (
+						"no archive snapshots (critical)");
+
+				} else if self.archive_warning_time.is_some () {
+
+					check_result_builder.warning (
+						"no archive snapshots (warning)");
+
+				} else {
+
+					check_result_builder.ok (
+						"no archive snapshots");
+
+				}
+
+			}
+
 		} else {
 
-			if self.local_critical_time.is_some () {
+			if self.critical_time.is_some () {
 
 				check_result_builder.critical (
-					"no snapshot");
+					"no snapshots (critical)");
 
-			} else if self.local_warning_time.is_some () {
+			} else if self.warning_time.is_some () {
 
 				check_result_builder.warning (
-					"no snapshot");
+					"no snapshots (warning)");
 
 			} else {
 
 				check_result_builder.ok (
-					"no snapshot");
-
-			}
-
-		}
-
-		// local
-
-		if most_recent_local_snapshot.is_some () {
-
-			let most_recent_local_time = (
-				now - most_recent_local_snapshot.unwrap ()
-			).to_std ().unwrap ();
-
-			check_duration_less_than (
-				& mut check_result_builder,
-				& self.local_warning_time,
-				& self.local_critical_time,
-				& format! (
-					"local snapshot on {}",
-					time::strftime (
-						"%Y-%m-%d",
-						& most_recent_local_snapshot.unwrap (),
-					).unwrap ()),
-				& most_recent_local_time);
-
-		} else if self.local_pattern.is_some () {
-
-			if self.local_critical_time.is_some () {
-
-				check_result_builder.critical (
-					"no local snapshot");
-
-			} else if self.local_warning_time.is_some () {
-
-				check_result_builder.warning (
-					"no local snapshot");
-
-			} else {
-
-				check_result_builder.ok (
-					"no local snapshot");
-
-			}
-
-		}
-
-		// archive
-
-		if most_recent_archive_snapshot.is_some () {
-
-			let most_recent_archive_time = (
-				now - most_recent_archive_snapshot.unwrap ()
-			).to_std ().unwrap ();
-
-			check_duration_less_than (
-				& mut check_result_builder,
-				& self.archive_warning_time,
-				& self.archive_critical_time,
-				& format! (
-					"archive snapshot on {}",
-					time::strftime (
-						"%Y-%m-%d",
-						& most_recent_archive_snapshot.unwrap (),
-					).unwrap ()),
-				& most_recent_archive_time);
-
-		} else if self.archive_pattern.is_some () {
-
-			if self.archive_critical_time.is_some () {
-
-				check_result_builder.critical (
-					"no archive snapshot");
-
-			} else if self.archive_warning_time.is_some () {
-
-				check_result_builder.warning (
-					"no archive snapshot");
-
-			} else {
-
-				check_result_builder.ok (
-					"no archive snapshot");
+					"no snapshots");
 
 			}
 
