@@ -5,6 +5,7 @@ packages=(
 	"cmake"
 	"libapt-pkg-dev"
 	"libssl-dev"
+	"pkg-config"
 )
 
 sudo apt install "${packages[@]}"
