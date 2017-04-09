@@ -5,49 +5,22 @@ use std::fs;
 
 use logic::*;
 
-pub fn new (
-) -> Box <PluginProvider> {
+check! {
 
-	Box::new (
-		CheckLxcContainerProvider {},
-	)
+	new = new,
+	name = "check-lxc-container",
+	prefix = "LXC",
 
-}
+	provider = CheckLxcContainerProvider,
 
-struct CheckLxcContainerProvider {
-}
+	instance = CheckLxcContainerInstance {
 
-struct CheckLxcContainerInstance {
-	container_name: String,
-	critical_states: Vec <ContainerState>,
-}
+		container_name: String,
+		critical_states: Vec <ContainerState>,
 
-impl PluginProvider
-for CheckLxcContainerProvider {
+	},
 
-	fn name (
-		& self,
-	) -> & str {
-		"check-lxc-container"
-	}
-
-	fn prefix (
-		& self,
-	) -> & str {
-		"LXC"
-	}
-
-	fn build_options_spec (
-		& self,
-	) -> getopts::Options {
-
-		let mut options_spec =
-			getopts::Options::new ();
-
-		options_spec.optflag (
-			"",
-			"help",
-			"print this help menu");
+	options_spec = |options_spec| {
 
 		options_spec.reqopt (
 			"",
@@ -61,15 +34,9 @@ for CheckLxcContainerProvider {
 			"container state which cause a critical status",
 			"STATE");
 
-		options_spec
+	},
 
-	}
-
-	fn new_instance (
-		& self,
-		_options_spec: & getopts::Options,
-		options_matches: & getopts::Matches,
-	) -> Result <Box <PluginInstance>, Box <error::Error>> {
+	options_parse = |options_matches| {
 
 		let container_name =
 			options_matches.opt_str (
@@ -89,14 +56,14 @@ for CheckLxcContainerProvider {
 
 		}
 
-		return Ok (Box::new (
-			CheckLxcContainerInstance {
-				container_name: container_name,
-				critical_states: critical_states,
-			}
-		));
+		CheckLxcContainerInstance {
 
-	}
+			container_name: container_name,
+			critical_states: critical_states,
+
+		}
+
+	},
 
 }
 

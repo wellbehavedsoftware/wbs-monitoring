@@ -9,66 +9,37 @@ use std::time;
 use logic::*;
 use lowlevel::http;
 
-pub fn new (
-) -> Box <PluginProvider> {
+check! {
 
-	Box::new (
-		CheckHttpProvider {},
-	)
+	new = new,
+	name = "check-http",
+	prefix = "HTTP",
 
-}
+	provider = CheckHttpProvider,
 
-struct CheckHttpProvider {
-}
+	instance = CheckHttpInstance {
 
-struct CheckHttpInstance {
+		address: String,
+		port: u64,
+		secure: bool,
 
-	address: String,
-	port: u64,
-	secure: bool,
+		method: http::HttpMethod,
+		path: String,
 
-	method: http::HttpMethod,
-	path: String,
+		send_headers: Vec <(String, String)>,
 
-	send_headers: Vec <(String, String)>,
+		expect_status_code: Vec <u64>,
+		expect_headers: Vec <(String, String)>,
+		expect_body_text: Option <String>,
 
-	expect_status_code: Vec <u64>,
-	expect_headers: Vec <(String, String)>,
-	expect_body_text: Option <String>,
+		response_time_warning: Option <time::Duration>,
+		response_time_critical: Option <time::Duration>,
 
-	response_time_warning: Option <time::Duration>,
-	response_time_critical: Option <time::Duration>,
+		timeout: time::Duration,
 
-	timeout: time::Duration,
+	},
 
-}
-
-impl PluginProvider
-for CheckHttpProvider {
-
-	fn name (
-		& self,
-	) -> & str {
-		"check-http"
-	}
-
-	fn prefix (
-		& self,
-	) -> & str {
-		"HTTP"
-	}
-
-	fn build_options_spec (
-		& self,
-	) -> getopts::Options {
-
-		let mut options_spec =
-			getopts::Options::new ();
-
-		options_spec.optflag (
-			"",
-			"help",
-			"print this help menu");
+	options_spec = |options_spec| {
 
 		// connection options
 
@@ -149,17 +120,9 @@ for CheckHttpProvider {
 			"maximum time to wait for server response, defaults to 60 seconds",
 			"DURATION");
 
-		// return
+	},
 
-		options_spec
-
-	}
-
-	fn new_instance (
-		& self,
-		_options_spec: & getopts::Options,
-		options_matches: & getopts::Matches,
-	) -> Result <Box <PluginInstance>, Box <error::Error>> {
+	options_parse = |options_matches| {
 
 		// determine secure parameter beforehand
 
@@ -171,8 +134,7 @@ for CheckHttpProvider {
 
 		// return
 
-		Ok (Box::new (
-			CheckHttpInstance {
+		CheckHttpInstance {
 
 			// connection
 
@@ -256,9 +218,9 @@ for CheckHttpProvider {
 						"timeout",
 						& time::Duration::new (60, 0))),
 
-		}))
+		}
 
-	}
+	},
 
 }
 

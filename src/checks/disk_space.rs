@@ -7,53 +7,24 @@ use std::mem;
 
 use logic::*;
 
-pub fn new (
-) -> Box <PluginProvider> {
+check! {
 
-	Box::new (
-		CheckDiskSpaceProvider {},
-	)
+	new = new,
+	name = "check-disk-space",
+	prefix = "DISK-SPACE",
 
-}
+	provider = CheckDiskSpaceProvider,
 
-struct CheckDiskSpaceProvider {
-}
+	instance = CheckDiskSpaceInstance {
 
-struct CheckDiskSpaceInstance {
+		path: String,
 
-	path: String,
+		space_ratio_warning: Option <f64>,
+		space_ratio_critical: Option <f64>,
 
-	space_ratio_warning: Option <f64>,
-	space_ratio_critical: Option <f64>,
+	},
 
-}
-
-impl PluginProvider
-for CheckDiskSpaceProvider {
-
-	fn name (
-		& self,
-	) -> & str {
-		"check-disk-space"
-	}
-
-	fn prefix (
-		& self,
-	) -> & str {
-		"DISK-SPACE"
-	}
-
-	fn build_options_spec (
-		& self,
-	) -> getopts::Options {
-
-		let mut options_spec =
-			getopts::Options::new ();
-
-		options_spec.optflag (
-			"",
-			"help",
-			"print this help menu");
+	options_spec = |options_spec| {
 
 		options_spec.reqopt (
 			"",
@@ -73,15 +44,9 @@ for CheckDiskSpaceProvider {
 			"free disk space critical threshold",
 			"RATIO");
 
-		options_spec
+	},
 
-	}
-
-	fn new_instance (
-		& self,
-		_options_spec: & getopts::Options,
-		options_matches: & getopts::Matches,
-	) -> Result <Box <PluginInstance>, Box <error::Error>> {
+	options_parse = |options_matches| {
 
 		// path
 
@@ -93,33 +58,29 @@ for CheckDiskSpaceProvider {
 		// space ratio
 
 		let space_ratio_warning =
-			try! (
-				arghelper::parse_decimal_fraction (
-					options_matches,
-					"space-ratio-warning"));
+			arghelper::parse_decimal_fraction (
+				options_matches,
+				"space-ratio-warning",
+			) ?;
 
 		let space_ratio_critical =
-			try! (
-				arghelper::parse_decimal_fraction (
-					options_matches,
-					"space-ratio-critical"));
+			arghelper::parse_decimal_fraction (
+				options_matches,
+				"space-ratio-critical",
+			) ?;
 
 		// return
 
-		Ok (Box::new (
+		CheckDiskSpaceInstance {
 
-			CheckDiskSpaceInstance {
+			path: path,
 
-				path: path,
+			space_ratio_warning: space_ratio_warning,
+			space_ratio_critical: space_ratio_critical,
 
-				space_ratio_warning: space_ratio_warning,
-				space_ratio_critical: space_ratio_critical,
+		}
 
-			}
-
-		))
-
-	}
+	},
 
 }
 
@@ -135,9 +96,9 @@ for CheckDiskSpaceInstance {
 			CheckResultBuilder::new ();
 
 		let path_c =
-			try! (
-				ffi::CString::new (
-					self.path.to_owned ()));
+			ffi::CString::new (
+				self.path.to_owned (),
+			) ?;
 
 		let mut filesystem_stats: libc::statfs =
 			unsafe {
@@ -160,10 +121,10 @@ for CheckDiskSpaceInstance {
 
 		} else {
 
-			try! (
-				self.perform_space_check (
-					& mut check_result_builder,
-					& filesystem_stats));
+			self.perform_space_check (
+				& mut check_result_builder,
+				& filesystem_stats,
+			) ?;
 
 		}
 
@@ -197,17 +158,17 @@ impl CheckDiskSpaceInstance {
 		let available_space_ratio =
 			available_space as f64 / total_space as f64;
 
-		try! (
-			checkhelper::check_ratio_greater_than (
-				check_result_builder,
-				self.space_ratio_warning,
-				self.space_ratio_critical,
-				& format! (
-					"free space is {}",
-					checkhelper::display_data_size_ratio (
-						available_space,
-						total_space)),
-				available_space_ratio));
+		checkhelper::check_ratio_greater_than (
+			check_result_builder,
+			self.space_ratio_warning,
+			self.space_ratio_critical,
+			& format! (
+				"free space is {}",
+				checkhelper::display_data_size_ratio (
+					available_space,
+					total_space)),
+			available_space_ratio,
+		) ?;
 
 		Ok (())
 

@@ -10,57 +10,28 @@ use std::time;
 
 use logic::*;
 
-pub fn new (
-) -> Box <PluginProvider> {
+check! {
 
-	Box::new (
-		CheckAptProvider {},
-	)
+	new = new,
+	name = "check-apt",
+	prefix = "APT",
 
-}
+	provider = CheckAptProvider,
 
-struct CheckAptProvider {
-}
+	instance = CheckAptInstance {
 
-struct CheckAptInstance {
+		root_filesystem_prefix: String,
+		root_filesystem_path: String,
 
-	root_filesystem_prefix: String,
-	root_filesystem_path: String,
+		update_warning: Option <time::Duration>,
+		update_critical: Option <time::Duration>,
 
-	update_warning: Option <time::Duration>,
-	update_critical: Option <time::Duration>,
+		reboot_warning: Option <time::Duration>,
+		reboot_critical: Option <time::Duration>,
 
-	reboot_warning: Option <time::Duration>,
-	reboot_critical: Option <time::Duration>,
+	},
 
-}
-
-impl PluginProvider
-for CheckAptProvider {
-
-	fn name (
-		& self,
-	) -> & str {
-		"check-apt"
-	}
-
-	fn prefix (
-		& self,
-	) -> & str {
-		"APT"
-	}
-
-	fn build_options_spec (
-		& self,
-	) -> getopts::Options {
-
-		let mut options_spec =
-			getopts::Options::new ();
-
-		options_spec.optflag (
-			"",
-			"help",
-			"print this help menu");
+	options_spec = |options_spec| {
 
 		options_spec.optopt (
 			"",
@@ -92,15 +63,9 @@ for CheckAptProvider {
 			"reboot recommendation critical threshold in hours",
 			"HOURS");
 
-		options_spec
+	},
 
-	}
-
-	fn new_instance (
-		& self,
-		_options_spec: & getopts::Options,
-		options_matches: & getopts::Matches,
-	) -> Result <Box <PluginInstance>, Box <error::Error>> {
+	options_parse = |options_matches| {
 
 		let root_filesystem_prefix =
 			options_matches.opt_str (
@@ -113,49 +78,46 @@ for CheckAptProvider {
 			).unwrap_or ("/".to_string ());
 
 		let update_warning =
-			try! (
-				arghelper::parse_duration (
-					options_matches,
-					"update-warning"));
+			arghelper::parse_duration (
+				options_matches,
+				"update-warning",
+			) ?;
 
 		let update_critical =
-			try! (
-				arghelper::parse_duration (
-					options_matches,
-					"update-critical"));
+			arghelper::parse_duration (
+				options_matches,
+				"update-critical",
+			) ?;
 
 		let reboot_warning =
-			try! (
-				arghelper::parse_duration (
-					options_matches,
-					"reboot-warning"));
+			arghelper::parse_duration (
+				options_matches,
+				"reboot-warning",
+			) ?;
 
 		let reboot_critical =
-			try! (
-				arghelper::parse_duration (
-					options_matches,
-					"reboot-critical"));
+			arghelper::parse_duration (
+				options_matches,
+				"reboot-critical",
+			) ?;
 
-		return Ok (Box::new (
+		CheckAptInstance {
 
-			CheckAptInstance {
+			root_filesystem_prefix: root_filesystem_prefix,
+			root_filesystem_path: root_filesystem_path,
 
-				root_filesystem_prefix: root_filesystem_prefix,
-				root_filesystem_path: root_filesystem_path,
+			update_warning: update_warning,
+			update_critical: update_critical,
 
-				update_warning: update_warning,
-				update_critical: update_critical,
+			reboot_warning: reboot_warning,
+			reboot_critical: reboot_critical,
 
-				reboot_warning: reboot_warning,
-				reboot_critical: reboot_critical,
+		}
 
-			}
-
-		));
-
-	}
+	},
 
 }
+
 
 impl PluginInstance
 for CheckAptInstance {
@@ -169,9 +131,9 @@ for CheckAptInstance {
 			CheckResultBuilder::new ();
 
 		let root_filesystem_exists =
-			try! (
-				self.check_root_filesystem (
-					& mut check_result_builder));
+			self.check_root_filesystem (
+				& mut check_result_builder,
+			) ?;
 
 		if root_filesystem_exists {
 
@@ -279,9 +241,9 @@ impl CheckAptInstance {
 				"{}/var/lib/apt/periodic/update-success-stamp",
 				self.root_filesystem_prefix);
 
-		match try! (
-			file_age_if_exists (
-				update_success_stamp_path.as_str ())) {
+		match file_age_if_exists (
+			update_success_stamp_path.as_str (),
+		) ? {
 
 			Some (elapsed) => {
 
@@ -370,9 +332,9 @@ impl CheckAptInstance {
 				"{}/var/run/reboot-required",
 				self.root_filesystem_prefix);
 
-		match try! (
-			file_age_if_exists (
-				reboot_required_path.as_str ())) {
+		match file_age_if_exists (
+			reboot_required_path.as_str (),
+		) ? {
 
 			Some (elapsed_duration) => {
 
@@ -433,21 +395,20 @@ impl CheckAptInstance {
 		check_result_builder: & mut CheckResultBuilder,
 	) -> Result <(), Box <error::Error>> {
 
-		try! (
-			aptc::configuration_set_string (
-				"Dir",
-				& self.root_filesystem_path));
+		aptc::configuration_set_string (
+			"Dir",
+			& self.root_filesystem_path,
+		) ?;
 
-		try! (
-			aptc::configuration_set_string (
-				"Dir::State::Status",
-				format! (
-					"{}/var/lib/dpkg/status",
-					self.root_filesystem_path)));
+		aptc::configuration_set_string (
+			"Dir::State::Status",
+			format! (
+				"{}/var/lib/dpkg/status",
+				self.root_filesystem_path),
+		) ?;
 
 		let summary =
-			try! (
-				aptc::upgrade_summary_get ());
+			aptc::upgrade_summary_get () ?;
 
 		let total =
 			summary.upgrade +
@@ -526,34 +487,33 @@ impl CheckAptInstance {
 		let mut extra_files: Vec <String> =
 			vec! [];
 
-		try! (
-			self.check_apt_cache_directory (
-				check_result_builder,
-				& mut extra_files,
-				"/var/cache/apt",
-				& vec! [
-					"apt-file".to_string (),
-					"archives".to_string (),
-					"pkgcache.bin".to_string (),
-					"srcpkgcache.bin".to_string (),
-				]));
+		self.check_apt_cache_directory (
+			check_result_builder,
+			& mut extra_files,
+			"/var/cache/apt",
+			& vec! [
+				"apt-file".to_string (),
+				"archives".to_string (),
+				"pkgcache.bin".to_string (),
+				"srcpkgcache.bin".to_string (),
+			]) ?;
 
-		try! (
-			self.check_apt_cache_directory (
-				check_result_builder,
-				& mut extra_files,
-				"/var/cache/apt/archives",
-				& vec! [
-					"lock".to_string (),
-					"partial".to_string (),
-				]));
+		self.check_apt_cache_directory (
+			check_result_builder,
+			& mut extra_files,
+			"/var/cache/apt/archives",
+			& vec! [
+				"lock".to_string (),
+				"partial".to_string (),
+			],
+		) ?;
 
-		try! (
-			self.check_apt_cache_directory (
-				check_result_builder,
-				& mut extra_files,
-				"/var/cache/apt/archives/partial",
-				& vec! []));
+		self.check_apt_cache_directory (
+			check_result_builder,
+			& mut extra_files,
+			"/var/cache/apt/archives/partial",
+			& vec! [],
+		) ?;
 
 		if ! extra_files.is_empty () {
 
@@ -599,9 +559,9 @@ impl CheckAptInstance {
 				directory_name);
 
 		for entry_result in
-			try! (
-				fs::read_dir (
-					full_directory_name)) {
+			fs::read_dir (
+				full_directory_name,
+			) ? {
 
 			match entry_result {
 
@@ -687,9 +647,9 @@ fn file_age_if_exists (
 			0);
 
 	let elapsed_duration =
-		try! (
-			time::SystemTime::now ().duration_since (
-				timestamp));
+		time::SystemTime::now ().duration_since (
+			timestamp,
+		) ?;
 
 	Ok (Some (
 		elapsed_duration))
@@ -717,14 +677,14 @@ mod aptc {
 	) -> Result <(), Box <error::Error>> {
 
 		let name =
-			try! (
-				ffi::CString::new (
-					name_as_str.as_ref ()));
+			ffi::CString::new (
+				name_as_str.as_ref (),
+			) ?;
 
 		let value =
-			try! (
-				ffi::CString::new (
-					value_as_str.as_ref ()));
+			ffi::CString::new (
+				value_as_str.as_ref (),
+			) ?;
 
 		unsafe {
 

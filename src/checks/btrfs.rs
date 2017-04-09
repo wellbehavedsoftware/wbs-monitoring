@@ -7,88 +7,28 @@ use logic::*;
 use lowlevel;
 use btrfs;
 
-pub fn new (
-) -> Box <PluginProvider> {
+check! {
 
-	Box::new (
-		CheckBtrfsProvider {},
-	)
+	new = new,
+	name = "check-btrfs",
+	prefix = "BTRFS",
 
-}
+	provider = CheckBtrfsProvider,
 
-struct CheckBtrfsProvider {
-}
+	instance = CheckBtrfsInstance {
 
-#[ derive (Clone, Copy, Debug) ]
-enum SpaceRatioRaidLevel {
-	None,
-	Raid1,
-	Raid5,
-	Raid6,
-	Raid10,
-}
+		path: String,
 
-impl arghelper::EnumArg for SpaceRatioRaidLevel {
+		space_ratio_warning: Option <f64>,
+		space_ratio_critical: Option <f64>,
+		space_ratio_raid_level: Option <SpaceRatioRaidLevel>,
 
-	fn from_string (
-		string_value: & str,
-	) -> Option <SpaceRatioRaidLevel> {
+		balance_ratio_warning: Option <f64>,
+		balance_ratio_critical: Option <f64>,
 
-		match string_value {
+	},
 
-			"none" => Some (SpaceRatioRaidLevel::None),
-			"raid1" => Some (SpaceRatioRaidLevel::Raid1),
-			"raid5" => Some (SpaceRatioRaidLevel::Raid5),
-			"raid6" => Some (SpaceRatioRaidLevel::Raid6),
-			"raid10" => Some (SpaceRatioRaidLevel::Raid10),
-
-			_ => None,
-
-		}
-
-	}
-
-}
-
-struct CheckBtrfsInstance {
-
-	path: String,
-
-	space_ratio_warning: Option <f64>,
-	space_ratio_critical: Option <f64>,
-	space_ratio_raid_level: Option <SpaceRatioRaidLevel>,
-
-	balance_ratio_warning: Option <f64>,
-	balance_ratio_critical: Option <f64>,
-
-}
-
-impl PluginProvider
-for CheckBtrfsProvider {
-
-	fn name (
-		& self,
-	) -> & str {
-		"check-btrfs"
-	}
-
-	fn prefix (
-		& self,
-	) -> & str {
-		"BTRFS"
-	}
-
-	fn build_options_spec (
-		& self,
-	) -> getopts::Options {
-
-		let mut options_spec =
-			getopts::Options::new ();
-
-		options_spec.optflag (
-			"",
-			"help",
-			"print this help menu");
+	options_spec = |options_spec| {
 
 		// path
 
@@ -132,17 +72,9 @@ for CheckBtrfsProvider {
 			"block balance critical threshold",
 			"RATIO");
 
-		// return
+	},
 
-		options_spec
-
-	}
-
-	fn new_instance (
-		& self,
-		_options_spec: & getopts::Options,
-		options_matches: & getopts::Matches,
-	) -> Result <Box <PluginInstance>, Box <error::Error>> {
+	options_parse = |options_matches| {
 
 		// path
 
@@ -187,22 +119,49 @@ for CheckBtrfsProvider {
 
 		// return
 
-		Ok (Box::new (
+		CheckBtrfsInstance {
 
-			CheckBtrfsInstance {
+			path: path,
 
-				path: path,
+			space_ratio_warning: space_ratio_warning,
+			space_ratio_critical: space_ratio_critical,
+			space_ratio_raid_level: space_ratio_raid_level,
 
-				space_ratio_warning: space_ratio_warning,
-				space_ratio_critical: space_ratio_critical,
-				space_ratio_raid_level: space_ratio_raid_level,
+			balance_ratio_warning: balance_ratio_warning,
+			balance_ratio_critical: balance_ratio_critical,
 
-				balance_ratio_warning: balance_ratio_warning,
-				balance_ratio_critical: balance_ratio_critical,
+		}
 
-			}
+	},
 
-		))
+}
+
+#[ derive (Clone, Copy, Debug) ]
+enum SpaceRatioRaidLevel {
+	None,
+	Raid1,
+	Raid5,
+	Raid6,
+	Raid10,
+}
+
+impl arghelper::EnumArg for SpaceRatioRaidLevel {
+
+	fn from_string (
+		string_value: & str,
+	) -> Option <SpaceRatioRaidLevel> {
+
+		match string_value {
+
+			"none" => Some (SpaceRatioRaidLevel::None),
+			"raid1" => Some (SpaceRatioRaidLevel::Raid1),
+			"raid5" => Some (SpaceRatioRaidLevel::Raid5),
+			"raid6" => Some (SpaceRatioRaidLevel::Raid6),
+			"raid10" => Some (SpaceRatioRaidLevel::Raid10),
+
+			_ => None,
+
+		}
 
 	}
 

@@ -11,59 +11,30 @@ use std::time::Duration;
 use logic::*;
 use logic::checkhelper::*;
 
-pub fn new (
-) -> Box <PluginProvider> {
+check! {
 
-	Box::new (
-		CheckSnapshotsProvider {},
-	)
+	new = new,
+	name = "check-snapshots",
+	prefix = "SNAPSHOTS",
 
-}
+	provider = CheckSnapshotsProvider,
 
-struct CheckSnapshotsProvider {
-}
+	instance = CheckSnapshotsInstance {
 
-struct CheckSnapshotsInstance {
+		warning_time: Option <Duration>,
+		critical_time: Option <Duration>,
 
-	warning_time: Option <Duration>,
-	critical_time: Option <Duration>,
+		local_pattern: Option <String>,
+		local_warning_time: Option <Duration>,
+		local_critical_time: Option <Duration>,
 
-	local_pattern: Option <String>,
-	local_warning_time: Option <Duration>,
-	local_critical_time: Option <Duration>,
+		archive_pattern: Option <String>,
+		archive_warning_time: Option <Duration>,
+		archive_critical_time: Option <Duration>,
 
-	archive_pattern: Option <String>,
-	archive_warning_time: Option <Duration>,
-	archive_critical_time: Option <Duration>,
+	},
 
-}
-
-impl PluginProvider
-for CheckSnapshotsProvider {
-
-	fn name (
-		& self,
-	) -> & str {
-		"check-snapshots"
-	}
-
-	fn prefix (
-		& self,
-	) -> & str {
-		"SNAPSHOTS"
-	}
-
-	fn build_options_spec (
-		& self,
-	) -> getopts::Options {
-
-		let mut options_spec =
-			getopts::Options::new ();
-
-		options_spec.optflag (
-			"",
-			"help",
-			"print this help menu");
+	options_spec = |options_spec| {
 
 		// overall
 
@@ -119,17 +90,9 @@ for CheckSnapshotsProvider {
 			"maximum archive snapshot age before critical",
 			"DURATION");
 
-		// return
+	},
 
-		options_spec
-
-	}
-
-	fn new_instance (
-		& self,
-		_options_spec: & getopts::Options,
-		options_matches: & getopts::Matches,
-	) -> Result <Box <PluginInstance>, Box <error::Error>> {
+	options_parse = |options_matches| {
 
 		// overall
 
@@ -181,26 +144,22 @@ for CheckSnapshotsProvider {
 					options_matches,
 					"archive-critical"));
 
-		return Ok (Box::new (
+		CheckSnapshotsInstance {
 
-			CheckSnapshotsInstance {
+			warning_time: warning_time,
+			critical_time: critical_time,
 
-				warning_time: warning_time,
-				critical_time: critical_time,
+			local_pattern: local_pattern,
+			local_warning_time: local_warning_time,
+			local_critical_time: local_critical_time,
 
-				local_pattern: local_pattern,
-				local_warning_time: local_warning_time,
-				local_critical_time: local_critical_time,
+			archive_pattern: archive_pattern,
+			archive_warning_time: archive_warning_time,
+			archive_critical_time: archive_critical_time,
 
-				archive_pattern: archive_pattern,
-				archive_warning_time: archive_warning_time,
-				archive_critical_time: archive_critical_time,
+		}
 
-			}
-
-		));
-
-	}
+	},
 
 }
 

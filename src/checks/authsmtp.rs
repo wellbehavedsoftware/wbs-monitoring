@@ -8,6 +8,128 @@ use std::time;
 
 use logic::*;
 
+check! {
+
+	new = new,
+	name = "check-authsmtp",
+	prefix = "AUTHSMTP",
+
+	provider = CheckAuthsmtpProvider,
+
+	instance = CheckAuthsmtpInstance {
+
+		data_usage_warning: Option <f64>,
+		data_usage_critical: Option <f64>,
+
+		message_usage_warning: Option <f64>,
+		message_usage_critical: Option <f64>,
+
+		api_username: String,
+		api_password: String,
+
+	},
+
+	options_spec = |options_spec| {
+
+		options_spec.optopt (
+			"",
+			"data-usage-warning",
+			"data usage warning level",
+			"FRACTION");
+
+		options_spec.optopt (
+			"",
+			"data-usage-critical",
+			"data usage critical level",
+			"FRACTION");
+
+		options_spec.optopt (
+			"",
+			"message-usage-warning",
+			"message usage warning level",
+			"FRACTION");
+
+		options_spec.optopt (
+			"",
+			"message-usage-critical",
+			"message usage critical level",
+			"FRACTION");
+
+		options_spec.reqopt (
+			"",
+			"api-username",
+			"AuthSMTP API username",
+			"USER");
+
+		options_spec.reqopt (
+			"",
+			"api-password",
+			"AuthSMTP API password",
+			"PASS");
+
+	},
+
+	options_parse = |options_matches| {
+
+		// data usage
+
+		let data_usage_warning =
+			arghelper::parse_decimal_fraction (
+				options_matches,
+				"data-usage-warning",
+			) ?;
+
+		let data_usage_critical =
+			arghelper::parse_decimal_fraction (
+				options_matches,
+				"data-usage-critical",
+			) ?;
+
+		// message usage
+
+		let message_usage_warning =
+			arghelper::parse_decimal_fraction (
+				options_matches,
+				"message-usage-warning",
+			) ?;
+
+		let message_usage_critical =
+			arghelper::parse_decimal_fraction (
+				options_matches,
+				"message-usage-critical",
+			) ?;
+
+		// api credentials
+
+		let api_username =
+			options_matches.opt_str (
+				"api-username",
+			).unwrap ();
+
+		let api_password =
+			options_matches.opt_str (
+				"api-password",
+			).unwrap ();
+
+		// return
+
+		CheckAuthsmtpInstance {
+
+			data_usage_warning: data_usage_warning,
+			data_usage_critical: data_usage_critical,
+
+			message_usage_warning: message_usage_warning,
+			message_usage_critical: message_usage_critical,
+
+			api_username: api_username,
+			api_password: api_password,
+
+		}
+
+	},
+
+}
+
 macro_rules! xml_child_element {
 
 	(
@@ -84,171 +206,11 @@ macro_rules! xml_child_element_u64 {
 
 }
 
-
-pub fn new (
-) -> Box <PluginProvider> {
-
-	Box::new (
-		CheckAuthsmtpProvider {},
-	)
-
-}
-
-struct CheckAuthsmtpProvider {
-}
-
-struct CheckAuthsmtpInstance {
-
-	data_usage_warning: Option <f64>,
-	data_usage_critical: Option <f64>,
-
-	message_usage_warning: Option <f64>,
-	message_usage_critical: Option <f64>,
-
-	api_username: String,
-	api_password: String,
-
-}
-
 struct BasicUserResult {
 	messages_limit: u64,
 	data_limit: u64,
 	messages_sent: u64,
 	data_sent: u64,
-}
-
-impl PluginProvider
-for CheckAuthsmtpProvider {
-
-	fn name (
-		& self,
-	) -> & str {
-		"check-authsmtp"
-	}
-
-	fn prefix (
-		& self,
-	) -> & str {
-		"AUTHSMTP"
-	}
-
-	fn build_options_spec (
-		& self,
-	) -> getopts::Options {
-
-		let mut options_spec =
-			getopts::Options::new ();
-
-		options_spec.optflag (
-			"",
-			"help",
-			"print this help menu");
-
-		options_spec.optopt (
-			"",
-			"data-usage-warning",
-			"data usage warning level",
-			"FRACTION");
-
-		options_spec.optopt (
-			"",
-			"data-usage-critical",
-			"data usage critical level",
-			"FRACTION");
-
-		options_spec.optopt (
-			"",
-			"message-usage-warning",
-			"message usage warning level",
-			"FRACTION");
-
-		options_spec.optopt (
-			"",
-			"message-usage-critical",
-			"message usage critical level",
-			"FRACTION");
-
-		options_spec.reqopt (
-			"",
-			"api-username",
-			"AuthSMTP API username",
-			"USER");
-
-		options_spec.reqopt (
-			"",
-			"api-password",
-			"AuthSMTP API password",
-			"PASS");
-
-		options_spec
-
-	}
-
-	fn new_instance (
-		& self,
-		_options_spec: & getopts::Options,
-		options_matches: & getopts::Matches,
-	) -> Result <Box <PluginInstance>, Box <error::Error>> {
-
-		// data usage
-
-		let data_usage_warning =
-			try! (
-				arghelper::parse_decimal_fraction (
-					options_matches,
-					"data-usage-warning"));
-
-		let data_usage_critical =
-			try! (
-				arghelper::parse_decimal_fraction (
-					options_matches,
-					"data-usage-critical"));
-
-		// message usage
-
-		let message_usage_warning =
-			try! (
-				arghelper::parse_decimal_fraction (
-					options_matches,
-					"message-usage-warning"));
-
-		let message_usage_critical =
-			try! (
-				arghelper::parse_decimal_fraction (
-					options_matches,
-					"message-usage-critical"));
-
-		// api credentials
-
-		let api_username =
-			options_matches.opt_str (
-				"api-username",
-			).unwrap ();
-
-		let api_password =
-			options_matches.opt_str (
-				"api-password",
-			).unwrap ();
-
-		return Ok (Box::new (
-
-			CheckAuthsmtpInstance {
-
-				data_usage_warning: data_usage_warning,
-				data_usage_critical: data_usage_critical,
-
-				message_usage_warning: message_usage_warning,
-				message_usage_critical: message_usage_critical,
-
-				api_username: api_username,
-				api_password: api_password,
-
-			}
-
-		));
-
-	}
-
 }
 
 impl PluginInstance
@@ -263,29 +225,28 @@ for CheckAuthsmtpInstance {
 			CheckResultBuilder::new ();
 
 		let (result_string, result_element) =
-			try! (
-				self.make_api_call ());
+			self.make_api_call () ?;
 
 		let basic_user_result_option =
-			try! (
-				self.interpret_result (
-					& mut check_result_builder,
-					& result_element));
+			self.interpret_result (
+				& mut check_result_builder,
+				& result_element,
+			) ?;
 
 		if basic_user_result_option.is_some () {
 
 			let basic_user_result =
 				basic_user_result_option.unwrap ();
 
-			try! (
-				self.check_messages_result (
-					& mut check_result_builder,
-					& basic_user_result));
+			self.check_messages_result (
+				& mut check_result_builder,
+				& basic_user_result,
+			) ?;
 
-			try! (
-				self.check_data_result (
-					& mut check_result_builder,
-					& basic_user_result));
+			self.check_data_result (
+				& mut check_result_builder,
+				& basic_user_result,
+			) ?;
 
 		}
 
@@ -313,31 +274,31 @@ impl CheckAuthsmtpInstance {
 		let mut curl_easy =
 			curl::easy::Easy::new ();
 
-		try! (
-			curl_easy.url (
-				& format! (
-					"https://secure.authsmtp.com/restful/basic_user/{}",
-					self.api_username)));
+		curl_easy.url (
+			& format! (
+				"https://secure.authsmtp.com/restful/basic_user/{}",
+				self.api_username),
+			) ?;
 
-		try! (
-			curl_easy.connect_timeout (
-				time::Duration::from_secs (3)));
+		curl_easy.connect_timeout (
+			time::Duration::from_secs (3),
+		) ?;
 
-		try! (
-			curl_easy.follow_location (
-				true));
+		curl_easy.follow_location (
+			true,
+		) ?;
 
-		try! (
-			curl_easy.username (
-				self.api_username.as_str ()));
+		curl_easy.username (
+			self.api_username.as_str (),
+		) ?;
 
-		try! (
-			curl_easy.password (
-				self.api_password.as_str ()));
+		curl_easy.password (
+			self.api_password.as_str (),
+		) ?;
 
-		try! (
-			curl_easy.get (
-				true));
+		curl_easy.get (
+			true,
+		) ?;
 
 		// make the call
 
@@ -349,25 +310,22 @@ impl CheckAuthsmtpInstance {
 			let mut curl_transfer =
 				curl_easy.transfer ();
 
-			try! (
-				curl_transfer.write_function (
-					|data| {
+			curl_transfer.write_function (
+				|data| {
 
 				response_buffer.extend_from_slice (
 					data);
 
 				Ok (data.len ())
 
-			}));
+			}) ?;
 
-			try! (
-				curl_transfer.perform ());
+			curl_transfer.perform () ?;
 
 		}
 
 		let response_code =
-			try! (
-				curl_easy.response_code ());
+			curl_easy.response_code () ?;
 
 		if response_code != 200 {
 
@@ -387,9 +345,9 @@ impl CheckAuthsmtpInstance {
 			xml::Parser::new ();
 
 		let response_body =
-			try! (
-				String::from_utf8 (
-					response_buffer));
+			String::from_utf8 (
+				response_buffer,
+			) ?;
 
 		xml_parser.feed_str (
 			response_body.as_str ());
@@ -406,8 +364,7 @@ impl CheckAuthsmtpInstance {
 			return Ok (
 				(
 					response_body,
-					try! (
-						xml_result),
+					xml_result ?,
 				)
 			);
 
