@@ -222,34 +222,15 @@ check! {
 
 	},
 
-}
-
-impl PluginInstance
-for CheckHttpInstance {
-
-	fn perform_check (
-		& self,
-		plugin_provider: & PluginProvider,
-	) -> Result <CheckResult, Box <error::Error>> {
-
-		let mut check_result_builder =
-			CheckResultBuilder::new ();
+	perform = |self, plugin_provider, check_result_builder| {
 
 		// perform http request
 
-		try! (
-			self.check_http (
-				& mut check_result_builder));
+		self.check_http (
+			& mut check_result_builder,
+		) ?;
 
-		// return
-
-		Ok (
-			check_result_builder.into_check_result (
-				plugin_provider,
-			)
-		)
-
-	}
+	},
 
 }
 

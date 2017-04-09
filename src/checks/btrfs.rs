@@ -134,6 +134,30 @@ check! {
 
 	},
 
+	perform = |self, plugin_provider, check_result_builder| {
+
+		// open directory
+
+		let file_descriptor =
+			lowlevel::FileDescriptor::open (
+				& self.path,
+				libc::O_DIRECTORY,
+			) ?;
+
+		// perform checks
+
+		self.check_space_ratio (
+			& mut check_result_builder,
+			file_descriptor.get_value (),
+		) ?;
+
+		self.check_balance_ratio (
+			& mut check_result_builder,
+			file_descriptor.get_value (),
+		) ?;
+
+	},
+
 }
 
 #[ derive (Clone, Copy, Debug) ]
@@ -162,49 +186,6 @@ impl arghelper::EnumArg for SpaceRatioRaidLevel {
 			_ => None,
 
 		}
-
-	}
-
-}
-
-impl PluginInstance
-for CheckBtrfsInstance {
-
-	fn perform_check (
-		& self,
-		plugin_provider: & PluginProvider,
-	) -> Result <CheckResult, Box <error::Error>> {
-
-		let mut check_result_builder =
-			CheckResultBuilder::new ();
-
-		// open directory
-
-		let file_descriptor =
-			lowlevel::FileDescriptor::open (
-				& self.path,
-				libc::O_DIRECTORY,
-			) ?;
-
-		// perform checks
-
-		self.check_space_ratio (
-			& mut check_result_builder,
-			file_descriptor.get_value (),
-		) ?;
-
-		self.check_balance_ratio (
-			& mut check_result_builder,
-			file_descriptor.get_value (),
-		) ?;
-
-		// return
-
-		Ok (
-			check_result_builder.into_check_result (
-				plugin_provider,
-			)
-		)
 
 	}
 

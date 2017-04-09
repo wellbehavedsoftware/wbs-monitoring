@@ -161,18 +161,7 @@ check! {
 
 	},
 
-}
-
-impl PluginInstance
-for CheckSnapshotsInstance {
-
-	fn perform_check (
-		& self,
-		plugin_provider: & PluginProvider,
-	) -> Result <CheckResult, Box <error::Error>> {
-
-		let mut check_result_builder =
-			CheckResultBuilder::new ();
+	perform = |self, plugin_provider, check_result_builder| {
 
 		let now =
 			time::now ();
@@ -331,15 +320,7 @@ for CheckSnapshotsInstance {
 
 		}
 
-		// return
-
-		Ok (
-			check_result_builder.into_check_result (
-				plugin_provider,
-			)
-		)
-
-	}
+	},
 
 }
 

@@ -21,6 +21,14 @@ macro_rules! check {
 			$ ( $ options_parse_definition : tt ) *
 		},
 
+		perform = |
+			$ perform_self : ident,
+			$ perform_plugin_provider : ident,
+			$ perform_check_result_builder: ident
+		| {
+			$ ( $ perform_definition : tt ) *
+		},
+
 	) => {
 
 		pub fn $ new (
@@ -77,6 +85,29 @@ macro_rules! check {
 				Ok (Box::new ({
 					$ ( $ options_parse_definition ) *
 				}))
+
+			}
+
+		}
+
+		impl PluginInstance
+		for $ instance {
+
+			fn perform_check (
+				& $ perform_self,
+				$ perform_plugin_provider : & PluginProvider,
+			) -> Result <CheckResult, Box <error::Error>> {
+
+				let mut $ perform_check_result_builder =
+					CheckResultBuilder::new ();
+
+				$ ( $ perform_definition ) *
+
+				Ok (
+					$ perform_check_result_builder.into_check_result (
+						$ perform_plugin_provider,
+					)
+				)
 
 			}
 

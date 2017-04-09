@@ -82,18 +82,7 @@ check! {
 
 	},
 
-}
-
-impl PluginInstance
-for CheckDiskSpaceInstance {
-
-	fn perform_check (
-		& self,
-		plugin_provider: & PluginProvider,
-	) -> Result <CheckResult, Box <error::Error>> {
-
-		let mut check_result_builder =
-			CheckResultBuilder::new ();
+	perform = |self, plugin_provider, check_result_builder| {
 
 		let path_c =
 			ffi::CString::new (
@@ -128,13 +117,7 @@ for CheckDiskSpaceInstance {
 
 		}
 
-		Ok (
-			check_result_builder.into_check_result (
-				plugin_provider,
-			)
-		)
-
-	}
+	},
 
 }
 

@@ -128,6 +128,39 @@ check! {
 
 	},
 
+	perform = |self, plugin_provider, check_result_builder| {
+
+		let (result_string, result_element) =
+			self.make_api_call () ?;
+
+		let basic_user_result_option =
+			self.interpret_result (
+				& mut check_result_builder,
+				& result_element,
+			) ?;
+
+		if basic_user_result_option.is_some () {
+
+			let basic_user_result =
+				basic_user_result_option.unwrap ();
+
+			self.check_messages_result (
+				& mut check_result_builder,
+				& basic_user_result,
+			) ?;
+
+			self.check_data_result (
+				& mut check_result_builder,
+				& basic_user_result,
+			) ?;
+
+		}
+
+		check_result_builder.extra_information (
+			result_string);
+
+	},
+
 }
 
 macro_rules! xml_child_element {
@@ -211,56 +244,6 @@ struct BasicUserResult {
 	data_limit: u64,
 	messages_sent: u64,
 	data_sent: u64,
-}
-
-impl PluginInstance
-for CheckAuthsmtpInstance {
-
-	fn perform_check (
-		& self,
-		plugin_provider: & PluginProvider,
-	) -> Result <CheckResult, Box <error::Error>> {
-
-		let mut check_result_builder =
-			CheckResultBuilder::new ();
-
-		let (result_string, result_element) =
-			self.make_api_call () ?;
-
-		let basic_user_result_option =
-			self.interpret_result (
-				& mut check_result_builder,
-				& result_element,
-			) ?;
-
-		if basic_user_result_option.is_some () {
-
-			let basic_user_result =
-				basic_user_result_option.unwrap ();
-
-			self.check_messages_result (
-				& mut check_result_builder,
-				& basic_user_result,
-			) ?;
-
-			self.check_data_result (
-				& mut check_result_builder,
-				& basic_user_result,
-			) ?;
-
-		}
-
-		check_result_builder.extra_information (
-			result_string);
-
-		let check_result =
-			check_result_builder.into_check_result (
-				plugin_provider);
-
-		Ok (check_result)
-
-	}
-
 }
 
 impl CheckAuthsmtpInstance {
