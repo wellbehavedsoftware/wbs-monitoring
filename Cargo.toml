@@ -1,17 +1,24 @@
 [package]
-name = "WBS Monitoring"
-version = "1.7.1"
-authors = [
-	"James Pharaoh <james@wellbehavedsoftware.com>",
-	"Jose Luis <joseluis@wellbehavedsoftware.com>"
-]
-build = "build.rs"
+
+	name = "WBS Monitoring"
+	description = "Collection of Icinga/Nagios plugins"
+	version = "1.7.1"
+
+	license = "BSD-3-Clause"
+
+	authors = [
+		"James Pharaoh <james@pharaoh.uk>",
+		"José Luis <joseluis@wellbehavedsoftware.com>"
+	]
+
+	build = "build.rs"
 
 # ---------- core library
 
 [lib]
-name = "wbsmonitoring"
-path = "src/lib.rs"
+
+	name = "wbsmonitoring"
+	path = "src/lib.rs"
 
 # ---------- wrappers
 
@@ -115,38 +122,33 @@ path = "src/legacy/check_git.rs"
 
 # ---------- dependencies
 
-[dependencies.btrfs]
-version = "*"
+[dependencies]
 
-[dependencies.chrono]
-version = "*"
+	btrfs = "*"
+	curl = "*"
+	getopts = "*"
+	git2 = "*"
+	glob = "*"
+	libc = "*"
+	regex = "*"
+	RustyXML = "*"
+	serde_json = "*"
+	systemd-jp = "*"
+	time = "*"
+	uuid = "*"
 
-[dependencies.curl]
-version = "*"
+# ---------- build profiles
 
-[dependencies.getopts]
-version = "*"
+[profile.dev]
 
-[dependencies.git2]
-version = "*"
+	opt-level = 0
+	debug = true
+	lto = false
 
-[dependencies.glob]
-version = "*"
+[profile.release]
 
-[dependencies.libc]
-version = "*"
+	opt-level = 3
+	debug = false
+	lto = true
 
-[dependencies.regex]
-version = "*"
-
-[dependencies.RustyXML]
-version = "*"
-
-[dependencies.serde_json]
-version = "*"
-
-[dependencies.time]
-version = "*"
-
-[dependencies.uuid]
-version = "*"
+# ex: noet ts=4 filetype=toml

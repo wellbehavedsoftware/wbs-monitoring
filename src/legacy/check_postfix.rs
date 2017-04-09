@@ -1,12 +1,11 @@
-//Rust file
 extern crate getopts;
-extern crate chrono;
+extern crate time;
+
+use std::env;
+use std::option::Option;
+use std::process;
 
 use getopts::Options;
-use std::env;
-use std::process;
-use std::option::{ Option };
-use chrono::*;
 
 fn print_usage (program: &str, opts: Options) {
 	let brief = format!("Usage: {} [options]", program);
@@ -274,8 +273,11 @@ fn get_mailq_output(rootfs: &str) -> String {
 
 fn check_emails_age (mailq_data: String, max_age: i32) -> String {
 
-	let now = UTC::now();
-	let mailq_lines: Vec<&str> = mailq_data.split('\n').collect();
+	let now = time::now ();
+
+	let mailq_lines: Vec <& str> =
+		mailq_data.split ('\n').collect ();
+
 	let mut index = 1;
 
 	let mut warnings: i32 = 0;
@@ -291,13 +293,26 @@ fn check_emails_age (mailq_data: String, max_age: i32) -> String {
 		while mailq_line_tokens[i].is_empty() { i = i + 1; }
 		i = i + 1;
 
-		let date_string = format!("{} {} {} {}", mailq_line_tokens[i], mailq_line_tokens[i+1], mailq_line_tokens[i+2], mailq_line_tokens[i+3]);
+		let date_string =
+			format! (
+				"{} {} {} {}",
+				mailq_line_tokens [i],
+				mailq_line_tokens [i + 1],
+				mailq_line_tokens [i + 2],
+				mailq_line_tokens [i + 3]);
 
 		// add year to datetime in order to perform arithmetic operations
 
-		let mut complete_date = format!("{} {}", date_string, now.year());
+		let mut complete_date =
+			format! (
+				"{} {}",
+				date_string,
+				now.tm_year);
 
-		let date_object = UTC.datetime_from_str(&complete_date, "%a %b %e %T %Y");
+		let date_object =
+			time::strptime (
+				& complete_date,
+				"%a %b %e %T %Y");
 
 		let date = match date_object {
 
@@ -306,9 +321,19 @@ fn check_emails_age (mailq_data: String, max_age: i32) -> String {
 
 				// fix the problem if the resultin datetime is from the future
 
-				complete_date = format!("{} {}", date_string, now.year() - 1);
-				UTC.datetime_from_str(&complete_date, "%a %b %e %T %Y").unwrap()
+				complete_date =
+					format! (
+						"{} {}",
+						date_string,
+						now.tm_year - 1);
+
+				time::strptime (
+					& complete_date,
+					"%a %b %e %T %Y",
+				).unwrap ()
+
 			}
+
 		};
 
 		let date_dif = now - date;
@@ -340,8 +365,9 @@ fn check_emails_age (mailq_data: String, max_age: i32) -> String {
 
 fn check_emails_per_hour (mailq_data: String, max_quota: i32) -> String {
 
+	let now =
+		time::now ();
 
-	let now = UTC::now();
 	let mailq_lines: Vec<&str> = mailq_data.split('\n').collect();
 	let mut index = 1;
 
@@ -362,9 +388,16 @@ fn check_emails_per_hour (mailq_data: String, max_quota: i32) -> String {
 
 		// add year to datetime in order to perform arithmetic operations
 
-		let mut complete_date = format!("{} {}", date_string, now.year());
+		let mut complete_date =
+			format! (
+				"{} {}",
+				date_string,
+				now.tm_year);
 
-		let date_object = UTC.datetime_from_str(&complete_date, "%a %b %e %T %Y");
+		let date_object =
+			time::strptime (
+				& complete_date,
+				"%a %b %e %T %Y");
 
 		let date = match date_object {
 
@@ -373,9 +406,19 @@ fn check_emails_per_hour (mailq_data: String, max_quota: i32) -> String {
 
 				// fix the problem if the resultin datetime is from the future
 
-				complete_date = format!("{} {}", date_string, now.year() - 1);
-				UTC.datetime_from_str(&complete_date, "%a %b %e %T %Y").unwrap()
+				complete_date =
+					format! (
+						"{} {}",
+						date_string,
+						now.tm_year - 1);
+
+				time::strptime (
+					& complete_date,
+					"%a %b %e %T %Y",
+				).unwrap ()
+
 			}
+
 		};
 
 		let date_dif = now - date;

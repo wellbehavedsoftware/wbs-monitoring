@@ -349,12 +349,16 @@ for CheckSnapshotsInstance {
 
 		} else {
 
-			if self.critical_time.is_some () {
+			if self.critical_time.is_some ()
+			|| self.local_critical_time.is_some ()
+			|| self.archive_critical_time.is_some () {
 
 				check_result_builder.critical (
 					"no snapshots (critical)");
 
-			} else if self.warning_time.is_some () {
+			} else if self.warning_time.is_some ()
+			|| self.local_warning_time.is_some ()
+			|| self.archive_warning_time.is_some () {
 
 				check_result_builder.warning (
 					"no snapshots (warning)");

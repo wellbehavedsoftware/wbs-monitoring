@@ -100,7 +100,7 @@ fn check_memory(warning_level: f64, critical_level: f64) -> String {
 		let re = Regex::new(&expression).unwrap();
 
 		for cap in re.captures_iter(&meminfo) {
-			let value = cap.at(1).unwrap_or("").trim();
+			let value = cap.get(1).map_or("", |m| m.as_str ()).trim();
 			let int_value: f64 = match value.parse() {
 				Ok(f64) => { f64 }
 				Err(e) => { return format!("MEMORY-UNKNOWN: Usage {} should be a number!", e); }

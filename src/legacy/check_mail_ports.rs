@@ -113,7 +113,7 @@ fn check_mail_ports(container_name: &str, service: &str) -> String {
 	let mut matches = 0;
 
 	for cap in re.captures_iter(&netstat) {
-		let capt = cap.at(1).unwrap_or("").trim();
+		let capt = cap.get(1).map_or("", |m| m.as_str ()).trim();
 		for port in port_list.clone() {
 			if capt.contains(port) { matches = matches + 1; }
 		}

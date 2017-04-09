@@ -135,7 +135,9 @@ fn check_cpu (warning_level: f64, critical_level: f64) -> String {
 
 	let mut stat: String = "".to_string ();
 
-	file.read_to_string (&mut stat);
+	file.read_to_string (
+		& mut stat,
+	).unwrap ();
 
 	let stat_lines: Vec<&str> =
 		stat.split ('\n').collect ();
@@ -198,7 +200,7 @@ fn check_cpu (warning_level: f64, critical_level: f64) -> String {
 		for cap in re.captures_iter (& stat) {
 
 			let value =
-				cap.at (1).unwrap_or ("").trim ();
+				cap.get (1).map_or ("", |m| m.as_str ()).trim ();
 
 			let int_value: f64 =
 				match value.parse () {

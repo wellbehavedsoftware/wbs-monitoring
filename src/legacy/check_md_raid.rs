@@ -127,7 +127,7 @@ fn check_md_raid (host_name: &str) -> String {
 	for cap in re.captures_iter (& md_raid) {
 
 	    md_raid_header =
-	    	cap.at (1).unwrap_or ("");
+	    	cap.get (1).map_or ("", |m| m.as_str ());
 
 	}
 
@@ -136,7 +136,7 @@ fn check_md_raid (host_name: &str) -> String {
 	for cap in re.captures_iter (& template) {
 
 	    template_header =
-	    	cap.at (1).unwrap_or ("");
+	    	cap.get (1).map_or ("", |m| m.as_str ());
 
 	}
 

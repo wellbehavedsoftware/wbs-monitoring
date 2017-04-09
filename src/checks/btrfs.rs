@@ -154,36 +154,36 @@ for CheckBtrfsProvider {
 		// space ratio
 
 		let space_ratio_warning =
-			try! (
-				arghelper::parse_decimal_fraction (
-					options_matches,
-					"space-ratio-warning"));
+			arghelper::parse_decimal_fraction (
+				options_matches,
+				"space-ratio-warning",
+			) ?;
 
 		let space_ratio_critical =
-			try! (
-				arghelper::parse_decimal_fraction (
-					options_matches,
-					"space-ratio-critical"));
+			arghelper::parse_decimal_fraction (
+				options_matches,
+				"space-ratio-critical",
+			) ?;
 
 		let space_ratio_raid_level =
-			try! (
-				arghelper::parse_enum (
-					options_matches,
-					"space-ratio-raid-level"));
+			arghelper::parse_enum (
+				options_matches,
+				"space-ratio-raid-level",
+			) ?;
 
 		// balance ratio
 
 		let balance_ratio_warning =
-			try! (
-				arghelper::parse_decimal_fraction (
-					options_matches,
-					"balance-ratio-warning"));
+			arghelper::parse_decimal_fraction (
+				options_matches,
+				"balance-ratio-warning",
+			) ?;
 
 		let balance_ratio_critical =
-			try! (
-				arghelper::parse_decimal_fraction (
-					options_matches,
-					"balance-ratio-critical"));
+			arghelper::parse_decimal_fraction (
+				options_matches,
+				"balance-ratio-critical",
+			) ?;
 
 		// return
 
@@ -222,22 +222,22 @@ for CheckBtrfsInstance {
 		// open directory
 
 		let file_descriptor =
-			try! (
-				lowlevel::FileDescriptor::open (
-					& self.path,
-					libc::O_DIRECTORY));
+			lowlevel::FileDescriptor::open (
+				& self.path,
+				libc::O_DIRECTORY,
+			) ?;
 
 		// perform checks
 
-		try! (
-			self.check_space_ratio (
-				& mut check_result_builder,
-				file_descriptor.get_value ()));
+		self.check_space_ratio (
+			& mut check_result_builder,
+			file_descriptor.get_value (),
+		) ?;
 
-		try! (
-			self.check_balance_ratio (
-				& mut check_result_builder,
-				file_descriptor.get_value ()));
+		self.check_balance_ratio (
+			& mut check_result_builder,
+			file_descriptor.get_value (),
+		) ?;
 
 		// return
 
@@ -260,53 +260,44 @@ impl CheckBtrfsInstance {
 	) -> Result <(), Box <error::Error>> {
 
 		let filesystem_info =
-			try! (
-				btrfs::get_filesystem_info (
-					file_descriptor));
+			btrfs::get_filesystem_info (
+				file_descriptor,
+			) ?;
 
 		let device_infos: Vec <btrfs::DeviceInfo> =
-			try! (
-				btrfs::get_device_infos (
-					file_descriptor,
-					& filesystem_info));
+			btrfs::get_device_infos (
+				file_descriptor,
+				& filesystem_info,
+			) ?;
 
 		match self.space_ratio_raid_level {
 
 			None | Some (SpaceRatioRaidLevel::None) =>
-				try! (
-					self.check_space_ratio_no_raid (
-						check_result_builder,
-						& device_infos)),
+				self.check_space_ratio_no_raid (
+					check_result_builder,
+					& device_infos,
+				) ?,
 
 			Some (SpaceRatioRaidLevel::Raid1) =>
-				try! (
-					self.check_space_ratio_raid1 (
-						check_result_builder,
-						& device_infos)),
+				self.check_space_ratio_raid1 (
+					check_result_builder,
+					& device_infos,
+				) ?,
 
-			Some (SpaceRatioRaidLevel::Raid5) => {
-
+			Some (SpaceRatioRaidLevel::Raid5) =>
 				check_result_builder.unknown (
 					format! (
-						"raid5 not yet supported"));
+						"raid5 not yet supported")),
 
-			},
-
-			Some (SpaceRatioRaidLevel::Raid6) => {
-
+			Some (SpaceRatioRaidLevel::Raid6) =>
 				check_result_builder.unknown (
 					format! (
-						"raid6 not yet supported"));
+						"raid6 not yet supported")),
 
-			},
-
-			Some (SpaceRatioRaidLevel::Raid10) => {
-
+			Some (SpaceRatioRaidLevel::Raid10) =>
 				check_result_builder.unknown (
 					format! (
-						"raid10 not yet supported"));
-
-			},
+						"raid10 not yet supported")),
 
 		};
 
@@ -341,17 +332,17 @@ impl CheckBtrfsInstance {
 			total_bytes_free as f64
 			/ total_bytes as f64;
 
-		try! (
-			checkhelper::check_ratio_greater_than (
-				check_result_builder,
-				self.space_ratio_warning,
-				self.space_ratio_critical,
-				& format! (
-					"free space is {}",
-					checkhelper::display_data_size_ratio (
-						total_bytes_free,
-						total_bytes)),
-				total_free_ratio));
+		checkhelper::check_ratio_greater_than (
+			check_result_builder,
+			self.space_ratio_warning,
+			self.space_ratio_critical,
+			& format! (
+				"free space is {}",
+				checkhelper::display_data_size_ratio (
+					total_bytes_free,
+					total_bytes)),
+			total_free_ratio,
+		) ?;
 
 		Ok (())
 
@@ -438,17 +429,17 @@ impl CheckBtrfsInstance {
 			effective_bytes_free as f64
 			/ effective_bytes as f64;
 
-		try! (
-			checkhelper::check_ratio_greater_than (
-				check_result_builder,
-				self.space_ratio_warning,
-				self.space_ratio_critical,
-				& format! (
-					"raid1 free space is {}",
-					checkhelper::display_data_size_ratio (
-						effective_bytes_free,
-						effective_bytes)),
-				effective_free_ratio));
+		checkhelper::check_ratio_greater_than (
+			check_result_builder,
+			self.space_ratio_warning,
+			self.space_ratio_critical,
+			& format! (
+				"raid1 free space is {}",
+				checkhelper::display_data_size_ratio (
+					effective_bytes_free,
+					effective_bytes)),
+			effective_free_ratio,
+		) ?;
 
 		Ok (())
 
@@ -461,9 +452,9 @@ impl CheckBtrfsInstance {
 	) -> Result <(), Box <error::Error>> {
 
 		let space_infos =
-			try! (
-				btrfs::get_space_info (
-					file_descriptor));
+			btrfs::get_space_info (
+				file_descriptor,
+			) ?;
 
 		/*
 		let data_space_infos =
@@ -490,17 +481,17 @@ impl CheckBtrfsInstance {
 			free_space as f64
 			/ total_space as f64;
 
-		try! (
-			checkhelper::check_ratio_lesser_than (
-				check_result_builder,
-				self.balance_ratio_warning,
-				self.balance_ratio_critical,
-				& format! (
-					"block free space is {}",
-					checkhelper::display_data_size_ratio (
-						free_space,
-						total_space)),
-				balance_space_ratio));
+		checkhelper::check_ratio_lesser_than (
+			check_result_builder,
+			self.balance_ratio_warning,
+			self.balance_ratio_critical,
+			& format! (
+				"block free space is {}",
+				checkhelper::display_data_size_ratio (
+					free_space,
+					total_space)),
+			balance_space_ratio,
+		) ?;
 
 		Ok (())
 

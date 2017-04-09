@@ -87,7 +87,12 @@ fn parse_options () -> Option<Opts> {
 
 }
 
-fn check_lvm (warning_th: f64, critical_th: f64, warning_remaining: f64, critical_remaining: f64) -> String {
+fn check_lvm (
+	warning_th: f64,
+	critical_th: f64,
+	warning_remaining: f64,
+	critical_remaining: f64,
+) -> String {
 
 	let mut vgdisplay_output: String;
 
@@ -119,16 +124,20 @@ fn check_lvm (warning_th: f64, critical_th: f64, warning_remaining: f64, critica
 	let mut re = Regex::new(&expression).unwrap();
 	let mut i = 1;
 
-	for cap in re.captures_iter(&vgdisplay_output) {
-		let value = cap.at(1).unwrap_or("").trim();
+	for cap in re.captures_iter (& vgdisplay_output) {
 
-		let int_value = match value.parse() {
-			Ok(f64) => { f64 }
-			Err(e) => { return format!("LVM-UNKNOWN: Usage {} should be a number!", e); }
+		let value =
+			cap.get (1).map_or ("", |m| m.as_str ()).trim ();
+
+		let int_value = match value.parse () {
+			Ok (value) => value,
+			Err (e) => return format! ("LVM-UNKNOWN: Usage {} should be a number!", e)
 		};
 
 		size_values.push(int_value);
-		size_units.push(cap.at(2).unwrap_or("").trim().to_string());
+
+		size_units.push (
+			cap.get (2).map_or ("", |m| m.as_str ()).trim ().to_string ());
 
 		i = i + 1;
 
@@ -142,7 +151,10 @@ fn check_lvm (warning_th: f64, critical_th: f64, warning_remaining: f64, critica
 	re = Regex::new(&expression).unwrap();
 
 	for cap in re.captures_iter(&vgdisplay_output) {
-		let capt = cap.at(1).unwrap_or("").trim();
+
+		let capt =
+			cap.get (1).map_or ("", |m| m.as_str ()).trim ();
+
 		let value_array: Vec<&str> = capt.split(" / ").collect();
 		let value = value_array[1];
 
@@ -151,7 +163,8 @@ fn check_lvm (warning_th: f64, critical_th: f64, warning_remaining: f64, critica
 			Err(e) => { return format!("LVM-UNKNOWN: Usage {} should be a number!", e); }
 		};
 
-		let used_unit = cap.at(2).unwrap_or("").trim();
+		let used_unit =
+			cap.get (2).map_or ("", |m| m.as_str ()).trim ();
 
 		let mut used_percentage: f64 = 0.0;
 		let mut remaining_space: f64 = 0.0;
@@ -171,25 +184,67 @@ fn check_lvm (warning_th: f64, critical_th: f64, warning_remaining: f64, critica
 		let critical_fmt = format!("{0:.1$}", critical_th * 100.0, 1);
 
 		if used_percentage < warning_th && remaining_space > warning_remaining {
-			ok_message = format!("{}\nLVM-OK: VG{} - {}% used; Remaining space: {} TiB.", ok_message, i, used_fmt, remaining_space);
-		}
-		else if used_percentage >= warning_th && used_percentage < critical_th &&
-			remaining_space < warning_remaining && remaining_space > critical_remaining {
-			warning_message = format!("{}\nLVM-WARNING: VG{} - {}% used; Remaining space: {} TiB.", warning_message, i, used_fmt, remaining_space);
-		}
-		else if used_percentage >= critical_th && remaining_space <= critical_remaining {
-			critical_message = format!("{}\nLVM-CRITICAL: VG{} - {}% used;  Remaining space: {} TiB.", critical_message, i, used_fmt, remaining_space);
-		}
-		else {
-			ok_message = format!("{}\nLVM-OK: VG{} - {}% used; Remaining space: {} TiB.", ok_message, i, used_fmt, remaining_space);
+
+			ok_message =
+				format! (
+					"{}\nLVM-OK: VG{} - {}% used; Remaining space: {} TiB.",
+					ok_message,
+					i,
+					used_fmt,
+					remaining_space);
+
+		} else if (
+			used_percentage >= warning_th
+			&& used_percentage < critical_th
+			&& remaining_space < warning_remaining
+			&& remaining_space > critical_remaining
+		) {
+
+			warning_message =
+				format! (
+					"{}\nLVM-WARNING: VG{} - {}% used; Remaining space: {} TiB.",
+					warning_message,
+					i,
+					used_fmt,
+					remaining_space);
+
+		} else if (
+			used_percentage >= critical_th
+			&& remaining_space <= critical_remaining
+		) {
+
+			critical_message =
+				format! (
+					"{}\nLVM-CRITICAL: VG{} - {}% used; Remaining space: {} TiB.",
+					critical_message,
+					i,
+					used_fmt,
+					remaining_space);
+
+		} else {
+
+			ok_message =
+				format! (
+					"{}\nLVM-OK: VG{} - {}% used; Remaining space: {} TiB.",
+					ok_message,
+					i,
+					used_fmt,
+					remaining_space);
+
 		}
 
 		perf_data = format!("{} VG{}_Used={}%;{};{};; VG{}_Remaining={}TB;;;;", perf_data, i, used_fmt, warning_fmt, critical_fmt, i, remaining_space);
 
 		i = i + 1;
+
 	}
 
-	return format!("{}\n{}\n{}\n |{}", critical_message, warning_message, ok_message, perf_data);
+	format! (
+		"{}\n{}\n{}\n |{}",
+		critical_message,
+		warning_message,
+		ok_message,
+		perf_data)
 
 }
 

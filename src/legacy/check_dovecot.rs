@@ -1,12 +1,12 @@
-//Rust file
 extern crate getopts;
-extern crate chrono;
+extern crate time;
 
-use getopts::Options;
 use std::env;
 use std::process;
 use std::option::{ Option };
-use chrono::*;
+use std::time::Instant;
+
+use getopts::Options;
 
 fn print_usage (program: &str, opts: Options) {
 	let brief = format!("Usage: {} [options]", program);
@@ -152,8 +152,7 @@ fn check_email_list (rootfs: &str, mail: &str, option: &str, warning_th: f64, cr
 	let mut critical_msg = "".to_string();
 	let mut num_messages = 0;
 
-	// now datetime
-	let now = UTC::now();
+	let now = time::now ();
 
 	let doveadm_lines: Vec<&str> = doveadm_output.split("\n").collect();
 
@@ -167,7 +166,10 @@ fn check_email_list (rootfs: &str, mail: &str, option: &str, warning_th: f64, cr
 
 		let complete_date = format!("{} {}", line_tokens[1], line_tokens[2]);
 
-		let date_object = UTC.datetime_from_str(&complete_date, "%Y-%m-%d %H:%M:%S");
+		let date_object =
+			time::strptime (
+				& complete_date,
+				"%Y-%m-%d %H:%M:%S");
 
 		let date = match date_object {
 
