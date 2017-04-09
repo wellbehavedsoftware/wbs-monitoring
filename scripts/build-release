@@ -91,6 +91,32 @@ tar --create --xz \
 
 # ---------- iterate targets
 
+function escape {
+	printf "%q" "$1"
+}
+
+function build_target_exec {
+
+	local container="$1"
+
+	shift 1
+
+	remote_command=""
+
+	for remote_command_part in "$@"; do
+
+		if test "$remote_command"; then
+			remote_command="$remote_command "
+		fi
+
+		remote_command="$remote_command $remote_command_part"
+
+	done
+
+	lxc exec "$container" -- bash -c "$remote_command"
+
+}
+
 for target in "${targets[@]}"; do
 
 	header "Building for $target"
@@ -111,21 +137,17 @@ for target in "${targets[@]}"; do
 
 	# ---------- update rust
 
-	lxc exec "build-$target" -- \
-		bash -c \"
-			source \$HOME/.cargo/env \; \
-			rustup update
-		\"
+	build_target_exec "build-$target" \
+		source ".cargo/env" \; \
+		rustup update
 
 	# ---------- build
 
-	lxc exec "build-$target" -- \
-		bash -c \"
-			source \$HOME/.cargo/env \; \
-			"$project_source/scripts/build-package" \
-			"$version" \
-			"$target" \
-		\"
+	build_target_exec "build-$target" \
+		source ".cargo/env" \; \
+		"$project_source/scripts/build-package" \
+		"$version" \
+		"$target"
 
 	# ---------- retrieve
 
