@@ -61,7 +61,7 @@ rm "$sed_script"
 
 header "Building locally"
 
-cargo build --release
+cargo build
 
 # ---------- create the archive to build
 
@@ -109,12 +109,25 @@ for target in "${targets[@]}"; do
 	lxc exec "build-$target" -- \
 		tar --extract --xz --file "$project_source.tar.xz"
 
-	# ---------- build and retrieve
+	# ---------- update rust
 
 	lxc exec "build-$target" -- \
-		"$project_source/scripts/build-package" \
-		"$version" \
-		"$target"
+		bash -c \"
+			source \$HOME/.cargo/env \; \
+			rustup update
+		\"
+
+	# ---------- build
+
+	lxc exec "build-$target" -- \
+		bash -c \"
+			source \$HOME/.cargo/env \; \
+			"$project_source/scripts/build-package" \
+			"$version" \
+			"$target" \
+		\"
+
+	# ---------- retrieve
 
 	lxc file pull \
 		"build-$target/root/$project_source/dist/$project_target.tar.xz" \
