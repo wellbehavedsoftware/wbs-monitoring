@@ -2,6 +2,7 @@ use std::time;
 
 use logic::*;
 
+#[ allow (unused) ]
 struct DurationFormat <'a> {
 
 	days_singular: & 'a str,

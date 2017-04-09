@@ -5,7 +5,6 @@ extern crate time;
 use std::env;
 use std::error;
 use std::process;
-use std::thread;
 
 fn print_usage (program: &str, opts: getopts::Options) {
 	let brief = format!("Usage: {} [options]", program);
@@ -119,20 +118,19 @@ fn parse_options () -> Option<Opts> {
 }
 
 fn check_etcd (
-	host: & str,
-	uri: & str,
-	secure: bool,
 	headers: & Vec <String>,
-	warning: f64,
-	critical: f64,
-	timeout: f64,
+	_warning: f64,
+	_critical: f64,
+	_timeout: f64,
 ) -> Result <String, Box <error::Error>> {
 
 	let url =
 		"http://10.109.160.17:2380/metrics";
 
+	/*
 	let start =
 		time::PreciseTime::now ();
+	*/
 
 	let mut curl_easy =
 		curl::easy::Easy::new ();
@@ -192,22 +190,19 @@ fn check_etcd (
 
 	}
 
-	let response_code =
-		try! (
-			curl_easy.response_code ());
-
 	let response_body =
 		try! (
 			String::from_utf8 (
 				response_buffer));
 
+	/*
 	let end =
 		time::PreciseTime::now ();
 
 	let millis =
 		start.to (end).num_milliseconds () as f64;
 
-	let mut millis_message = "".to_string();
+	let millis_message;
 
 	if millis <= warning {
 
@@ -238,6 +233,7 @@ fn check_etcd (
 				millis));
 
 	}
+	*/
 
 	println! (
 		"{}",
@@ -326,9 +322,9 @@ fn main () {
 	};
 
 
-	let hostname = &opts.hostname;
-	let uri = &opts.uri;
-	let secure = opts.secure;
+	let _hostname = &opts.hostname;
+	let _uri = &opts.uri;
+	let _secure = opts.secure;
 	let headers = opts.headers;
 
 	let warning : f64 = match opts.warning.parse() {
@@ -357,9 +353,6 @@ fn main () {
 
 	let etcd_res =
 		check_etcd (
-			hostname,
-			uri,
-			secure,
 			& headers,
 			warning,
 			critical,

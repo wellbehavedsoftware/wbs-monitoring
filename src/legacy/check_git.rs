@@ -287,10 +287,9 @@ fn check_git_sync(local: &str, remote_route: &str) -> String {
 
 	};
 
-	let connection = match remote.connect(Direction::Fetch) {
-	    Ok (conn) => conn,
-	    Err (e) => panic!("failed to connect to {}: {}", remote_route, e),
-	};
+	if let Err (e) = remote.connect(Direction::Fetch) {
+	    panic! ("failed to connect to {}: {}", remote_route, e);
+	}
 
 	let list = match remote.list() {
 	    Ok (li) => li,
@@ -334,7 +333,7 @@ fn main () {
 
 	let changes = check_git_changes(local, opts.untracked, opts.submodules, opts.ignored);
 
-	let sync = check_git_sync(local, remote);
+	check_git_sync (local, remote);
 
 	if changes.contains("CHECK GIT STATUS ERROR") {
 		println!("GIT-UNKNOWN: Could not git status check:\n{}.", changes);

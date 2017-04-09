@@ -97,8 +97,8 @@ fn parse_options () -> Option<Opts> {
 
 fn check_email_queue (rootfs: &str, max_mails: i32) -> (String, i32, i32) {
 
-	let mut queue_output: String = "".to_string();
-	let mut deferred_output: String = "".to_string();
+	let queue_output;
+	let deferred_output;
 
 	if !rootfs.contains("none") {
 
@@ -230,7 +230,7 @@ fn check_email_queue (rootfs: &str, max_mails: i32) -> (String, i32, i32) {
 
 fn get_mailq_output(rootfs: &str) -> String {
 
-	let mut mailq_data: String = "".to_string();
+	let mailq_data: String;
 
 	if !rootfs.contains("none") {
 
@@ -372,7 +372,6 @@ fn check_emails_per_hour (mailq_data: String, max_quota: i32) -> String {
 	let mut index = 1;
 
 	let mut warnings: i32 = 0;
-	let mut warning_messages: String = "".to_string();
 
 	while (index + 2) < mailq_lines.len() {
 
@@ -490,7 +489,7 @@ fn main () {
 		}
 	}
 
-	let mut final_result: String = "".to_string();
+	let final_result: String;
 
 	if complete_check && !(&opts.complete).is_empty() {
 

@@ -90,7 +90,9 @@ fn check_md_raid (host_name: &str) -> String {
 	let mut md_raid: String =
 		"".to_string ();
 
-	stat_file.read_to_string (&mut md_raid);
+	stat_file.read_to_string (
+		& mut md_raid,
+	).unwrap ();
 
 	// Read the mdstat template of this host
 
@@ -116,7 +118,9 @@ fn check_md_raid (host_name: &str) -> String {
 
 	let mut template: String = "".to_string ();
 
-	file.read_to_string (&mut template);
+	file.read_to_string (
+		& mut template,
+	).unwrap ();
 
 	let re = Regex::new (r"^(.+)\n").unwrap ();
 

@@ -84,7 +84,10 @@ fn check_memory(warning_level: f64, critical_level: f64) -> String {
 	};
 
 	let mut meminfo: String = "".to_string();
-	file.read_to_string(&mut meminfo);
+
+	file.read_to_string (
+		& mut meminfo,
+	).unwrap ();
 
 	// Fields we want to check
 	let interesting_fields = [ "MemTotal", "MemFree", "Buffers", "Cached", "SwapCached", "Active", "Inactive", "SwapTotal", "SwapFree", "Slab", "SReclaimable", "SUnreclaim" ];
@@ -135,19 +138,35 @@ fn check_memory(warning_level: f64, critical_level: f64) -> String {
 	let critical_level_fmt = format!("{0:.1$}", critical_level * 100.0, 1);
 
 	// Memory state
-	let mut memory_message: String;
-	if memory_usage < warning_level {
-		memory_message = format!("MEMORY-OK: used {}%, warning {}%.", memory_usage_fmt, warning_level_fmt);
-	}
-	else if memory_usage >= warning_level && memory_usage < critical_level {
-		memory_message = format!("MEMORY-WARNING: used {}%, critical {}%.", memory_usage_fmt, critical_level_fmt);
-	}
-	else {
-		memory_message = format!("MEMORY-CRITICAL: used {}%, critical {}%.", memory_usage_fmt, critical_level_fmt);
-	}
+
+	let memory_message =
+		if memory_usage < warning_level {
+
+			format! (
+				"MEMORY-OK: used {}%, warning {}%",
+				memory_usage_fmt,
+				warning_level_fmt)
+
+		} else if memory_usage >= warning_level && memory_usage < critical_level {
+
+			format! (
+				"MEMORY-WARNING: used {}%, critical {}%",
+				memory_usage_fmt,
+				critical_level_fmt)
+
+		} else {
+
+			format! (
+				"MEMORY-CRITICAL: used {}%, critical {}%",
+				memory_usage_fmt,
+				critical_level_fmt)
+
+		};
 
 	// Swap state
-	let mut swap_message: String;
+
+	let swap_message: String;
+
 	if swap_usage < warning_level {
 		swap_message = format!("SWAP-OK: used {}%, warning {}%.", swap_usage_fmt, warning_level_fmt);
 	}
@@ -158,7 +177,7 @@ fn check_memory(warning_level: f64, critical_level: f64) -> String {
 		swap_message = format!("SWAP-CRITICAL: used {}%, critical {}%.", swap_usage_fmt, critical_level_fmt);
 	}
 
-	let mut message: String;
+	let message: String;
 
 	if (swap_message.contains("CRITICAL") && (memory_message.contains("WARNING") || memory_message.contains("OK"))) || (swap_message.contains("WARNING") && memory_message.contains("OK")) {
 		message = format!("{}\n{}", swap_message, memory_message);

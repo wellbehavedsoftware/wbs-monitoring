@@ -3,8 +3,6 @@ extern crate time;
 
 use std::env;
 use std::process;
-use std::option::{ Option };
-use std::time::Instant;
 
 use getopts::Options;
 
@@ -99,7 +97,7 @@ fn parse_options () -> Option<Opts> {
 
 fn check_email_list (rootfs: &str, mail: &str, option: &str, warning_th: f64, critical_th: f64) -> (String, i32) {
 
-	let mut doveadm_output: String;
+	let doveadm_output: String;
 
 	if !rootfs.is_empty() {
 
@@ -246,7 +244,7 @@ fn main () {
 
 	let mail_list: Vec<&str> = mails.split(",").collect();
 
-	let mut final_result: String;
+	let final_result: String;
 	let mut critical_result = "".to_string();
 	let mut warning_result = "".to_string();
 	let mut ok_result = "".to_string();

@@ -93,21 +93,19 @@ fn check_mail_ports(container_name: &str, service: &str) -> String {
 		return format!("MAIL-PORTS-UNKNOWN: The container {} is not running or does not exist.", container_name);
 	}
 
-	let mut expression: String = "".to_string();
-	let mut port_list = vec![];
+	let expression;
+
+	let port_list;
 
 	if service.contains("imap") {
 		expression = format!("tcp (.+)dovecot");
 		port_list = vec![":143", ":993"];
-	}
-	else if service.contains("smtp") {
+	} else if service.contains("smtp") {
 		expression = format!("tcp (.+)master");
 		port_list = vec![":25", ":587", ":465"];
-	}
-	else {
+	} else {
 		return format!("MAIL-PORTS-UNKNOWN: Unknown service {}. Choose \"smtp\" or \"imap\".", container_name);
 	}
-
 
 	let re = Regex::new(&expression).unwrap();
 	let mut matches = 0;

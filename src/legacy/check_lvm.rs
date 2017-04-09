@@ -1,4 +1,5 @@
-//Rust file
+#![ allow (unused_parens) ]
+
 extern crate getopts;
 extern crate regex;
 
@@ -94,7 +95,7 @@ fn check_lvm (
 	critical_remaining: f64,
 ) -> String {
 
-	let mut vgdisplay_output: String;
+	let vgdisplay_output: String;
 
 	//check emails list
 
@@ -113,7 +114,7 @@ fn check_lvm (
 	let mut size_values: Vec<f64> = vec![];
 	let mut size_units: Vec<String> = vec![];
 
-	let mut int_used: f64 = 0.0;
+	let mut int_used: f64;
 	let mut critical_message: String = "".to_string();
 	let mut warning_message: String = "".to_string();
 	let mut ok_message: String = "".to_string();
@@ -166,8 +167,8 @@ fn check_lvm (
 		let used_unit =
 			cap.get (2).map_or ("", |m| m.as_str ()).trim ();
 
-		let mut used_percentage: f64 = 0.0;
-		let mut remaining_space: f64 = 0.0;
+		let used_percentage: f64;
+		let remaining_space: f64;
 
 		if size_units[i-1].contains("GiB") { size_values[i-1] = size_values[i-1] / 1024.0; }
 		if size_units[i-1].contains("MiB") { size_values[i-1] = size_values[i-1] / (1024.0 * 1024.0); }
