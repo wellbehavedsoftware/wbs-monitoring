@@ -50,6 +50,10 @@ path = "src/wrappers/check_lxc_container.rs"
 name = "check-snapshots"
 path = "src/wrappers/check_snapshots.rs"
 
+[[bin]]
+name = "check-systemd"
+path = "src/wrappers/check_systemd.rs"
+
 # ---------- legacy
 
 [[bin]]
@@ -136,6 +140,10 @@ path = "src/legacy/check_git.rs"
 	systemd-jp = "*"
 	time = "*"
 	uuid = "*"
+
+[replace]
+
+	"systemd-jp:0.1.0" = { path = "../rust-systemd-jp" }
 
 # ---------- build profiles
 

@@ -356,10 +356,15 @@ dependencies = [
 [[package]]
 name = "systemd-jp"
 version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "dbus 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
+
+[[package]]
+name = "systemd-jp"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+replace = "systemd-jp 0.1.0"
 
 [[package]]
 name = "thread-id"

@@ -8,6 +8,7 @@ all_checks=(
 	"http"
 	"lxc-container"
 	"snapshots"
+	"systemd"
 )
 
 mkdir -p work/temp
