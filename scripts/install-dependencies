@@ -5,6 +5,7 @@ packages=(
 	"cmake"
 	"libapt-pkg-dev"
 	"libdbus-1-dev"
+	"liblzo2-dev"
 	"libssl-dev"
 	"pkg-config"
 )
