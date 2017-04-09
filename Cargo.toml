@@ -141,10 +141,6 @@ path = "src/legacy/check_git.rs"
 	time = "*"
 	uuid = "*"
 
-[replace]
-
-	"systemd-jp:0.1.0" = { path = "../rust-systemd-jp" }
-
 # ---------- build profiles
 
 [profile.dev]
