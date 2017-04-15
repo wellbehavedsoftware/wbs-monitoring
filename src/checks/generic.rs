@@ -4,6 +4,7 @@ extern crate libc;
 extern crate serde_json;
 
 use std::error;
+use std::error::Error;
 use std::io::Read;
 use std::time;
 use std::time::Instant;
@@ -95,6 +96,21 @@ check! {
 
 	perform = |self, plugin_provider, check_result_builder| {
 
+		self.perform_request (
+			& mut check_result_builder,
+		) ?;
+
+	},
+
+}
+
+impl CheckGenericInstance {
+
+	fn perform_request (
+		& self,
+		check_result_builder: & mut CheckResultBuilder,
+	) -> Result <(), Box <Error>> {
+
 		let mut hyper_client =
 			hyper::Client::new ();
 
@@ -108,9 +124,35 @@ check! {
 			Instant::now ();
 
 		let hyper_response =
-			hyper_client.get (
+			match hyper_client.get (
 				& self.target,
-			).send () ?;
+			).send () {
+
+			Ok (value) => value,
+
+			Err (hyper::Error::Io (io_error)) => {
+
+				check_result_builder.critical (
+					format! (
+						"Connection IO error: {}",
+						io_error.description ()));
+
+				return Ok (());
+
+			},
+
+			Err (error) => {
+
+				check_result_builder.unknown (
+					format! (
+						"Unknown connection error: {}",
+						error.description ()));
+
+				return Ok (());
+
+			},
+
+		};
 
 		let hyper_response_bytes_result: Result <Vec <u8>, _> =
 			hyper_response.bytes ().collect ();
@@ -122,7 +164,7 @@ check! {
 			end_time - start_time;
 
 		checkhelper::check_duration_less_than (
-			& mut check_result_builder,
+			check_result_builder,
 			& self.request_time_warning,
 			& self.request_time_critical,
 			& format! (
@@ -132,14 +174,44 @@ check! {
 			& request_duration);
 
 		let hyper_response_string =
-			String::from_utf8 (
+			match String::from_utf8 (
 				hyper_response_bytes_result ?,
-			) ?;
+			) {
+
+			Ok (value) => value,
+
+			Err (error) => {
+
+				check_result_builder.critical (
+					format! (
+						"Error decoding result as UTF-8 string: {}",
+						error.description ()));
+
+				return Ok (());
+
+			},
+
+		};
 
 		let check_response =
-			serde_json::from_str::<GenericCheckResponse> (
+			match serde_json::from_str::<GenericCheckResponse> (
 				& hyper_response_string,
-			) ?;
+			) {
+
+			Ok (value) => value,
+
+			Err (error) => {
+
+				check_result_builder.critical (
+					format! (
+						"Error decoding JSON structure: {}",
+						error.description ()));
+
+				return Ok (());
+
+			},
+
+		};
 
 		match check_response.status.as_str () {
 
@@ -174,7 +246,9 @@ check! {
 
 		}
 
-	},
+		Ok (())
+
+	}
 
 }
 
