@@ -39,6 +39,10 @@ name = "check-disk-space"
 path = "src/wrappers/check_disk_space.rs"
 
 [[bin]]
+name = "check-generic"
+path = "src/wrappers/check_generic.rs"
+
+[[bin]]
 name = "check-http"
 path = "src/wrappers/check_http.rs"
 
@@ -133,9 +137,12 @@ path = "src/legacy/check_git.rs"
 	getopts = "*"
 	git2 = "*"
 	glob = "*"
+	hyper = "*"
 	libc = "*"
 	regex = "*"
 	RustyXML = "*"
+	serde = "*"
+	serde_derive = "*"
 	serde_json = "*"
 	systemd-jp = "*"
 	time = "*"
