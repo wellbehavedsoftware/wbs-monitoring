@@ -6,6 +6,7 @@ extern crate serde_json;
 use std::error;
 use std::io::Read;
 use std::time;
+use std::time::Instant;
 
 use logic::*;
 
@@ -94,8 +95,17 @@ check! {
 
 	perform = |self, plugin_provider, check_result_builder| {
 
-		let hyper_client =
+		let mut hyper_client =
 			hyper::Client::new ();
+
+		hyper_client.set_write_timeout (
+			Some (self.request_timeout));
+
+		hyper_client.set_read_timeout (
+			Some (self.request_timeout));
+
+		let start_time =
+			Instant::now ();
 
 		let hyper_response =
 			hyper_client.get (
@@ -104,6 +114,22 @@ check! {
 
 		let hyper_response_bytes_result: Result <Vec <u8>, _> =
 			hyper_response.bytes ().collect ();
+
+		let end_time =
+			Instant::now ();
+
+		let request_duration =
+			end_time - start_time;
+
+		checkhelper::check_duration_less_than (
+			& mut check_result_builder,
+			& self.request_time_warning,
+			& self.request_time_critical,
+			& format! (
+				"Request took {}",
+				checkhelper::display_duration_short (
+					& request_duration)),
+			& request_duration);
 
 		let hyper_response_string =
 			String::from_utf8 (
