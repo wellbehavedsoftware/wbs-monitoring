@@ -74,13 +74,13 @@ check! {
 		// data usage
 
 		let data_usage_warning =
-			arghelper::parse_decimal_fraction (
+			arg_helper::parse_decimal_fraction (
 				options_matches,
 				"data-usage-warning",
 			) ?;
 
 		let data_usage_critical =
-			arghelper::parse_decimal_fraction (
+			arg_helper::parse_decimal_fraction (
 				options_matches,
 				"data-usage-critical",
 			) ?;
@@ -88,13 +88,13 @@ check! {
 		// message usage
 
 		let message_usage_warning =
-			arghelper::parse_decimal_fraction (
+			arg_helper::parse_decimal_fraction (
 				options_matches,
 				"message-usage-warning",
 			) ?;
 
 		let message_usage_critical =
-			arghelper::parse_decimal_fraction (
+			arg_helper::parse_decimal_fraction (
 				options_matches,
 				"message-usage-critical",
 			) ?;

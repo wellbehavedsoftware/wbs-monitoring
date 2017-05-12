@@ -1,4 +1,4 @@
-use logic::pluginprovider::*;
+use logic::plugin_provider::*;
 
 #[ derive (Clone, Copy, Debug) ]
 pub enum CheckStatus {
@@ -51,6 +51,32 @@ impl CheckStatus {
 				"UNKNOWN",
 
 		}
+
+	}
+
+	pub fn update (
+		& mut self,
+		new_status: CheckStatus,
+	) {
+
+		* self = match (new_status, * self) {
+
+			(CheckStatus::Critical, CheckStatus::Ok) |
+			(CheckStatus::Critical, CheckStatus::Warning) |
+			(CheckStatus::Critical, CheckStatus::Unknown) =>
+				CheckStatus::Critical,
+
+			(CheckStatus::Warning, CheckStatus::Ok) |
+			(CheckStatus::Warning, CheckStatus::Unknown) =>
+				CheckStatus::Warning,
+
+			(CheckStatus::Unknown, CheckStatus::Ok) =>
+				CheckStatus::Unknown,
+
+			_ =>
+				* self,
+
+		};
 
 	}
 
@@ -205,19 +231,8 @@ impl CheckResultBuilder {
 		self.status_messages.push (
 			message.into ());
 
-		self.status =
-			match self.status {
-
-			CheckStatus::Critical =>
-				CheckStatus::Critical,
-
-			CheckStatus::Warning =>
-				CheckStatus::Warning,
-
-			_ =>
-				CheckStatus::Unknown,
-
-		};
+		self.status.update (
+			CheckStatus::Unknown);
 
 	}
 
@@ -229,16 +244,8 @@ impl CheckResultBuilder {
 		self.status_messages.push (
 			message.into ());
 
-		self.status =
-			match self.status {
-
-			CheckStatus::Critical =>
-				CheckStatus::Critical,
-
-			_ =>
-				CheckStatus::Warning,
-
-		};
+		self.status.update (
+			CheckStatus::Warning);
 
 	}
 
@@ -250,7 +257,8 @@ impl CheckResultBuilder {
 		self.status_messages.push (
 			message.into ());
 
-		self.status = CheckStatus::Critical;
+		self.status.update (
+			CheckStatus::Critical);
 
 	}
 
@@ -268,6 +276,16 @@ impl CheckResultBuilder {
 				information_line.to_string ());
 
 		}
+
+	}
+
+	pub fn update_status (
+		& mut self,
+		new_status: CheckStatus,
+	) {
+
+		self.status.update (
+			new_status);
 
 	}
 

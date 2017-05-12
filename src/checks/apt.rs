@@ -78,25 +78,25 @@ check! {
 			).unwrap_or ("/".to_string ());
 
 		let update_warning =
-			arghelper::parse_duration (
+			arg_helper::parse_duration (
 				options_matches,
 				"update-warning",
 			) ?;
 
 		let update_critical =
-			arghelper::parse_duration (
+			arg_helper::parse_duration (
 				options_matches,
 				"update-critical",
 			) ?;
 
 		let reboot_warning =
-			arghelper::parse_duration (
+			arg_helper::parse_duration (
 				options_matches,
 				"reboot-warning",
 			) ?;
 
 		let reboot_critical =
-			arghelper::parse_duration (
+			arg_helper::parse_duration (
 				options_matches,
 				"reboot-critical",
 			) ?;

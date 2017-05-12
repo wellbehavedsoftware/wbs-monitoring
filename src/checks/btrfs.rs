@@ -86,19 +86,19 @@ check! {
 		// space ratio
 
 		let space_ratio_warning =
-			arghelper::parse_decimal_fraction (
+			arg_helper::parse_decimal_fraction (
 				options_matches,
 				"space-ratio-warning",
 			) ?;
 
 		let space_ratio_critical =
-			arghelper::parse_decimal_fraction (
+			arg_helper::parse_decimal_fraction (
 				options_matches,
 				"space-ratio-critical",
 			) ?;
 
 		let space_ratio_raid_level =
-			arghelper::parse_enum (
+			arg_helper::parse_enum (
 				options_matches,
 				"space-ratio-raid-level",
 			) ?;
@@ -106,13 +106,13 @@ check! {
 		// balance ratio
 
 		let balance_ratio_warning =
-			arghelper::parse_decimal_fraction (
+			arg_helper::parse_decimal_fraction (
 				options_matches,
 				"balance-ratio-warning",
 			) ?;
 
 		let balance_ratio_critical =
-			arghelper::parse_decimal_fraction (
+			arg_helper::parse_decimal_fraction (
 				options_matches,
 				"balance-ratio-critical",
 			) ?;
@@ -169,7 +169,7 @@ enum SpaceRatioRaidLevel {
 	Raid10,
 }
 
-impl arghelper::EnumArg for SpaceRatioRaidLevel {
+impl arg_helper::EnumArg for SpaceRatioRaidLevel {
 
 	fn from_string (
 		string_value: & str,
@@ -272,13 +272,13 @@ impl CheckBtrfsInstance {
 			total_bytes_free as f64
 			/ total_bytes as f64;
 
-		checkhelper::check_ratio_greater_than (
+		check_helper::check_ratio_greater_than (
 			check_result_builder,
 			self.space_ratio_warning,
 			self.space_ratio_critical,
 			& format! (
 				"free space is {}",
-				checkhelper::display_data_size_ratio (
+				check_helper::display_data_size_ratio (
 					total_bytes_free,
 					total_bytes)),
 			total_free_ratio,
@@ -369,13 +369,13 @@ impl CheckBtrfsInstance {
 			effective_bytes_free as f64
 			/ effective_bytes as f64;
 
-		checkhelper::check_ratio_greater_than (
+		check_helper::check_ratio_greater_than (
 			check_result_builder,
 			self.space_ratio_warning,
 			self.space_ratio_critical,
 			& format! (
 				"raid1 free space is {}",
-				checkhelper::display_data_size_ratio (
+				check_helper::display_data_size_ratio (
 					effective_bytes_free,
 					effective_bytes)),
 			effective_free_ratio,
@@ -421,13 +421,13 @@ impl CheckBtrfsInstance {
 			free_space as f64
 			/ total_space as f64;
 
-		checkhelper::check_ratio_lesser_than (
+		check_helper::check_ratio_lesser_than (
 			check_result_builder,
 			self.balance_ratio_warning,
 			self.balance_ratio_critical,
 			& format! (
 				"block free space is {}",
-				checkhelper::display_data_size_ratio (
+				check_helper::display_data_size_ratio (
 					free_space,
 					total_space)),
 			balance_space_ratio,

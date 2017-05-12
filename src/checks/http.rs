@@ -4,7 +4,16 @@ extern crate getopts;
 
 use std::collections::HashMap;
 use std::error;
-use std::time;
+use std::thread;
+use std::thread::JoinHandle;
+use std::time::Duration;
+use std::time::Instant;
+
+//use dns_lookup;
+
+use itertools::Itertools;
+
+use resolv;
 
 use logic::*;
 use lowlevel::http;
@@ -32,10 +41,10 @@ check! {
 		expect_headers: Vec <(String, String)>,
 		expect_body_text: Option <String>,
 
-		response_time_warning: Option <time::Duration>,
-		response_time_critical: Option <time::Duration>,
+		response_time_warning: Option <Duration>,
+		response_time_critical: Option <Duration>,
 
-		timeout: time::Duration,
+		timeout: Duration,
 
 	},
 
@@ -127,10 +136,10 @@ check! {
 		// determine secure parameter beforehand
 
 		let secure =
-			try! (
-				arghelper::check_if_present (
-					options_matches,
-					"secure"));
+			arg_helper::check_if_present (
+				options_matches,
+				"secure",
+			) ?;
 
 		// return
 
@@ -139,17 +148,17 @@ check! {
 			// connection
 
 			address:
-				try! (
-					arghelper::parse_string_required (
-						options_matches,
-						"address")),
+				arg_helper::parse_string_required (
+					options_matches,
+					"address",
+				) ?,
 
 			port:
-				try! (
-					arghelper::parse_positive_integer_or_default (
-						options_matches,
-						"port",
-						if secure { 443 } else { 80 })),
+				arg_helper::parse_positive_integer_or_default (
+					options_matches,
+					"port",
+					if secure { 443 } else { 80 },
+				) ?,
 
 			secure:
 				secure,
@@ -160,63 +169,63 @@ check! {
 				http::HttpMethod::Get,
 
 			path:
-				try! (
-					arghelper::parse_string_or_default (
-						options_matches,
-						"path",
-						"/")),
+				arg_helper::parse_string_or_default (
+					options_matches,
+					"path",
+					"/",
+				) ?,
 
 			send_headers:
-				try! (
-					parse_headers (
-						try! (
-							arghelper::parse_string_multiple (
-								options_matches,
-								"send-header")))),
+				parse_headers (
+					arg_helper::parse_string_multiple (
+						options_matches,
+						"send-header",
+					) ?,
+				) ?,
 
 			// response
 
 			expect_status_code:
-				try! (
-					arghelper::parse_positive_integer_multiple_or_default (
-						options_matches,
-						"expect-status-code",
-						& vec! [ 200 ])),
+				arg_helper::parse_positive_integer_multiple_or_default (
+					options_matches,
+					"expect-status-code",
+					& vec! [ 200 ],
+				) ?,
 
 			expect_headers:
-				try! (
-					parse_headers (
-						try! (
-							arghelper::parse_string_multiple (
-								options_matches,
-								"expect-header")))),
+				parse_headers (
+					arg_helper::parse_string_multiple (
+						options_matches,
+						"expect-header",
+					) ?,
+				) ?,
 
 			expect_body_text:
-				try! (
-					arghelper::parse_string (
-						options_matches,
-						"expect-body-text")),
+				arg_helper::parse_string (
+					options_matches,
+					"expect-body-text",
+				) ?,
 
 			// timings
 
 			response_time_warning:
-				try! (
-					arghelper::parse_duration (
-						options_matches,
-						"response-time-warning")),
+				arg_helper::parse_duration (
+					options_matches,
+					"response-time-warning",
+				) ?,
 
 			response_time_critical:
-				try! (
-					arghelper::parse_duration (
-						options_matches,
-						"response-time-critical")),
+				arg_helper::parse_duration (
+					options_matches,
+					"response-time-critical",
+				) ?,
 
 			timeout:
-				try! (
-					arghelper::parse_duration_or_default (
-						options_matches,
-						"timeout",
-						& time::Duration::new (60, 0))),
+				arg_helper::parse_duration_or_default (
+					options_matches,
+					"timeout",
+					& Duration::new (60, 0),
+				) ?,
 
 		}
 
@@ -241,16 +250,307 @@ impl CheckHttpInstance {
 		check_result_builder: & mut CheckResultBuilder,
 	) -> Result <(), Box <error::Error>> {
 
+		let (lookup_duration, addresses) =
+			self.perform_hostname_lookup ();
+
+		let num_addresses =
+			addresses.len ();
+
+		if num_addresses == 0 {
+
+			check_result_builder.critical (
+				format! (
+					"Failed to resolve hostname: {}",
+					& self.address));
+
+			return Ok (());
+
+		}
+
+		check_result_builder.extra_information (
+			format! (
+				"Resolved {} to {} hosts in {}",
+				& self.address,
+				num_addresses,
+				check_helper::display_duration_long (
+					& lookup_duration)));
+
+		let request_results =
+			self.perform_requests (
+				addresses,
+			) ?;
+
+		let mut num_successes: u64 = 0;
+		let mut num_warnings: u64 = 0;
+		let mut num_criticals: u64 = 0;
+		let mut num_connection_errors: u64 = 0;
+		let mut num_timeouts: u64 = 0;
+		let mut num_other_errors: u64 = 0;
+
+		let mut durations: Vec <Duration> =
+			Vec::new ();
+
+		for (address, result) in request_results {
+
+			match result {
+
+				RequestResult::Success (result) => {
+
+					check_result_builder.extra_information (
+						format! (
+							"{}: {}",
+							address,
+							result.messages.iter ().join (
+								& ", ".to_string (),
+							)));
+
+					durations.push (
+						result.duration);
+
+					match result.check_status {
+
+						CheckStatus::Ok =>
+							num_successes += 1,
+
+						CheckStatus::Warning =>
+							num_warnings += 1,
+
+						CheckStatus::Critical =>
+							num_criticals += 1,
+
+						_ =>
+							panic! (),
+
+					};
+
+					check_result_builder.update_status (
+						result.check_status);
+
+				},
+
+				RequestResult::ConnectionError (error) => {
+
+					check_result_builder.extra_information (
+						format! (
+							"{}: {}",
+							address,
+							error));
+
+					num_connection_errors += 1;
+
+					check_result_builder.update_status (
+						CheckStatus::Critical);
+
+				},
+
+				RequestResult::Timeout => {
+
+					check_result_builder.extra_information (
+						format! (
+							"{}: timeout",
+							address));
+
+					num_timeouts += 1;
+
+					check_result_builder.update_status (
+						CheckStatus::Critical);
+
+				},
+
+				RequestResult::OtherError (error) => {
+
+					check_result_builder.extra_information (
+						format! (
+							"{}: {}",
+							address,
+							error));
+
+					num_other_errors += 1;
+
+					check_result_builder.update_status (
+						CheckStatus::Critical);
+
+				},
+
+			}
+
+		}
+
+		for (count, label) in vec! [
+			(num_other_errors, "reported unknown errors"),
+			(num_timeouts, "timed out"),
+			(num_connection_errors, "failed to connect"),
+			(num_criticals, "critical"),
+			(num_warnings, "warning"),
+			(num_successes, "ok"),
+		] {
+
+			if count > 0 {
+
+				check_result_builder.ok (
+					format! (
+						"{} {} {}",
+						count,
+						if count == 1 { "host" } else { "hosts" },
+						label));
+
+			}
+
+		}
+
+		self.check_response_timing (
+			check_result_builder,
+			& durations
+		);
+
+		Ok (())
+
+	}
+
+	fn perform_hostname_lookup (
+		& self,
+	) -> (Duration, Vec <String>) {
+
+		let start_time =
+			Instant::now ();
+
+		let mut qualified_address =
+			self.address.to_string ();
+
+		let last_character =
+			qualified_address.chars ().rev ().next ().unwrap ();
+
+		if last_character != '.' {
+			qualified_address.push ('.');
+		}
+
+		let mut resolver =
+			resolv::Resolver::new ().unwrap ();
+
+		let mut addresses: Vec <String> =
+			Vec::new ();
+
+		if let Ok (mut response) =
+			resolver.query (
+				qualified_address.as_bytes (),
+				resolv::Class::IN,
+				resolv::RecordType::A,
+			) {
+
+			for index in 0 .. response.get_section_count (
+				resolv::Section::Answer) {
+
+				if let Ok (record) =
+					response.get_record::<resolv::record::A> (
+						resolv::Section::Answer,
+						index,
+					) {
+
+					addresses.push (
+						format! (
+							"{}",
+							record.data.address));
+
+				}
+
+			}
+
+		}
+
+		addresses.sort ();
+
+		let end_time =
+			Instant::now ();
+
+		let duration =
+			end_time.duration_since (
+				start_time);
+
+		(
+			duration,
+			addresses,
+		)
+
+	}
+
+	fn perform_requests (
+		& self,
+		addresses: Vec <String>,
+	) -> Result <Vec <(String, RequestResult)>, String> {
+
+		let request_futures: Vec <(String, JoinHandle <RequestResult>)> =
+			addresses.into_iter ().map (
+				|address| {
+
+			let self_copy =
+				self.clone ();
+
+			(
+				address.clone (),
+				thread::spawn (
+					move ||
+
+					self_copy.perform_request (
+						& address)
+
+				),
+			)
+
+		}).collect ();
+
+		Ok (request_futures.into_iter ().map (
+			|(address, request_future)|
+
+			match request_future.join () {
+
+				Ok (result) =>
+					(address, result),
+
+				Err (error) => (
+
+					address,
+
+					RequestResult::OtherError (
+						error.downcast::<String> (
+						).map (
+							|boxed_error| * boxed_error
+						).unwrap_or (
+							"unknown internal error".to_string ()
+						)
+					)
+
+				),
+
+			}
+
+		).collect ())
+
+	}
+
+	fn perform_request (
+		& self,
+		address: & str,
+	) -> RequestResult {
+
+		let mut send_headers =
+			self.send_headers.clone ();
+
+		send_headers.push ((
+			"Host".to_string (),
+			self.address.clone (),
+		));
+
 		let http_request =
 			http::HttpRequest {
 
-			address: & self.address,
+			address: address,
+			hostname: & self.address,
 			port: self.port,
 			secure: self.secure,
 
 			method: self.method,
 			path: & self.path,
-			headers: & self.send_headers,
+			headers: & send_headers,
 
 			timeout: self.timeout,
 
@@ -262,63 +562,64 @@ impl CheckHttpInstance {
 		) {
 
 			http::PerformRequestResult::Success (http_response) =>
-				try! (
-					self.process_response (
-						check_result_builder,
-						& http_response)),
+				self.process_response (
+					& http_response,
+				).unwrap_or_else (
+					|error|
+
+					RequestResult::OtherError (
+						error.description ().to_string ())
+
+				),
 
 			http::PerformRequestResult::Failure (reason) =>
-				check_result_builder.critical (
+				RequestResult::ConnectionError (
 					format! (
 						"failed to connect: {}",
 						reason)),
 
-			http::PerformRequestResult::Timeout (duration) =>
-				check_result_builder.critical (
-					format! (
-						"request timed out after {}",
-						checkhelper::display_duration_long (
-							& duration))),
+			http::PerformRequestResult::Timeout (_duration) =>
+				RequestResult::Timeout,
 
 		}
-
-		Ok (())
 
 	}
 
 	fn process_response (
 		& self,
-		check_result_builder: & mut CheckResultBuilder,
 		http_response: & http::HttpResponse,
-	) -> Result <(), Box <error::Error>> {
+	) -> Result <RequestResult, Box <error::Error>> {
 
-		try! (
-			self.check_response_status_code (
-				check_result_builder,
-				http_response));
+		let mut result =
+			RequestResultSuccess {
+				check_status: CheckStatus::Ok,
+				duration: http_response.duration,
+				certificate_validity: None,
+				messages: Vec::new (),
+			};
 
-		try! (
-			self.check_response_headers (
-				check_result_builder,
-				http_response));
+		self.check_response_status_code (
+			& mut result,
+			http_response,
+		) ?;
 
-		try! (
-			self.check_response_body (
-				check_result_builder,
-				http_response));
+		self.check_response_headers (
+			& mut result,
+			http_response,
+		) ?;
 
-		try! (
-			self.check_response_timing (
-				check_result_builder,
-				http_response));
+		self.check_response_body (
+			& mut result,
+			http_response,
+		) ?;
 
-		Ok (())
+		Ok (RequestResult::Success (result))
 
 	}
 
 	fn check_response_status_code (
 		& self,
-		check_result_builder: & mut CheckResultBuilder,
+		result: & mut RequestResultSuccess,
 		http_response: & http::HttpResponse,
 	) -> Result <(), Box <error::Error>> {
 
@@ -326,17 +627,20 @@ impl CheckHttpInstance {
 			& http_response.status_code,
 		) {
 
-			check_result_builder.ok (
+			result.messages.push (
 				format! (
 					"status {}",
 					http_response.status_code));
 
 		} else {
 
-			check_result_builder.critical (
+			result.messages.push (
 				format! (
-					"status {}",
+					"status {} (critical)",
 					http_response.status_code));
+
+			result.check_status.update (
+				CheckStatus::Critical);
 
 		}
 
@@ -346,7 +650,7 @@ impl CheckHttpInstance {
 
 	fn check_response_headers (
 		& self,
-		check_result_builder: & mut CheckResultBuilder,
+		result: & mut RequestResultSuccess,
 		http_response: & http::HttpResponse,
 	) -> Result <(), Box <error::Error>> {
 
@@ -418,7 +722,7 @@ impl CheckHttpInstance {
 
 			if ! matched_headers.is_empty () {
 
-				check_result_builder.ok (
+				result.messages.push (
 					format! (
 						"matched {} headers",
 						matched_headers.len ()));
@@ -427,19 +731,25 @@ impl CheckHttpInstance {
 
 			if ! missing_headers.is_empty () {
 
-				check_result_builder.warning (
+				result.messages.push (
 					format! (
-						"missing {} headers",
+						"missing {} headers (warning)",
 						missing_headers.len ()));
+
+				result.check_status.update (
+					CheckStatus::Warning);
 
 			}
 
 			if ! mismatched_headers.is_empty () {
 
-				check_result_builder.critical (
+				result.messages.push (
 					format! (
-						"failed to match {} headers",
+						"failed to match {} headers (critical)",
 						mismatched_headers.len ()));
+
+				result.check_status =
+					CheckStatus::Critical;
 
 			}
 
@@ -451,7 +761,7 @@ impl CheckHttpInstance {
 
 	fn check_response_body (
 		& self,
-		check_result_builder: & mut CheckResultBuilder,
+		result: & mut RequestResultSuccess,
 		http_response: & http::HttpResponse,
 	) -> Result <(), Box <error::Error>> {
 
@@ -463,13 +773,16 @@ impl CheckHttpInstance {
 			if http_response.body.contains (
 				expect_body_text) {
 
-				check_result_builder.ok (
-					"body text matched");
+				result.messages.push (
+					"body text matched".to_string ());
 
 			} else {
 
-				check_result_builder.critical (
-					"body text not matched");
+				result.messages.push (
+					"body text not matched (critical)".to_string ());
+
+				result.check_status =
+					CheckStatus::Critical;
 
 			}
 
@@ -482,23 +795,40 @@ impl CheckHttpInstance {
 	fn check_response_timing (
 		& self,
 		check_result_builder: & mut CheckResultBuilder,
-		http_response: & http::HttpResponse,
-	) -> Result <(), Box <error::Error>> {
+		durations: & [Duration],
+	) {
 
-		checkhelper::check_duration_less_than (
-			check_result_builder,
-			& self.response_time_warning,
-			& self.response_time_critical,
-			& format! (
-				"request took {}",
-				checkhelper::display_duration_long (
-					& http_response.duration)),
-			& http_response.duration);
+		if let Some (max_duration) =
+			durations.iter ().max () {
 
-		Ok (())
+			check_helper::check_duration_less_than (
+				check_result_builder,
+				& self.response_time_warning,
+				& self.response_time_critical,
+				& format! (
+					"request took {}",
+					check_helper::display_duration_long (
+						& max_duration)),
+				& max_duration);
+
+		}
 
 	}
 
+}
+
+enum RequestResult {
+	Success (RequestResultSuccess),
+	ConnectionError (String),
+	Timeout,
+	OtherError (String),
+}
+
+struct RequestResultSuccess {
+	check_status: CheckStatus,
+	duration: Duration,
+	certificate_validity: Option <Duration>,
+	messages: Vec <String>,
 }
 
 fn parse_headers (
@@ -511,9 +841,10 @@ fn parse_headers (
 	for header_string in header_strings.iter () {
 
 		header_tuples.push (
-			try! (
-				parse_header (
-					header_string)));
+			parse_header (
+				header_string,
+			) ?,
+		);
 
 	}
 

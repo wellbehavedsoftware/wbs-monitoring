@@ -43,6 +43,7 @@ macro_rules! check {
 		struct $ provider {
 		}
 
+		#[ derive (Clone, Debug) ]
 		struct $ instance {
 			$ ( $ instance_definition ) *
 		}

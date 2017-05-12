@@ -58,13 +58,13 @@ check! {
 		// space ratio
 
 		let space_ratio_warning =
-			arghelper::parse_decimal_fraction (
+			arg_helper::parse_decimal_fraction (
 				options_matches,
 				"space-ratio-warning",
 			) ?;
 
 		let space_ratio_critical =
-			arghelper::parse_decimal_fraction (
+			arg_helper::parse_decimal_fraction (
 				options_matches,
 				"space-ratio-critical",
 			) ?;
@@ -141,13 +141,13 @@ impl CheckDiskSpaceInstance {
 		let available_space_ratio =
 			available_space as f64 / total_space as f64;
 
-		checkhelper::check_ratio_greater_than (
+		check_helper::check_ratio_greater_than (
 			check_result_builder,
 			self.space_ratio_warning,
 			self.space_ratio_critical,
 			& format! (
 				"free space is {}",
-				checkhelper::display_data_size_ratio (
+				check_helper::display_data_size_ratio (
 					available_space,
 					total_space)),
 			available_space_ratio,

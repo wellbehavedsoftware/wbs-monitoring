@@ -9,7 +9,7 @@ use std::error;
 use std::time::Duration;
 
 use logic::*;
-use logic::checkhelper::*;
+use logic::check_helper::*;
 
 check! {
 
@@ -98,13 +98,13 @@ check! {
 
 		let warning_time =
 			try! (
-				arghelper::parse_duration (
+				arg_helper::parse_duration (
 					options_matches,
 					"warning"));
 
 		let critical_time =
 			try! (
-				arghelper::parse_duration (
+				arg_helper::parse_duration (
 					options_matches,
 					"critical"));
 
@@ -116,13 +116,13 @@ check! {
 
 		let local_warning_time =
 			try! (
-				arghelper::parse_duration (
+				arg_helper::parse_duration (
 					options_matches,
 					"local-warning"));
 
 		let local_critical_time =
 			try! (
-				arghelper::parse_duration (
+				arg_helper::parse_duration (
 					options_matches,
 					"local-critical"));
 
@@ -134,13 +134,13 @@ check! {
 
 		let archive_warning_time =
 			try! (
-				arghelper::parse_duration (
+				arg_helper::parse_duration (
 					options_matches,
 					"archive-warning"));
 
 		let archive_critical_time =
 			try! (
-				arghelper::parse_duration (
+				arg_helper::parse_duration (
 					options_matches,
 					"archive-critical"));
 

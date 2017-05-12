@@ -4,7 +4,7 @@ use std::error;
 use std::marker;
 use std::time;
 
-use logic::simpleerror::*;
+use logic::simple_error::*;
 
 // ==================== boolean arguments
 

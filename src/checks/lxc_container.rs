@@ -149,7 +149,7 @@ impl CheckLxcContainerInstance {
 
 }
 
-#[ derive (PartialEq, PartialOrd) ]
+#[ derive (Clone, Copy, Debug, PartialEq, PartialOrd) ]
 enum ContainerState {
 	Present,
 	NotPresent

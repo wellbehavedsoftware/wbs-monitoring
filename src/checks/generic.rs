@@ -66,25 +66,25 @@ check! {
 		CheckGenericInstance {
 
 			target:
-				arghelper::parse_string_required (
+				arg_helper::parse_string_required (
 					options_matches,
 					"target",
 				) ?,
 
 			request_time_warning:
-				arghelper::parse_duration (
+				arg_helper::parse_duration (
 					options_matches,
 					"request-time-warning",
 				) ?,
 
 			request_time_critical:
-				arghelper::parse_duration (
+				arg_helper::parse_duration (
 					options_matches,
 					"request-time-critical",
 				) ?,
 
 			request_timeout:
-				arghelper::parse_duration_or_default (
+				arg_helper::parse_duration_or_default (
 					options_matches,
 					"request-timeout",
 					& time::Duration::new (60, 0),
@@ -163,13 +163,13 @@ impl CheckGenericInstance {
 		let request_duration =
 			end_time - start_time;
 
-		checkhelper::check_duration_less_than (
+		check_helper::check_duration_less_than (
 			check_result_builder,
 			& self.request_time_warning,
 			& self.request_time_critical,
 			& format! (
 				"Request took {}",
-				checkhelper::display_duration_short (
+				check_helper::display_duration_short (
 					& request_duration)),
 			& request_duration);
 

@@ -2,7 +2,7 @@ use getopts;
 
 use std::error;
 
-use logic::checkresult::*;
+use logic::check_result::*;
 
 pub trait PluginProvider {
 

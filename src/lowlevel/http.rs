@@ -1,7 +1,17 @@
-extern crate curl;
-
 use std::error;
+use std::fmt;
+use std::io::Read;
 use std::time;
+
+use hyper::Client as HyperClient;
+use hyper::error::Result as HyperResult;
+use hyper::header::Headers as HyperHeaders;
+use hyper::http::RawStatus as HyperRawStatus;
+use hyper::net::HttpsConnector as HyperHttpsConnector;
+use hyper::net::NetworkStream as HyperNetworkStream;
+use hyper::net::SslClient as HyperSslClient;
+use hyper_native_tls::NativeTlsClient as HyperNativeTlsClient;
+use hyper_native_tls::TlsStream as HyperNativeTlsStream;
 
 use logic::*;
 
@@ -15,6 +25,7 @@ pub enum HttpMethod {
 pub struct HttpRequest <'a> {
 
 	pub address: & 'a str,
+	pub hostname: & 'a str,
 	pub port: u64,
 	pub secure: bool,
 
@@ -29,7 +40,7 @@ pub struct HttpRequest <'a> {
 #[ derive (Debug) ]
 pub struct HttpResponse {
 	pub status_code: u64,
-	//status_message: String,
+	pub status_message: String,
 	pub headers: Vec <(String, String)>,
 	pub body: String,
 	pub duration: time::Duration,
@@ -63,8 +74,6 @@ pub fn perform_request_real (
 	http_request: & HttpRequest,
 ) -> Result <PerformRequestResult, Box <error::Error>> {
 
-	// setup request
-
 	let url =
 		format! (
 			"{}://{}:{}{}",
@@ -72,9 +81,6 @@ pub fn perform_request_real (
 			http_request.address,
 			http_request.port,
 			http_request.path);
-
-	let mut curl_easy =
-		curl::easy::Easy::new ();
 
 	if http_request.method != HttpMethod::Get {
 
@@ -88,134 +94,77 @@ pub fn perform_request_real (
 
 	}
 
-	try! (
-		curl_easy.get (
-			true));
+	// setup client
 
-	try! (
-		curl_easy.url (
-			url.as_str ()));
+	let mut hyper_client =
+		if http_request.secure {
 
-	try! (
-		curl_easy.timeout (
-			http_request.timeout));
+		let hyper_ssl_client =
+			SniSslClient {
 
-	// setup request headers
+			nested_client:
+				HyperNativeTlsClient::new ().unwrap (),
 
-	let mut curl_headers =
-		curl::easy::List::new ();
+			hostname:
+				http_request.hostname.to_string (),
+
+		};
+
+		let hyper_connector =
+			HyperHttpsConnector::new (
+				hyper_ssl_client);
+
+		HyperClient::with_connector (
+			hyper_connector)
+
+   	} else {
+
+		HyperClient::new ()
+
+	};
+
+	hyper_client.set_read_timeout (
+		Some (http_request.timeout));
+
+	hyper_client.set_write_timeout (
+		Some (http_request.timeout));
+
+	// setup request
+
+	let hyper_request =
+		hyper_client.get (
+			& url);
+
+	let mut hyper_headers =
+		HyperHeaders::new ();
 
 	for & (ref header_name, ref header_value)
 		in http_request.headers.iter () {
 
-		try! (
-			curl_headers.append (
-				& format! (
-					"{}: {}",
-					header_name,
-					header_value)));
+		hyper_headers.set_raw (
+			header_name.to_string (),
+			vec! [ header_value.as_bytes ().to_vec () ]);
 
 	}
 
-	try! (
-		curl_easy.http_headers (
-			curl_headers));
+	let hyper_request =
+		hyper_request.headers (
+			hyper_headers);
 
 	// perform request
-
-	let mut response_status_line: Option <String> =
-		None;
-
-	let mut response_headers_buffer: Vec <(String, String)> =
-		vec! [];
-
-	let mut response_body_buffer: Vec <u8> =
-		vec! [];
 
 	let start_time =
 		time::Instant::now ();
 
-	{
+	let mut hyper_response =
+		hyper_request.send () ?;
 
-		let mut curl_transfer =
-			curl_easy.transfer ();
+	let mut response_body =
+		String::new ();
 
-		try! (
-			curl_transfer.header_function (
-				|header_data_raw| {
-
-			let header_string_raw =
-				String::from_utf8_lossy (
-					header_data_raw,
-				);
-
-			let header_string =
-				header_string_raw.trim ();
-
-			if header_string.is_empty () {
-				return true;
-			}
-
-			match response_status_line {
-
-				Some (_) => {
-
-					let header_parts_raw: Vec <& str> =
-						header_string.splitn (
-							2,
-							":",
-						).collect ();
-
-					if header_parts_raw.len () != 2 {
-						return false;
-					}
-
-					let header_name =
-						header_parts_raw [0].trim ();
-
-					let header_value =
-						header_parts_raw [1].trim ();
-
-					response_headers_buffer.push (
-						(
-							header_name.to_owned (),
-							header_value.to_owned (),
-						)
-					);
-
-					true
-
-				},
-
-				None => {
-
-					response_status_line =
-						Some (
-							header_string.to_owned ());
-
-					true
-
-				},
-
-			}
-
-		}));
-
-		try! (
-			curl_transfer.write_function (
-				|data| {
-
-			response_body_buffer.extend_from_slice (
-				data);
-
-			Ok (data.len ())
-
-		}));
-
-		try! (
-			curl_transfer.perform ());
-
-	}
+	hyper_response.read_to_string (
+		& mut response_body,
+	) ?;
 
 	let end_time =
 		time::Instant::now ();
@@ -226,22 +175,35 @@ pub fn perform_request_real (
 
 	// process response
 
-	let response_status_code =
-		try! (
-			curl_easy.response_code ()
-		) as u64;
+	let HyperRawStatus (
+		ref response_status_code,
+		ref response_status_message,
+	) = * hyper_response.status_raw ();
 
-	let response_body =
-		try! (
-			String::from_utf8 (
-				response_body_buffer));
+	let response_status_code =
+		* response_status_code as u64;
+
+	let response_status_message =
+		response_status_message.to_string ();
+
+	let response_headers: Vec <(String, String)> =
+		hyper_response.headers.iter ().map (
+			|header|
+			(
+				header.name ().to_string (),
+				header.value_string (),
+			)
+		).collect ();
+
+	// return
 
 	Ok (
 		PerformRequestResult::Success (
 
 		HttpResponse {
 			status_code: response_status_code,
-			headers: response_headers_buffer,
+			status_message: response_status_message,
+			headers: response_headers,
 			body: response_body,
 			duration: duration,
 		}
@@ -250,3 +212,30 @@ pub fn perform_request_real (
 
 }
 
+struct SniSslClient {
+	nested_client: HyperNativeTlsClient,
+	hostname: String,
+}
+
+impl <
+	NetworkStream: HyperNetworkStream + Send + Clone + fmt::Debug + Sync
+> HyperSslClient <NetworkStream> for SniSslClient {
+
+	type Stream = HyperNativeTlsStream <NetworkStream>;
+
+	fn wrap_client (
+		& self,
+		stream: NetworkStream,
+		_host: & str,
+	) -> HyperResult <Self::Stream> {
+
+		self.nested_client.wrap_client (
+			stream,
+			& self.hostname,
+		)
+
+    }
+
+}
+
+// ex: noet ts=4 filetype=rust

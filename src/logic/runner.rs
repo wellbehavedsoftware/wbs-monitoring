@@ -3,8 +3,8 @@ use getopts;
 use std::env;
 use std::process;
 
-use logic::checkresult::*;
-use logic::pluginprovider::*;
+use logic::check_result::*;
+use logic::plugin_provider::*;
 
 fn show_help (
 	plugin_provider: & PluginProvider,
