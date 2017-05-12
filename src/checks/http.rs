@@ -9,7 +9,8 @@ use std::thread::JoinHandle;
 use std::time::Duration;
 use std::time::Instant;
 
-//use dns_lookup;
+use chrono::Duration as ChronoDuration;
+use chrono::UTC;
 
 use itertools::Itertools;
 
@@ -594,7 +595,6 @@ impl CheckHttpInstance {
 			RequestResultSuccess {
 				check_status: CheckStatus::Ok,
 				duration: http_response.duration,
-				certificate_validity: None,
 				messages: Vec::new (),
 			};
 
@@ -609,6 +609,11 @@ impl CheckHttpInstance {
 		) ?;
 
 		self.check_response_body (
+			& mut result,
+			http_response,
+		) ?;
+
+		self.check_certificate_expiry (
 			& mut result,
 			http_response,
 		) ?;
@@ -792,6 +797,57 @@ impl CheckHttpInstance {
 
 	}
 
+	fn check_certificate_expiry (
+		& self,
+		result: & mut RequestResultSuccess,
+		http_response: & http::HttpResponse,
+	) -> Result <(), Box <error::Error>> {
+
+		if let Some (certificate_expiry) =
+			http_response.certificate_expiry {
+
+			let now =
+				UTC::now ().naive_utc ();
+
+			let remaining_time =
+				certificate_expiry.signed_duration_since (
+					now);
+
+			if remaining_time < ChronoDuration::days (5) {
+
+				result.check_status.update (
+					CheckStatus::Critical);
+
+				result.messages.push (
+					format! (
+						"certificate expires in {} hours",
+						remaining_time.num_hours ()));
+
+			} else if remaining_time < ChronoDuration::weeks (1) {
+
+				result.check_status.update (
+					CheckStatus::Warning);
+
+				result.messages.push (
+					format! (
+						"certificate expires in {} days (warning)",
+						remaining_time.num_days ()));
+
+			} else {
+
+				result.messages.push (
+					format! (
+						"certificate expires in {} weeks",
+						remaining_time.num_weeks ()));
+
+			}
+
+		}
+
+		Ok (())
+
+	}
+
 	fn check_response_timing (
 		& self,
 		check_result_builder: & mut CheckResultBuilder,
@@ -827,7 +883,6 @@ enum RequestResult {
 struct RequestResultSuccess {
 	check_status: CheckStatus,
 	duration: Duration,
-	certificate_validity: Option <Duration>,
 	messages: Vec <String>,
 }
 

@@ -133,17 +133,20 @@ path = "src/legacy/check_git.rs"
 [dependencies]
 
 	btrfs = "*"
+	chrono = "*"
 	curl = "*"
-	#dns-lookup = "*"
+	der-parser = "*"
 	getopts = "*"
 	git2 = "*"
 	glob = "*"
 	hyper = "*"
-	hyper-native-tls = "*"
+	hyper-rustls = "*"
 	itertools = "*"
 	libc = "*"
+	nom = "*"
 	regex = "*"
 	resolv = "*"
+	rustls = "*"
 	RustyXML = "*"
 	serde = "*"
 	serde_derive = "*"
@@ -151,6 +154,10 @@ path = "src/legacy/check_git.rs"
 	systemd-jp = "*"
 	time = "*"
 	uuid = "*"
+
+[replace]
+
+	"der-parser:0.3.5" = { path = "../der-parser" }
 
 # ---------- build profiles
 

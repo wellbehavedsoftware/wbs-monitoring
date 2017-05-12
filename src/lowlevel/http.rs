@@ -1,17 +1,37 @@
 use std::error;
 use std::fmt;
 use std::io::Read;
-use std::time;
+use std::str;
+use std::sync::Arc;
+use std::sync::Mutex;
+use std::time::Duration;
+use std::time::Instant;
+
+use chrono::DateTime;
+use chrono::Duration as ChronoDuration;
+use chrono::NaiveDateTime;
+use chrono::UTC;
 
 use hyper::Client as HyperClient;
 use hyper::error::Result as HyperResult;
 use hyper::header::Headers as HyperHeaders;
 use hyper::http::RawStatus as HyperRawStatus;
+use hyper::net::HttpStream as HyperHttpStream;
 use hyper::net::HttpsConnector as HyperHttpsConnector;
 use hyper::net::NetworkStream as HyperNetworkStream;
 use hyper::net::SslClient as HyperSslClient;
-use hyper_native_tls::NativeTlsClient as HyperNativeTlsClient;
-use hyper_native_tls::TlsStream as HyperNativeTlsStream;
+//use hyper_native_tls::NativeTlsClient as HyperNativeTlsClient;
+//use hyper_native_tls::TlsStream as HyperNativeTlsStream;
+use hyper_rustls::TlsClient as HyperRustTlsClient;
+use hyper_rustls::WrappedStream as HyperRustTlsWrappedStream;
+
+use nom;
+
+use der_parser;
+use der_parser::DerObject;
+use der_parser::DerObjectContent;
+
+use rustls::Certificate as RustTlsCertificate;
 
 use logic::*;
 
@@ -33,7 +53,7 @@ pub struct HttpRequest <'a> {
 	pub path: & 'a str,
 	pub headers: & 'a Vec <(String, String)>,
 
-	pub timeout: time::Duration,
+	pub timeout: Duration,
 
 }
 
@@ -43,13 +63,14 @@ pub struct HttpResponse {
 	pub status_message: String,
 	pub headers: Vec <(String, String)>,
 	pub body: String,
-	pub duration: time::Duration,
+	pub duration: Duration,
+	pub certificate_expiry: Option <NaiveDateTime>,
 }
 
 #[ derive (Debug) ]
 pub enum PerformRequestResult {
 	Success (HttpResponse),
-	Timeout (time::Duration),
+	Timeout (Duration),
 	Failure (String),
 }
 
@@ -96,6 +117,9 @@ pub fn perform_request_real (
 
 	// setup client
 
+	let wrapped_stream: Arc <Mutex <Option <HyperRustTlsWrappedStream>>> =
+		Arc::new (Mutex::new (None));
+
 	let mut hyper_client =
 		if http_request.secure {
 
@@ -103,10 +127,13 @@ pub fn perform_request_real (
 			SniSslClient {
 
 			nested_client:
-				HyperNativeTlsClient::new ().unwrap (),
+				HyperRustTlsClient::new (),
 
 			hostname:
 				http_request.hostname.to_string (),
+
+			wrapped_stream:
+				wrapped_stream.clone (),
 
 		};
 
@@ -154,7 +181,7 @@ pub fn perform_request_real (
 	// perform request
 
 	let start_time =
-		time::Instant::now ();
+		Instant::now ();
 
 	let mut hyper_response =
 		hyper_request.send () ?;
@@ -166,8 +193,15 @@ pub fn perform_request_real (
 		& mut response_body,
 	) ?;
 
+	let certificate_expiry =
+		get_certificate_validity_from_wrapped_stream (
+			wrapped_stream,
+		).map (
+			|(_start, end)| end,
+		);
+
 	let end_time =
-		time::Instant::now ();
+		Instant::now ();
 
 	let duration =
 		end_time.duration_since (
@@ -206,12 +240,14 @@ pub fn perform_request_real (
 			headers: response_headers,
 			body: response_body,
 			duration: duration,
+			certificate_expiry: certificate_expiry,
 		}
 
 	))
 
 }
 
+/*
 struct SniSslClient {
 	nested_client: HyperNativeTlsClient,
 	hostname: String,
@@ -235,6 +271,200 @@ impl <
 		)
 
     }
+
+}
+*/
+
+struct SniSslClient {
+	nested_client: HyperRustTlsClient,
+	hostname: String,
+	wrapped_stream: Arc <Mutex <Option <HyperRustTlsWrappedStream>>>,
+}
+
+impl HyperSslClient for SniSslClient {
+
+	type Stream = HyperRustTlsWrappedStream;
+
+	fn wrap_client (
+		& self,
+		stream: HyperHttpStream,
+		_host: & str,
+	) -> HyperResult <Self::Stream> {
+
+		let result =
+			self.nested_client.wrap_client (
+				stream,
+				& self.hostname,
+			);
+
+		if let Ok (ref wrapped_stream) = result {
+
+			let mut wrapped_stream_lock =
+				self.wrapped_stream.lock ().unwrap ();
+
+			* wrapped_stream_lock =
+				Some (wrapped_stream.clone ());
+
+		}
+
+		result
+
+    }
+
+}
+
+fn get_certificate_validity_from_wrapped_stream (
+	wrapped_stream: Arc <Mutex <Option <HyperRustTlsWrappedStream>>>,
+) -> Option <(NaiveDateTime, NaiveDateTime)> {
+
+	let wrapped_stream =
+		wrapped_stream.lock ().unwrap ();
+
+	if let Some (ref wrapped_stream) =
+		* wrapped_stream {
+
+		let tls_stream =
+			wrapped_stream.to_tls_stream ();
+
+		let tls_session =
+			tls_stream.get_session ();
+
+		if let Some (peer_certificates) =
+			tls_session.get_peer_certificates () {
+
+			if let Some (ref peer_certificate) =
+				peer_certificates.iter ().next () {
+
+				let & RustTlsCertificate (ref peer_certificate) =
+					* peer_certificate;
+
+				return get_certificate_validity (
+					& peer_certificate,
+				).ok ();
+
+			}
+
+		}
+
+	}
+
+	None
+
+}
+
+
+fn get_certificate_validity (
+	bytes: & [u8],
+) -> Result <(NaiveDateTime, NaiveDateTime), ()> {
+
+	let raw =
+		match der_parser::parse_der (
+			& bytes,
+		) {
+
+		nom::IResult::Done (remain, value) =>
+			value,
+
+		_ =>
+			return Err (()),
+
+	};
+
+	let certificate =
+		der_sequence (
+			& raw,
+		) ?;
+
+	let certificate_main =
+		der_sequence (
+			& certificate [0],
+		) ?;
+
+	let certificate_validity =
+		der_sequence (
+			& certificate_main [4],
+		) ?;
+
+	let valid_from =
+		der_utctime (
+			& certificate_validity [0],
+		) ?;
+
+	let valid_to =
+		der_utctime (
+			& certificate_validity [1],
+		) ?;
+
+	Ok ((
+		valid_from,
+		valid_to,
+	))
+
+}
+
+fn der_sequence <'a> (
+	der_object: & 'a DerObject,
+) -> Result <& 'a [DerObject <'a>], ()> {
+
+	match der_object.content {
+
+		DerObjectContent::Sequence (ref value) =>
+			Ok (& value),
+
+		_ =>
+			Err (()),
+
+	}
+
+}
+
+fn der_utctime <'a> (
+	der_object: & 'a DerObject,
+) -> Result <NaiveDateTime, ()> {
+
+	match der_object.content {
+
+		DerObjectContent::UTCTime (ref value) =>
+			Ok (parse_utc_time (
+				str::from_utf8 (
+					& value,
+				).map_err (|_| ()) ?,
+			).map_err (|_| ()) ?),
+
+		_ =>
+			Err (()),
+
+	}
+
+}
+
+fn parse_utc_time (
+	time_string: & str,
+) -> Result <NaiveDateTime, ()> {
+
+	if time_string.len () == 11 {
+
+		Ok (NaiveDateTime::parse_from_str (
+			& format! (
+				"20{}",
+				& time_string [0 .. 10]),
+			"%Y%m%d%H%M",
+		).map_err (|_| ()) ?)
+
+	} else if time_string.len () == 13 {
+
+		Ok (NaiveDateTime::parse_from_str (
+			& format! (
+				"20{}",
+				& time_string [0 .. 12]),
+			"%Y%m%d%H%M%S",
+		).map_err (|_| ()) ?)
+
+	} else {
+
+		Err (())
+
+	}
 
 }
 

@@ -1,10 +1,13 @@
 extern crate btrfs;
-//extern crate dns_lookup;
+extern crate chrono;
 extern crate getopts;
+extern crate der_parser;
 extern crate hyper;
-extern crate hyper_native_tls;
+extern crate hyper_rustls;
 extern crate itertools;
+extern crate nom;
 extern crate resolv;
+extern crate rustls;
 
 #[ macro_use ]
 pub mod logic;
