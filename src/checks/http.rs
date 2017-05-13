@@ -377,6 +377,11 @@ impl CheckHttpInstance {
 
 		}
 
+		self.check_response_timing (
+			check_result_builder,
+			& durations,
+		);
+
 		for (count, label) in vec! [
 			(num_other_errors, "reported unknown errors"),
 			(num_timeouts, "timed out"),
@@ -398,11 +403,6 @@ impl CheckHttpInstance {
 			}
 
 		}
-
-		self.check_response_timing (
-			check_result_builder,
-			& durations
-		);
 
 		Ok (())
 
@@ -597,6 +597,12 @@ impl CheckHttpInstance {
 				duration: http_response.duration,
 				messages: Vec::new (),
 			};
+
+		result.messages.push (
+			format! (
+				"request took {}",
+				check_helper::display_duration_long (
+					& http_response.duration)));
 
 		self.check_response_status_code (
 			& mut result,
@@ -862,7 +868,7 @@ impl CheckHttpInstance {
 				& self.response_time_warning,
 				& self.response_time_critical,
 				& format! (
-					"request took {}",
+					"slowest request took {}",
 					check_helper::display_duration_long (
 						& max_duration)),
 				& max_duration);

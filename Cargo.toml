@@ -143,7 +143,7 @@ path = "src/legacy/check_git.rs"
 	hyper-rustls = "*"
 	itertools = "*"
 	libc = "*"
-	nom = "*"
+	nom = "2"
 	regex = "*"
 	resolv = "*"
 	rustls = "*"
@@ -157,7 +157,7 @@ path = "src/legacy/check_git.rs"
 
 [replace]
 
-	"der-parser:0.3.5" = { path = "../der-parser" }
+	"der-parser:0.3.5" = { git = "https://github.com/jamespharaoh/der-parser.git" }
 
 # ---------- build profiles
 

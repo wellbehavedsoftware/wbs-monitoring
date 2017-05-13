@@ -335,7 +335,7 @@ pub fn parse_duration (
 
 			let (multiplier, suffix_length) =
 				if option_string.ends_with ("ms") {
-					(0, 2)
+					(1, 2)
 				} else if option_string.ends_with ("s") {
 					(1000, 1)
 				} else if option_string.ends_with ("m") {

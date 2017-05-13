@@ -1,5 +1,4 @@
 use std::error;
-use std::fmt;
 use std::io::Read;
 use std::str;
 use std::sync::Arc;
@@ -7,10 +6,7 @@ use std::sync::Mutex;
 use std::time::Duration;
 use std::time::Instant;
 
-use chrono::DateTime;
-use chrono::Duration as ChronoDuration;
 use chrono::NaiveDateTime;
-use chrono::UTC;
 
 use hyper::Client as HyperClient;
 use hyper::error::Result as HyperResult;
@@ -18,10 +14,7 @@ use hyper::header::Headers as HyperHeaders;
 use hyper::http::RawStatus as HyperRawStatus;
 use hyper::net::HttpStream as HyperHttpStream;
 use hyper::net::HttpsConnector as HyperHttpsConnector;
-use hyper::net::NetworkStream as HyperNetworkStream;
 use hyper::net::SslClient as HyperSslClient;
-//use hyper_native_tls::NativeTlsClient as HyperNativeTlsClient;
-//use hyper_native_tls::TlsStream as HyperNativeTlsStream;
 use hyper_rustls::TlsClient as HyperRustTlsClient;
 use hyper_rustls::WrappedStream as HyperRustTlsWrappedStream;
 
@@ -144,7 +137,7 @@ pub fn perform_request_real (
 		HyperClient::with_connector (
 			hyper_connector)
 
-   	} else {
+	} else {
 
 		HyperClient::new ()
 
@@ -247,34 +240,6 @@ pub fn perform_request_real (
 
 }
 
-/*
-struct SniSslClient {
-	nested_client: HyperNativeTlsClient,
-	hostname: String,
-}
-
-impl <
-	NetworkStream: HyperNetworkStream + Send + Clone + fmt::Debug + Sync
-> HyperSslClient <NetworkStream> for SniSslClient {
-
-	type Stream = HyperNativeTlsStream <NetworkStream>;
-
-	fn wrap_client (
-		& self,
-		stream: NetworkStream,
-		_host: & str,
-	) -> HyperResult <Self::Stream> {
-
-		self.nested_client.wrap_client (
-			stream,
-			& self.hostname,
-		)
-
-    }
-
-}
-*/
-
 struct SniSslClient {
 	nested_client: HyperRustTlsClient,
 	hostname: String,
@@ -362,7 +327,7 @@ fn get_certificate_validity (
 			& bytes,
 		) {
 
-		nom::IResult::Done (remain, value) =>
+		nom::IResult::Done (_remain, value) =>
 			value,
 
 		_ =>
