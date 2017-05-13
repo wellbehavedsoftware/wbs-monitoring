@@ -1,6 +1,6 @@
 [package]
 
-	name = "WBS Monitoring"
+	name = "wbs-monitoring"
 	description = "Collection of Icinga/Nagios plugins"
 	version = "1.8.0-beta0"
 
