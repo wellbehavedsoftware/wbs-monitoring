@@ -8,10 +8,15 @@ use std::time::Instant;
 
 use chrono::NaiveDateTime;
 
+use encoding::DecoderTrap;
+use encoding::label::encoding_from_whatwg_label;
+
 use hyper::Client as HyperClient;
 use hyper::error::Result as HyperResult;
+use hyper::header::ContentType as HyperContentType;
 use hyper::header::Headers as HyperHeaders;
 use hyper::http::RawStatus as HyperRawStatus;
+use hyper::mime::Attr as HyperAttr;
 use hyper::net::HttpStream as HyperHttpStream;
 use hyper::net::HttpsConnector as HyperHttpsConnector;
 use hyper::net::SslClient as HyperSslClient;
@@ -52,12 +57,79 @@ pub struct HttpRequest <'a> {
 
 #[ derive (Debug) ]
 pub struct HttpResponse {
-	pub status_code: u64,
-	pub status_message: String,
-	pub headers: Vec <(String, String)>,
-	pub body: String,
-	pub duration: Duration,
-	pub certificate_expiry: Option <NaiveDateTime>,
+
+	status_code: u64,
+	status_message: String,
+
+	headers: Vec <(String, String)>,
+
+	body: Vec <u8>,
+	body_encoding: Option <String>,
+
+	duration: Duration,
+	certificate_expiry: Option <NaiveDateTime>,
+
+}
+
+impl HttpResponse {
+
+	pub fn status_code (& self) -> u64 {
+		self.status_code
+	}
+
+	pub fn status_message (& self) -> & str {
+		& self.status_message
+	}
+
+	pub fn headers (& self) -> & [(String, String)] {
+		& self.headers
+	}
+
+	pub fn body_bytes (& self) -> & [u8] {
+		& self.body
+	}
+
+	pub fn body_encoding (& self) -> & Option <String> {
+		& self.body_encoding
+	}
+
+	pub fn duration (& self) -> Duration {
+		self.duration
+	}
+
+	pub fn certificate_expiry (& self) -> Option <NaiveDateTime> {
+		self.certificate_expiry
+	}
+
+	pub fn body_string (
+		& self,
+	) -> Result <String, String> {
+
+		let body_encoding =
+			self.body_encoding.as_ref ().ok_or_else (
+				|| "response encoding not specified".to_string (),
+			) ?;
+
+		let encoding =
+			encoding_from_whatwg_label (
+				& body_encoding,
+			).ok_or_else (||
+
+				format! (
+					"response encoding not recognised: {}",
+					body_encoding)
+
+			) ?;
+
+		Ok (
+			encoding.decode (
+				& self.body,
+				DecoderTrap::Strict,
+			) ?.to_string ()
+		)
+
+	}
+
 }
 
 #[ derive (Debug) ]
@@ -179,10 +251,10 @@ pub fn perform_request_real (
 	let mut hyper_response =
 		hyper_request.send () ?;
 
-	let mut response_body =
-		String::new ();
+	let mut response_body: Vec <u8> =
+		Vec::new ();
 
-	hyper_response.read_to_string (
+	hyper_response.read_to_end (
 		& mut response_body,
 	) ?;
 
@@ -222,6 +294,25 @@ pub fn perform_request_real (
 			)
 		).collect ();
 
+	let response_encoding =
+		if let Some (response_content_type) =
+			hyper_response.headers.get::<HyperContentType> () {
+
+		if let Some (response_charset) =
+			response_content_type.get_param (
+				HyperAttr::Charset,
+			) {
+
+			Some (response_charset.to_string ())
+
+		} else {
+			None
+		}
+
+	} else {
+		None
+	};
+
 	// return
 
 	Ok (
@@ -232,6 +323,7 @@ pub fn perform_request_real (
 			status_message: response_status_message,
 			headers: response_headers,
 			body: response_body,
+			body_encoding: response_encoding,
 			duration: duration,
 			certificate_expiry: certificate_expiry,
 		}

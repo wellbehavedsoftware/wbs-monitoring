@@ -533,14 +533,6 @@ impl CheckHttpInstance {
 		address: & str,
 	) -> RequestResult {
 
-		let mut send_headers =
-			self.send_headers.clone ();
-
-		send_headers.push ((
-			"Host".to_string (),
-			self.address.clone (),
-		));
-
 		let http_request =
 			http::HttpRequest {
 
@@ -551,7 +543,7 @@ impl CheckHttpInstance {
 
 			method: self.method,
 			path: & self.path,
-			headers: & send_headers,
+			headers: & self.send_headers,
 
 			timeout: self.timeout,
 
@@ -594,7 +586,7 @@ impl CheckHttpInstance {
 		let mut result =
 			RequestResultSuccess {
 				check_status: CheckStatus::Ok,
-				duration: http_response.duration,
+				duration: http_response.duration (),
 				messages: Vec::new (),
 			};
 
@@ -602,7 +594,7 @@ impl CheckHttpInstance {
 			format! (
 				"request took {}",
 				check_helper::display_duration_long (
-					& http_response.duration)));
+					& http_response.duration ())));
 
 		self.check_response_status_code (
 			& mut result,
@@ -635,20 +627,20 @@ impl CheckHttpInstance {
 	) -> Result <(), Box <error::Error>> {
 
 		if self.expect_status_code.contains (
-			& http_response.status_code,
+			& http_response.status_code (),
 		) {
 
 			result.messages.push (
 				format! (
 					"status {}",
-					http_response.status_code));
+					http_response.status_code ()));
 
 		} else {
 
 			result.messages.push (
 				format! (
 					"status {} (critical)",
-					http_response.status_code));
+					http_response.status_code ()));
 
 			result.check_status.update (
 				CheckStatus::Critical);
@@ -677,7 +669,7 @@ impl CheckHttpInstance {
 				vec! [];
 
 			let response_headers_map: HashMap <String, String> =
-				http_response.headers.iter ().map (
+				http_response.headers ().iter ().map (
 					|& (ref header_name, ref header_value)|
 					(
 						header_name.to_lowercase (),
@@ -781,7 +773,10 @@ impl CheckHttpInstance {
 			let expect_body_text =
 				self.expect_body_text.as_ref ().unwrap ();
 
-			if http_response.body.contains (
+			let body_string =
+				http_response.body_string () ?;
+
+			if body_string.contains (
 				expect_body_text) {
 
 				result.messages.push (
@@ -810,7 +805,7 @@ impl CheckHttpInstance {
 	) -> Result <(), Box <error::Error>> {
 
 		if let Some (certificate_expiry) =
-			http_response.certificate_expiry {
+			http_response.certificate_expiry () {
 
 			let now =
 				UTC::now ().naive_utc ();

@@ -1,5 +1,6 @@
 extern crate btrfs;
 extern crate chrono;
+extern crate encoding;
 extern crate getopts;
 extern crate der_parser;
 extern crate hyper;
