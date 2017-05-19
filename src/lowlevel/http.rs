@@ -13,8 +13,9 @@ use encoding::label::encoding_from_whatwg_label;
 
 use hyper::Client as HyperClient;
 use hyper::error::Result as HyperResult;
-use hyper::header::ContentType as HyperContentType;
+use hyper::header::ContentType as HyperContentTypeHeader;
 use hyper::header::Headers as HyperHeaders;
+use hyper::header::Host as HyperHostHeader;
 use hyper::http::RawStatus as HyperRawStatus;
 use hyper::mime::Attr as HyperAttr;
 use hyper::net::HttpStream as HyperHttpStream;
@@ -230,12 +231,51 @@ pub fn perform_request_real (
 	let mut hyper_headers =
 		HyperHeaders::new ();
 
+	let mut got_host = false;
+
 	for & (ref header_name, ref header_value)
 		in http_request.headers.iter () {
+
+		let header_name =
+			header_name.to_lowercase ();
+
+		if header_name == "host" {
+			got_host = true;
+		}
 
 		hyper_headers.set_raw (
 			header_name.to_string (),
 			vec! [ header_value.as_bytes ().to_vec () ]);
+
+	}
+
+	if ! got_host {
+
+		if (
+			! http_request.secure
+			&& http_request.port == 80
+		) || (
+			http_request.secure
+			&& http_request.port == 443
+		) {
+
+			hyper_headers.set (
+				HyperHostHeader {
+					hostname: http_request.hostname.to_string (),
+					port: None,
+				}
+			)
+
+		} else {
+
+			hyper_headers.set (
+				HyperHostHeader {
+					hostname: http_request.hostname.to_string (),
+					port: Some (http_request.port as u16),
+				}
+			)
+
+		}
 
 	}
 
@@ -296,7 +336,7 @@ pub fn perform_request_real (
 
 	let response_encoding =
 		if let Some (response_content_type) =
-			hyper_response.headers.get::<HyperContentType> () {
+			hyper_response.headers.get::<HyperContentTypeHeader> () {
 
 		if let Some (response_charset) =
 			response_content_type.get_param (
