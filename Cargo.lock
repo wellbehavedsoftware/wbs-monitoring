@@ -1,6 +1,6 @@
 [root]
 name = "wbs-monitoring"
-version = "1.8.0-beta2"
+version = "1.8.0-beta3"
 dependencies = [
  "RustyXML 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "btrfs 1.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
