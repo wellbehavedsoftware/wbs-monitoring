@@ -1,5 +1,4 @@
 use std::error;
-use std::io::Read;
 use std::str;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -11,18 +10,17 @@ use chrono::NaiveDateTime;
 use encoding::DecoderTrap;
 use encoding::label::encoding_from_whatwg_label;
 
+use futures::Future;
+use futures::IntoFuture;
+use futures::Stream;
+use futures::future::Either;
+
 use hyper::Client as HyperClient;
-use hyper::error::Result as HyperResult;
+use hyper::Method as HyperMethod;
+use hyper::client::Request as HyperRequest;
 use hyper::header::ContentType as HyperContentTypeHeader;
-use hyper::header::Headers as HyperHeaders;
 use hyper::header::Host as HyperHostHeader;
-use hyper::http::RawStatus as HyperRawStatus;
-use hyper::mime::Attr as HyperAttr;
-use hyper::net::HttpStream as HyperHttpStream;
-use hyper::net::HttpsConnector as HyperHttpsConnector;
-use hyper::net::SslClient as HyperSslClient;
-use hyper_rustls::TlsClient as HyperRustTlsClient;
-use hyper_rustls::WrappedStream as HyperRustTlsWrappedStream;
+use hyper::mime::UTF_8 as HyperUtf8;
 
 use nom;
 
@@ -32,7 +30,11 @@ use der_parser::DerObjectContent;
 
 use rustls::Certificate as RustTlsCertificate;
 
+use tokio_core::reactor::Core as TokioCore;
+use tokio_core::reactor::Timeout as TokioTimeout;
+
 use logic::*;
+use lowlevel::https::SniConnector;
 
 #[ derive (Clone, Copy, Debug, PartialEq) ]
 pub enum HttpMethod {
@@ -183,150 +185,148 @@ pub fn perform_request_real (
 
 	// setup client
 
-	let wrapped_stream: Arc <Mutex <Option <HyperRustTlsWrappedStream>>> =
+	let mut tokio_core =
+		TokioCore::new () ?;
+
+	// setup client
+
+	let peer_certificates: Arc <Mutex <Option <Vec <RustTlsCertificate>>>> =
 		Arc::new (Mutex::new (None));
 
-	let mut hyper_client =
-		if http_request.secure {
+	let sni_connector =
+		SniConnector::new (
+			1,
+			& tokio_core.handle (),
+			http_request.hostname.to_string (),
+			peer_certificates.clone (),
+		);
 
-		let hyper_ssl_client =
-			SniSslClient {
+	let hyper_client =
+		HyperClient::configure (
+		).connector (
+			sni_connector,
+		).build (
+			& tokio_core.handle (),
+		);
 
-			nested_client:
-				HyperRustTlsClient::new (),
+	//hyper_client.set_read_timeout (
+	//	Some (http_request.timeout));
 
-			hostname:
-				http_request.hostname.to_string (),
-
-			wrapped_stream:
-				wrapped_stream.clone (),
-
-		};
-
-		let hyper_connector =
-			HyperHttpsConnector::new (
-				hyper_ssl_client);
-
-		HyperClient::with_connector (
-			hyper_connector)
-
-	} else {
-
-		HyperClient::new ()
-
-	};
-
-	hyper_client.set_read_timeout (
-		Some (http_request.timeout));
-
-	hyper_client.set_write_timeout (
-		Some (http_request.timeout));
+	//hyper_client.set_write_timeout (
+	//	Some (http_request.timeout));
 
 	// setup request
 
-	let hyper_request =
-		hyper_client.get (
-			& url);
+	let mut hyper_request =
+		HyperRequest::new (
+			HyperMethod::Get,
+			url.parse () ?);
 
-	let mut hyper_headers =
-		HyperHeaders::new ();
+	{
 
-	let mut got_host = false;
+		let hyper_headers =
+			hyper_request.headers_mut ();
 
-	for & (ref header_name, ref header_value)
-		in http_request.headers.iter () {
+		let mut got_host = false;
 
-		let header_name =
-			header_name.to_lowercase ();
+		for & (ref header_name, ref header_value)
+			in http_request.headers.iter () {
 
-		if header_name == "host" {
-			got_host = true;
-		}
+			let header_name =
+				header_name.to_lowercase ();
 
-		hyper_headers.set_raw (
-			header_name.to_string (),
-			vec! [ header_value.as_bytes ().to_vec () ]);
+			if header_name == "host" {
+				got_host = true;
+			}
 
-	}
-
-	if ! got_host {
-
-		if (
-			! http_request.secure
-			&& http_request.port == 80
-		) || (
-			http_request.secure
-			&& http_request.port == 443
-		) {
-
-			hyper_headers.set (
-				HyperHostHeader {
-					hostname: http_request.hostname.to_string (),
-					port: None,
-				}
-			)
-
-		} else {
-
-			hyper_headers.set (
-				HyperHostHeader {
-					hostname: http_request.hostname.to_string (),
-					port: Some (http_request.port as u16),
-				}
-			)
+			hyper_headers.set_raw (
+				header_name.to_string (),
+				vec! [ header_value.as_bytes ().to_vec () ]);
 
 		}
 
-	}
+		if ! got_host {
 
-	let hyper_request =
-		hyper_request.headers (
-			hyper_headers);
+			if (
+				! http_request.secure
+				&& http_request.port == 80
+			) || (
+				http_request.secure
+				&& http_request.port == 443
+			) {
+
+				hyper_headers.set (
+					HyperHostHeader::new (
+						http_request.hostname.to_string (),
+						None));
+
+			} else {
+
+				hyper_headers.set (
+					HyperHostHeader::new (
+						http_request.hostname.to_string (),
+						http_request.port as u16));
+
+			}
+
+		}
+
+	}
 
 	// perform request
 
 	let start_time =
 		Instant::now ();
 
-	let mut hyper_response =
-		hyper_request.send () ?;
+	let timeout_time =
+		start_time + http_request.timeout;
 
-	let mut response_body: Vec <u8> =
-		Vec::new ();
+	let timeout =
+		TokioTimeout::new_at (
+			timeout_time,
+			& tokio_core.handle (),
+		).into_future ().flatten ();
 
-	hyper_response.read_to_end (
-		& mut response_body,
-	) ?;
+	let hyper_response =
+		match tokio_core.run (
+
+		hyper_client.request (
+			hyper_request,
+		).select2 (timeout)
+
+	) {
+
+		Ok (Either::A ((hyper_response, _))) =>
+			hyper_response,
+
+		Err (Either::A (_)) =>
+			return Ok (PerformRequestResult::Failure (
+				format! (
+					"Unknown error performing request"))),
+
+		_ =>
+			return Ok (PerformRequestResult::Timeout (
+				Instant::now () - start_time)),
+
+	};
 
 	let certificate_expiry =
-		get_certificate_validity_from_wrapped_stream (
-			wrapped_stream,
+		get_certificate_validity (
+			peer_certificates,
 		).map (
 			|(_start, end)| end,
 		);
 
-	let end_time =
-		Instant::now ();
-
-	let duration =
-		end_time.duration_since (
-			start_time);
-
-	// process response
-
-	let HyperRawStatus (
-		ref response_status_code,
-		ref response_status_message,
-	) = * hyper_response.status_raw ();
+	// process response headers
 
 	let response_status_code =
-		* response_status_code as u64;
+		hyper_response.status_raw ().0 as u64;
 
 	let response_status_message =
-		response_status_message.to_string ();
+		hyper_response.status_raw ().1.to_string ();
 
 	let response_headers: Vec <(String, String)> =
-		hyper_response.headers.iter ().map (
+		hyper_response.headers ().iter ().map (
 			|header|
 			(
 				header.name ().to_string (),
@@ -336,11 +336,11 @@ pub fn perform_request_real (
 
 	let response_encoding =
 		if let Some (response_content_type) =
-			hyper_response.headers.get::<HyperContentTypeHeader> () {
+			hyper_response.headers ().get::<HyperContentTypeHeader> () {
 
 		if let Some (response_charset) =
 			response_content_type.get_param (
-				HyperAttr::Charset,
+				"charset",
 			) {
 
 			Some (response_charset.to_string ())
@@ -352,6 +352,52 @@ pub fn perform_request_real (
 	} else {
 		None
 	};
+
+	// process response body
+
+	let mut response_body: Vec <u8> =
+		Vec::new ();
+
+	let timeout =
+		TokioTimeout::new_at (
+			timeout_time,
+			& tokio_core.handle (),
+		).into_future ().flatten ();
+
+	match tokio_core.run (
+
+		hyper_response.body ().for_each (
+			|chunk| {
+
+			response_body.extend_from_slice (
+				& chunk);
+
+			Ok (())
+
+		}).select2 (timeout)
+
+	) {
+
+		Ok (Either::A (_)) =>
+			(),
+
+		Err (Either::A (_)) =>
+			return Ok (PerformRequestResult::Failure (
+				format! (
+					"Unknown error performing request"))),
+
+		_ =>
+			return Ok (PerformRequestResult::Timeout (
+				Instant::now () - start_time)),
+
+	};
+
+	let end_time =
+		Instant::now ();
+
+	let duration =
+		end_time.duration_since (
+			start_time);
 
 	// return
 
@@ -372,74 +418,25 @@ pub fn perform_request_real (
 
 }
 
-struct SniSslClient {
-	nested_client: HyperRustTlsClient,
-	hostname: String,
-	wrapped_stream: Arc <Mutex <Option <HyperRustTlsWrappedStream>>>,
-}
-
-impl HyperSslClient for SniSslClient {
-
-	type Stream = HyperRustTlsWrappedStream;
-
-	fn wrap_client (
-		& self,
-		stream: HyperHttpStream,
-		_host: & str,
-	) -> HyperResult <Self::Stream> {
-
-		let result =
-			self.nested_client.wrap_client (
-				stream,
-				& self.hostname,
-			);
-
-		if let Ok (ref wrapped_stream) = result {
-
-			let mut wrapped_stream_lock =
-				self.wrapped_stream.lock ().unwrap ();
-
-			* wrapped_stream_lock =
-				Some (wrapped_stream.clone ());
-
-		}
-
-		result
-
-    }
-
-}
-
-fn get_certificate_validity_from_wrapped_stream (
-	wrapped_stream: Arc <Mutex <Option <HyperRustTlsWrappedStream>>>,
+fn get_certificate_validity (
+	peer_certificates: Arc <Mutex <Option <Vec <RustTlsCertificate>>>>,
 ) -> Option <(NaiveDateTime, NaiveDateTime)> {
 
-	let wrapped_stream =
-		wrapped_stream.lock ().unwrap ();
+	let peer_certificates =
+		peer_certificates.lock ().unwrap ();
 
-	if let Some (ref wrapped_stream) =
-		* wrapped_stream {
+	if let Some (ref peer_certificates) =
+		* peer_certificates {
 
-		let tls_stream =
-			wrapped_stream.to_tls_stream ();
+		if let Some (ref peer_certificate) =
+			peer_certificates.iter ().next () {
 
-		let tls_session =
-			tls_stream.get_session ();
+			let & RustTlsCertificate (ref peer_certificate) =
+				* peer_certificate;
 
-		if let Some (peer_certificates) =
-			tls_session.get_peer_certificates () {
-
-			if let Some (ref peer_certificate) =
-				peer_certificates.iter ().next () {
-
-				let & RustTlsCertificate (ref peer_certificate) =
-					* peer_certificate;
-
-				return get_certificate_validity (
-					& peer_certificate,
-				).ok ();
-
-			}
+			return get_certificate_validity_real (
+				& peer_certificate,
+			).ok ();
 
 		}
 
@@ -450,7 +447,7 @@ fn get_certificate_validity_from_wrapped_stream (
 }
 
 
-fn get_certificate_validity (
+fn get_certificate_validity_real (
 	bytes: & [u8],
 ) -> Result <(NaiveDateTime, NaiveDateTime), ()> {
 

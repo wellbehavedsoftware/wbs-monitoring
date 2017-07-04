@@ -1,15 +1,17 @@
 extern crate getopts;
-extern crate hyper;
 extern crate libc;
 extern crate serde_json;
 
 use std::error;
 use std::error::Error;
-use std::io::Read;
 use std::time;
-use std::time::Instant;
+
+use hyper::Uri;
 
 use logic::*;
+use lowlevel::http;
+use lowlevel::http::HttpMethod;
+use lowlevel::http::HttpRequest;
 
 check! {
 
@@ -21,7 +23,7 @@ check! {
 
 	instance = CheckGenericInstance {
 
-		target: String,
+		target: Uri,
 
 		request_time_warning: Option <time::Duration>,
 		request_time_critical: Option <time::Duration>,
@@ -69,7 +71,7 @@ check! {
 				arg_helper::parse_string_required (
 					options_matches,
 					"target",
-				) ?,
+				) ?.parse () ?,
 
 			request_time_warning:
 				arg_helper::parse_duration (
@@ -111,57 +113,57 @@ impl CheckGenericInstance {
 		check_result_builder: & mut CheckResultBuilder,
 	) -> Result <(), Box <Error>> {
 
-		let mut hyper_client =
-			hyper::Client::new ();
+		let http_request =
+			HttpRequest {
 
-		hyper_client.set_write_timeout (
-			Some (self.request_timeout));
+			address: self.target.host ().unwrap (),
+			hostname: self.target.host ().unwrap (),
 
-		hyper_client.set_read_timeout (
-			Some (self.request_timeout));
+			port: self.target.port ().unwrap_or (
+				match self.target.scheme ().unwrap () {
+					"http" => 80,
+					"https" => 443,
+					_ => panic! ("Invalid scheme"),
+				}
+			) as u64,
 
-		let start_time =
-			Instant::now ();
-
-		let hyper_response =
-			match hyper_client.get (
-				& self.target,
-			).send () {
-
-			Ok (value) => value,
-
-			Err (hyper::Error::Io (io_error)) => {
-
-				check_result_builder.critical (
-					format! (
-						"Connection IO error: {}",
-						io_error.description ()));
-
-				return Ok (());
-
+			secure: match self.target.scheme ().unwrap () {
+				"http" => false,
+				"https" => true,
+				_ => panic! ("Invalid scheme"),
 			},
 
-			Err (error) => {
+			headers: & Vec::new (),
 
-				check_result_builder.unknown (
-					format! (
-						"Unknown connection error: {}",
-						error.description ()));
+			method: HttpMethod::Get,
+			path: self.target.path (),
 
-				return Ok (());
-
-			},
+			timeout: self.request_timeout,
 
 		};
 
-		let hyper_response_bytes_result: Result <Vec <u8>, _> =
-			hyper_response.bytes ().collect ();
+		let http_response = match
 
-		let end_time =
-			Instant::now ();
+			http::perform_request (
+				& http_request)
 
-		let request_duration =
-			end_time - start_time;
+		{
+
+			http::PerformRequestResult::Success (http_response) =>
+				Ok (http_response),
+
+			http::PerformRequestResult::Failure (reason) =>
+				Err (
+					format! (
+						"failed to connect: {}",
+						reason)),
+
+			http::PerformRequestResult::Timeout (_duration) =>
+				Err (
+					format! (
+						"Request timed out")),
+
+		} ?;
 
 		check_helper::check_duration_less_than (
 			check_result_builder,
@@ -170,13 +172,11 @@ impl CheckGenericInstance {
 			& format! (
 				"Request took {}",
 				check_helper::display_duration_short (
-					& request_duration)),
-			& request_duration);
+					& http_response.duration ())),
+			& http_response.duration ());
 
 		let hyper_response_string =
-			match String::from_utf8 (
-				hyper_response_bytes_result ?,
-			) {
+			match http_response.body_string () {
 
 			Ok (value) => value,
 
@@ -185,7 +185,7 @@ impl CheckGenericInstance {
 				check_result_builder.critical (
 					format! (
 						"Error decoding result as UTF-8 string: {}",
-						error.description ()));
+						error));
 
 				return Ok (());
 

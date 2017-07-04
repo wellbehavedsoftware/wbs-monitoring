@@ -173,7 +173,7 @@ fn display_duration_generic (
 			"{}.{:02}{}",
 			seconds,
 			microseconds / 10_000,
-			if seconds == 1 {
+			if seconds == 1 && microseconds == 0 {
 				duration_format.seconds_singular
 			} else {
 				duration_format.seconds_plural

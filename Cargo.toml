@@ -137,14 +137,16 @@ path = "src/legacy/check_git.rs"
 	curl = "*"
 	der-parser = "*"
 	encoding = "*"
+	futures = "*"
 	getopts = "*"
 	git2 = "*"
 	glob = "*"
-	hyper = "*"
+	hyper = { version = "*", features = [ "raw_status" ] }
+	hyper-tls = "*"
 	hyper-rustls = "*"
 	itertools = "*"
 	libc = "*"
-	nom = "2"
+	nom = "*"
 	regex = "*"
 	resolv = "*"
 	rustls = "*"
@@ -154,11 +156,12 @@ path = "src/legacy/check_git.rs"
 	serde_json = "*"
 	systemd-jp = "*"
 	time = "*"
+	tokio-core = "*"
+	tokio-io = "*"
+	tokio-rustls = "*"
+	tokio-service = "*"
 	uuid = "*"
-
-[replace]
-
-	"der-parser:0.3.5" = { git = "https://github.com/jamespharaoh/der-parser.git" }
+	webpki-roots = "*"
 
 # ---------- build profiles
 

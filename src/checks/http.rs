@@ -10,7 +10,7 @@ use std::time::Duration;
 use std::time::Instant;
 
 use chrono::Duration as ChronoDuration;
-use chrono::UTC;
+use chrono::offset::Utc;
 
 use itertools::Itertools;
 
@@ -808,7 +808,7 @@ impl CheckHttpInstance {
 			http_response.certificate_expiry () {
 
 			let now =
-				UTC::now ().naive_utc ();
+				Utc::now ().naive_utc ();
 
 			let remaining_time =
 				certificate_expiry.signed_duration_since (
