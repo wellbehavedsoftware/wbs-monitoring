@@ -17,7 +17,7 @@ use itertools::Itertools;
 use resolv;
 
 use logic::*;
-use lowlevel::http;
+use lowlevel::http::*;
 
 check! {
 
@@ -33,10 +33,12 @@ check! {
 		port: u64,
 		secure: bool,
 
-		method: http::HttpMethod,
+		method: HttpMethod,
 		path: String,
 
 		send_headers: Vec <(String, String)>,
+
+		request_count: u64,
 
 		expect_status_code: Vec <u64>,
 		expect_headers: Vec <(String, String)>,
@@ -89,6 +91,12 @@ check! {
 			"send-header",
 			"header to send, eg 'name: value'",
 			"NAME:VALUE");
+
+		options_spec.optopt (
+			"",
+			"request-count",
+			"send multilpe requests on same connection",
+			"COUNT");
 
 		// response options
 
@@ -167,7 +175,7 @@ check! {
 			// request
 
 			method:
-				http::HttpMethod::Get,
+				HttpMethod::Get,
 
 			path:
 				arg_helper::parse_string_or_default (
@@ -182,6 +190,13 @@ check! {
 						options_matches,
 						"send-header",
 					) ?,
+				) ?,
+
+			request_count:
+				arg_helper::parse_positive_integer_or_default (
+					options_matches,
+					"request-count",
+					1,
 				) ?,
 
 			// response
@@ -277,7 +292,7 @@ impl CheckHttpInstance {
 					& lookup_duration)));
 
 		let request_results =
-			self.perform_requests (
+			self.perform_requests_for_addresses (
 				addresses,
 			) ?;
 
@@ -474,7 +489,7 @@ impl CheckHttpInstance {
 
 	}
 
-	fn perform_requests (
+	fn perform_requests_for_addresses (
 		& self,
 		addresses: Vec <String>,
 	) -> Result <Vec <(String, RequestResult)>, String> {
@@ -491,7 +506,7 @@ impl CheckHttpInstance {
 				thread::spawn (
 					move ||
 
-					self_copy.perform_request (
+					self_copy.perform_request_for_address (
 						& address)
 
 				),
@@ -528,13 +543,13 @@ impl CheckHttpInstance {
 
 	}
 
-	fn perform_request (
+	fn perform_request_for_address (
 		& self,
 		address: & str,
 	) -> RequestResult {
 
 		let http_request =
-			http::HttpRequest {
+			HttpSimpleRequest {
 
 			address: address,
 			hostname: & self.address,
@@ -550,11 +565,11 @@ impl CheckHttpInstance {
 		};
 
 		match (
-			http::perform_request (
+			http_simple_perform (
 				& http_request)
 		) {
 
-			http::PerformRequestResult::Success (http_response) =>
+			HttpSimpleResult::Success (http_response) =>
 				self.process_response (
 					& http_response,
 				).unwrap_or_else (
@@ -565,13 +580,13 @@ impl CheckHttpInstance {
 
 				),
 
-			http::PerformRequestResult::Failure (reason) =>
+			HttpSimpleResult::Failure (reason) =>
 				RequestResult::ConnectionError (
 					format! (
 						"failed to connect: {}",
 						reason)),
 
-			http::PerformRequestResult::Timeout (_duration) =>
+			HttpSimpleResult::Timeout (_duration) =>
 				RequestResult::Timeout,
 
 		}
@@ -580,7 +595,7 @@ impl CheckHttpInstance {
 
 	fn process_response (
 		& self,
-		http_response: & http::HttpResponse,
+		http_response: & HttpSimpleResponse,
 	) -> Result <RequestResult, Box <error::Error>> {
 
 		let mut result =
@@ -623,7 +638,7 @@ impl CheckHttpInstance {
 	fn check_response_status_code (
 		& self,
 		result: & mut RequestResultSuccess,
-		http_response: & http::HttpResponse,
+		http_response: & HttpSimpleResponse,
 	) -> Result <(), Box <error::Error>> {
 
 		if self.expect_status_code.contains (
@@ -654,7 +669,7 @@ impl CheckHttpInstance {
 	fn check_response_headers (
 		& self,
 		result: & mut RequestResultSuccess,
-		http_response: & http::HttpResponse,
+		http_response: & HttpSimpleResponse,
 	) -> Result <(), Box <error::Error>> {
 
 		if ! self.expect_headers.is_empty () {
@@ -765,7 +780,7 @@ impl CheckHttpInstance {
 	fn check_response_body (
 		& self,
 		result: & mut RequestResultSuccess,
-		http_response: & http::HttpResponse,
+		http_response: & HttpSimpleResponse,
 	) -> Result <(), Box <error::Error>> {
 
 		if self.expect_body_text.is_some () {
@@ -801,7 +816,7 @@ impl CheckHttpInstance {
 	fn check_certificate_expiry (
 		& self,
 		result: & mut RequestResultSuccess,
-		http_response: & http::HttpResponse,
+		http_response: & HttpSimpleResponse,
 	) -> Result <(), Box <error::Error>> {
 
 		if let Some (certificate_expiry) =

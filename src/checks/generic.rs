@@ -9,9 +9,7 @@ use std::time;
 use hyper::Uri;
 
 use logic::*;
-use lowlevel::http;
-use lowlevel::http::HttpMethod;
-use lowlevel::http::HttpRequest;
+use lowlevel::http::*;
 
 check! {
 
@@ -114,7 +112,7 @@ impl CheckGenericInstance {
 	) -> Result <(), Box <Error>> {
 
 		let http_request =
-			HttpRequest {
+			HttpSimpleRequest {
 
 			address: self.target.host ().unwrap (),
 			hostname: self.target.host ().unwrap (),
@@ -144,21 +142,21 @@ impl CheckGenericInstance {
 
 		let http_response = match
 
-			http::perform_request (
+			http_simple_perform (
 				& http_request)
 
 		{
 
-			http::PerformRequestResult::Success (http_response) =>
+			HttpSimpleResult::Success (http_response) =>
 				Ok (http_response),
 
-			http::PerformRequestResult::Failure (reason) =>
+			HttpSimpleResult::Failure (reason) =>
 				Err (
 					format! (
 						"failed to connect: {}",
 						reason)),
 
-			http::PerformRequestResult::Timeout (_duration) =>
+			HttpSimpleResult::Timeout (_duration) =>
 				Err (
 					format! (
 						"Request timed out")),
