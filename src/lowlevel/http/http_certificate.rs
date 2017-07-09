@@ -1,6 +1,4 @@
 use std::str;
-use std::sync::Arc;
-use std::sync::Mutex;
 
 use chrono::NaiveDateTime;
 

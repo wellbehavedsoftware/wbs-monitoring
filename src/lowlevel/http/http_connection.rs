@@ -1,11 +1,6 @@
-use std::error::Error;
 use std::io::Error as IoError;
 use std::io::ErrorKind as IoErrorKind;
-use std::io::Read;
-use std::io::Result as IoResult;
-use std::io::Write;
 use std::sync::Arc;
-use std::sync::Mutex;
 use std::time::Duration;
 use std::time::Instant;
 
@@ -13,11 +8,9 @@ use chrono::NaiveDateTime;
 
 use futures::Future;
 use futures::IntoFuture;
-use futures::Poll as FuturesPoll;
 use futures::Stream;
 use futures::future;
 use futures::future::Either as FutureEither;
-use futures::future::FutureResult;
 
 use hyper::Client as HyperClient;
 use hyper::Method as HyperMethod;
@@ -29,17 +22,11 @@ use hyper::header::Host as HyperHostHeader;
 
 use rustls::Certificate as RustTlsCertificate;
 use rustls::ClientConfig as RustTlsClientConfig;
-use rustls::ClientSession as RustTlsClientSession;
 use rustls::Session as RustTlsSession;
 
-use tokio_core::net::TcpStream as TokioTcpStream;
 use tokio_core::reactor::Core as TokioCore;
-use tokio_core::reactor::Handle as TokioHandle;
 use tokio_core::reactor::Timeout as TokioTimeout;
-use tokio_io::AsyncRead;
-use tokio_io::AsyncWrite;
 use tokio_rustls::ClientConfigExt;
-use tokio_rustls::TlsStream as TokioRustTlsStream;
 use tokio_service::Service as TokioService;
 
 use webpki_roots;
@@ -96,7 +83,7 @@ impl HttpConnection {
 				address,
 				port,
 			).parse ().map_err (
-				|error| HttpError::InvalidUri,
+				|_| HttpError::InvalidUri,
 			) ?;
 
 		let mut hyper_connector =
@@ -463,27 +450,6 @@ impl HttpConnection {
 
 	pub fn certificate_expiry (& self) -> Option <NaiveDateTime> {
 		self.certificate_expiry
-	}
-
-	fn hostname_with_port (
-		& self,
-	) -> String {
-
-		if self.port == self.default_port () {
-
-			format! (
-				"{}:{}",
-				self.hostname,
-				self.port)
-
-		} else {
-
-			format! (
-				"{}",
-				self.hostname)
-
-		}
-
 	}
 
 	fn default_port (

@@ -1,33 +1,10 @@
-use std::error;
 use std::str;
-use std::sync::Arc;
-use std::sync::Mutex;
 use std::time::Duration;
-use std::time::Instant;
 
 use chrono::NaiveDateTime;
 
 use encoding::DecoderTrap;
 use encoding::label::encoding_from_whatwg_label;
-
-use futures::Future;
-use futures::IntoFuture;
-use futures::Stream;
-use futures::future::Either;
-
-use hyper::Client as HyperClient;
-use hyper::Method as HyperMethod;
-use hyper::client::Request as HyperRequest;
-use hyper::header::ContentType as HyperContentTypeHeader;
-use hyper::header::Host as HyperHostHeader;
-
-use rustls::Certificate as RustTlsCertificate;
-
-use tokio_core::reactor::Core as TokioCore;
-use tokio_core::reactor::Timeout as TokioTimeout;
-
-use logic::*;
-
 
 use super::*;
 
@@ -151,14 +128,6 @@ impl HttpSimpleResponse {
 pub fn http_simple_perform (
 	http_request: & HttpSimpleRequest,
 ) -> HttpResult <HttpSimpleResponse> {
-
-	let url =
-		format! (
-			"{}://{}:{}{}",
-			if http_request.secure { "https" } else { "http" },
-			http_request.address,
-			http_request.port,
-			http_request.path);
 
 	if http_request.method != HttpMethod::Get {
 

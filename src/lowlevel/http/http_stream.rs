@@ -1,33 +1,14 @@
-use std::error::Error;
 use std::io::Error as IoError;
-use std::io::ErrorKind as IoErrorKind;
 use std::io::Read;
 use std::io::Result as IoResult;
 use std::io::Write;
 use std::sync::Arc;
 use std::sync::Mutex;
-use std::time::Duration;
-use std::time::Instant;
 
 use futures::Async as FuturesAsync;
-use futures::Future;
-use futures::IntoFuture;
 use futures::Poll as FuturesPoll;
-use futures::Stream;
-use futures::future;
-use futures::future::Either as FutureEither;
-use futures::future::FutureResult;
 
-use hyper::Client as HyperClient;
-use hyper::Method as HyperMethod;
-use hyper::Uri as HyperUri;
-use hyper::client::HttpConnector as HyperHttpConnector;
-use hyper::client::Request as HyperRequest;
-
-use rustls::Certificate as RustTlsCertificate;
-use rustls::ClientConfig as RustTlsClientConfig;
 use rustls::ClientSession as RustTlsClientSession;
-use rustls::Session as RustTlsSession;
 
 use tokio_core::net::TcpStream as TokioTcpStream;
 use tokio_io::AsyncRead;
@@ -55,8 +36,6 @@ impl HttpSharedStream {
 		http_stream: HttpStream,
 	) -> HttpSharedStream {
 
-println! ("CREATE");
-
 		HttpSharedStream {
 
 			http_stream:
@@ -76,8 +55,6 @@ println! ("CREATE");
 
 		let http_stream =
 			http_stream_lock.take ().unwrap ();
-
-println! ("BORROW");
 
 		HttpBorrowedStream {
 
@@ -204,9 +181,28 @@ impl AsyncWrite for HttpBorrowedStream {
 		* shared_stream_lock =
 			Some (owned_stream);
 
-println! ("SHARE");
-
 		Ok (FuturesAsync::Ready (()))
+
+	}
+
+}
+
+impl Drop for HttpBorrowedStream {
+
+	fn drop (
+		& mut self,
+	) {
+
+		let owned_stream =
+			self.owned_stream.take ().unwrap ();
+
+		let mut shared_stream_lock =
+			self.shared_stream.lock ().unwrap ();
+
+		assert! (shared_stream_lock.is_none ());
+
+		* shared_stream_lock =
+			Some (owned_stream);
 
 	}
 
