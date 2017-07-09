@@ -310,7 +310,7 @@ impl CheckHttpInstance {
 
 			match result {
 
-				RequestResult::Success (result) => {
+				Ok (result) => {
 
 					check_result_builder.extra_information (
 						format! (
@@ -344,7 +344,21 @@ impl CheckHttpInstance {
 
 				},
 
-				RequestResult::ConnectionError (error) => {
+				Err (RequestError::InvalidUri) => {
+
+					check_result_builder.extra_information (
+						format! (
+							"{}: Invalid URI",
+							address));
+
+					num_connection_errors += 1;
+
+					check_result_builder.update_status (
+						CheckStatus::Critical);
+
+				},
+
+				Err (RequestError::ConnectionError (error)) => {
 
 					check_result_builder.extra_information (
 						format! (
@@ -359,7 +373,7 @@ impl CheckHttpInstance {
 
 				},
 
-				RequestResult::Timeout => {
+				Err (RequestError::Timeout) => {
 
 					check_result_builder.extra_information (
 						format! (
@@ -373,7 +387,7 @@ impl CheckHttpInstance {
 
 				},
 
-				RequestResult::OtherError (error) => {
+				Err (RequestError::OtherError (error)) => {
 
 					check_result_builder.extra_information (
 						format! (
@@ -506,7 +520,7 @@ impl CheckHttpInstance {
 				thread::spawn (
 					move ||
 
-					self_copy.perform_request_for_address (
+					self_copy.perform_requests_for_address (
 						& address)
 
 				),
@@ -526,14 +540,14 @@ impl CheckHttpInstance {
 
 					address,
 
-					RequestResult::OtherError (
+					Err (RequestError::OtherError (
 						error.downcast::<String> (
 						).map (
 							|boxed_error| * boxed_error
 						).unwrap_or (
 							"unknown internal error".to_string ()
 						)
-					)
+					))
 
 				),
 
@@ -543,109 +557,172 @@ impl CheckHttpInstance {
 
 	}
 
-	fn perform_request_for_address (
+	fn perform_requests_for_address (
 		& self,
 		address: & str,
 	) -> RequestResult {
 
-		let http_request =
-			HttpSimpleRequest {
+		// connect
 
-			address: address,
-			hostname: & self.address,
-			port: self.port,
-			secure: self.secure,
+		let mut http_connection =
+			HttpConnection::connect (
+				address.to_string (),
+				Some (self.port),
+				self.secure,
+				self.address.to_string (),
+			).map_err (
+				|error|
+
+				match error {
+
+					HttpError::InvalidUri =>
+						RequestError::InvalidUri,
+
+					HttpError::Timeout =>
+						RequestError::Timeout,
+
+					HttpError::Unknown (error) =>
+						RequestError::ConnectionError (
+							error.description ().to_string ()),
+
+				}
+
+			) ?;
+
+		// perform request
+
+		let http_response =
+			self.perform_request (
+				& mut http_connection,
+			).map_err (
+				|error|
+
+				match error {
+
+					HttpError::InvalidUri =>
+						RequestError::InvalidUri,
+
+					HttpError::Timeout =>
+						RequestError::Timeout,
+
+					HttpError::Unknown (error) =>
+						RequestError::ConnectionError (
+							error.description ().to_string ()),
+
+				}
+
+			) ?;
+
+		// process response
+
+		self.process_response (
+			& http_connection,
+			& http_response,
+		)
+
+	}
+
+	fn perform_request (
+		& self,
+		connection: & mut HttpConnection,
+	) -> HttpResult <HttpResponse> {
+
+		let http_request =
+			HttpRequest {
 
 			method: self.method,
-			path: & self.path,
-			headers: & self.send_headers,
-
-			timeout: self.timeout,
+			path: self.path.to_string (),
+			headers: self.send_headers.clone (),
 
 		};
 
-		match (
-
-			http_simple_perform (
-				& http_request)
-
-		) {
-
-			Ok (http_response) =>
-				self.process_response (
-					& http_response,
-				).unwrap_or_else (
-					|error|
-
-					RequestResult::OtherError (
-						error.description ().to_string ())
-
-				),
-
-			Err (HttpError::InvalidUri) =>
-				RequestResult::OtherError (
-					format! (
-						"Invalid URI")),
-
-			Err (HttpError::Timeout) =>
-				RequestResult::Timeout,
-
-			Err (HttpError::Unknown (error)) =>
-				RequestResult::ConnectionError (
-					format! (
-						"connection error: {}",
-						error.description ())),
-
-		}
+		connection.perform (
+			http_request,
+			self.timeout,
+		)
 
 	}
 
 	fn process_response (
 		& self,
-		http_response: & HttpSimpleResponse,
-	) -> Result <RequestResult, Box <error::Error>> {
+		http_connection: & HttpConnection,
+		http_response: & HttpResponse,
+	) -> RequestResult {
 
-		let mut result =
-			RequestResultSuccess {
+		let mut success =
+			RequestSuccess {
 				check_status: CheckStatus::Ok,
 				duration: http_response.duration (),
 				messages: Vec::new (),
 			};
 
-		result.messages.push (
+		let total_duration =
+			http_connection.connect_duration ()
+			+ http_response.duration ();
+
+		success.messages.push (
 			format! (
-				"request took {}",
+				"request took {} ({}, {}, {})",
 				check_helper::display_duration_long (
-					& http_response.duration ())));
+					& total_duration),
+				check_helper::display_duration_short (
+					& http_connection.connect_duration ()),
+				check_helper::display_duration_short (
+					& http_response.request_duration ()),
+				check_helper::display_duration_short (
+					& http_response.response_duration ())));
+
+		self.check_response (
+			& mut success,
+			http_connection,
+			http_response,
+		).map_err (
+			|error|
+
+			RequestError::OtherError (
+				error.description ().to_string ())
+
+		) ?;
+
+		Ok (success)
+
+	}
+
+	fn check_response (
+		& self,
+		success: & mut RequestSuccess,
+		http_connection: & HttpConnection,
+		http_response: & HttpResponse,
+	) -> Result <(), Box <error::Error>> {
 
 		self.check_response_status_code (
-			& mut result,
+			success,
 			http_response,
 		) ?;
 
 		self.check_response_headers (
-			& mut result,
+			success,
 			http_response,
 		) ?;
 
 		self.check_response_body (
-			& mut result,
+			success,
 			http_response,
 		) ?;
 
 		self.check_certificate_expiry (
-			& mut result,
-			http_response,
+			success,
+			http_connection,
 		) ?;
 
-		Ok (RequestResult::Success (result))
+		Ok (())
 
 	}
 
 	fn check_response_status_code (
 		& self,
-		result: & mut RequestResultSuccess,
-		http_response: & HttpSimpleResponse,
+		result: & mut RequestSuccess,
+		http_response: & HttpResponse,
 	) -> Result <(), Box <error::Error>> {
 
 		if self.expect_status_code.contains (
@@ -675,8 +752,8 @@ impl CheckHttpInstance {
 
 	fn check_response_headers (
 		& self,
-		result: & mut RequestResultSuccess,
-		http_response: & HttpSimpleResponse,
+		result: & mut RequestSuccess,
+		http_response: & HttpResponse,
 	) -> Result <(), Box <error::Error>> {
 
 		if ! self.expect_headers.is_empty () {
@@ -786,8 +863,8 @@ impl CheckHttpInstance {
 
 	fn check_response_body (
 		& self,
-		result: & mut RequestResultSuccess,
-		http_response: & HttpSimpleResponse,
+		result: & mut RequestSuccess,
+		http_response: & HttpResponse,
 	) -> Result <(), Box <error::Error>> {
 
 		if self.expect_body_text.is_some () {
@@ -822,12 +899,12 @@ impl CheckHttpInstance {
 
 	fn check_certificate_expiry (
 		& self,
-		result: & mut RequestResultSuccess,
-		http_response: & HttpSimpleResponse,
+		result: & mut RequestSuccess,
+		http_connection: & HttpConnection,
 	) -> Result <(), Box <error::Error>> {
 
 		if let Some (certificate_expiry) =
-			http_response.certificate_expiry () {
+			http_connection.certificate_expiry () {
 
 			let now =
 				Utc::now ().naive_utc ();
@@ -896,18 +973,21 @@ impl CheckHttpInstance {
 
 }
 
-enum RequestResult {
-	Success (RequestResultSuccess),
+struct RequestSuccess {
+	check_status: CheckStatus,
+	duration: Duration,
+	messages: Vec <String>,
+}
+
+enum RequestError {
+	InvalidUri,
 	ConnectionError (String),
 	Timeout,
 	OtherError (String),
 }
 
-struct RequestResultSuccess {
-	check_status: CheckStatus,
-	duration: Duration,
-	messages: Vec <String>,
-}
+type RequestResult =
+	Result <RequestSuccess, RequestError>;
 
 fn parse_headers (
 	header_strings: Vec <String>,

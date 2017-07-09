@@ -9,6 +9,8 @@ use std::sync::Mutex;
 use std::time::Duration;
 use std::time::Instant;
 
+use chrono::NaiveDateTime;
+
 use futures::Future;
 use futures::IntoFuture;
 use futures::Poll as FuturesPoll;
@@ -52,15 +54,13 @@ pub struct HttpConnection {
 	secure: bool,
 
 	tokio_core: TokioCore,
-	stream: Option <HttpStream>,
+	stream: HttpSharedStream,
 
 	connect_duration: Duration,
+
 	peer_certificates: Option <Vec <RustTlsCertificate>>,
+	certificate_expiry: Option <NaiveDateTime>,
 
-}
-
-struct HttpConnector {
-	stream: Arc <Mutex <Option <HttpStream>>>,
 }
 
 impl HttpConnection {
@@ -70,7 +70,7 @@ impl HttpConnection {
 		port: Option <u64>,
 		secure: bool,
 		hostname: String,
-	) -> Result <HttpConnection, Box <Error>> {
+	) -> HttpResult <HttpConnection> {
 
 		let port =
 			port.unwrap_or (
@@ -79,7 +79,13 @@ impl HttpConnection {
 		// setup tokio
 
 		let mut tokio_core =
-			TokioCore::new () ?;
+			TokioCore::new ().map_err (
+				|error|
+
+			HttpError::Unknown (
+				Box::new (error))
+
+		) ?;
 
 		// setup stream
 
@@ -89,7 +95,9 @@ impl HttpConnection {
 				if secure { "http" } else { "http" },
 				address,
 				port,
-			).parse () ?;
+			).parse ().map_err (
+				|error| HttpError::InvalidUri,
+			) ?;
 
 		let mut hyper_connector =
 			HyperHttpConnector::new (
@@ -172,11 +180,24 @@ impl HttpConnection {
 
 			})
 
-		}) ?;
+		}).map_err (
+			|error|
+
+			HttpError::Unknown (
+				Box::new (error)),
+
+		) ?;
 
 		let end_time = Instant::now ();
 
 		// create conection
+
+		let certificate_expiry =
+			get_certificate_validity (
+				& peer_certificates,
+			).map (
+				|(_start, end)| end,
+			);
 
 		Ok (HttpConnection {
 
@@ -186,10 +207,12 @@ impl HttpConnection {
 			secure: secure,
 
 			tokio_core: tokio_core,
-			stream: Some (http_stream),
+			stream: HttpSharedStream::new (http_stream),
 
 			connect_duration: end_time - start_time,
+
 			peer_certificates: peer_certificates,
+			certificate_expiry: certificate_expiry,
 
 		})
 
@@ -197,9 +220,7 @@ impl HttpConnection {
 
 	pub fn perform (
 		& mut self,
-		method: HttpMethod,
-		path: & str,
-		headers: & [(String, String)],
+		request: HttpRequest,
 		timeout: Duration,
 	) -> HttpResult <HttpResponse> {
 
@@ -212,7 +233,7 @@ impl HttpConnection {
 				if self.secure { "https" } else { "http" },
 				self.address,
 				self.port,
-				path)
+				request.path)
 
 		} else {
 
@@ -220,7 +241,7 @@ impl HttpConnection {
 				"{}://{}{}",
 				if self.secure { "https" } else { "http" },
 				self.address,
-				path)
+				request.path)
 
 		}.parse ().map_err (|_| HttpError::InvalidUri) ?;
 
@@ -239,7 +260,7 @@ impl HttpConnection {
 			let mut got_host = false;
 
 			for & (ref header_name, ref header_value)
-				in headers.iter () {
+				in request.headers.iter () {
 
 				let header_name =
 					header_name.to_lowercase ();
@@ -291,9 +312,8 @@ impl HttpConnection {
 			).into_future ().flatten ();
 
 		let connector =
-			HttpConnector {
-				stream: Arc::new (Mutex::new (self.stream.take ())),
-			};
+			HttpConnector::new (
+				self.stream.clone ());
 
 		let hyper_client =
 			HyperClient::configure (
@@ -441,6 +461,10 @@ impl HttpConnection {
 		& self.peer_certificates
 	}
 
+	pub fn certificate_expiry (& self) -> Option <NaiveDateTime> {
+		self.certificate_expiry
+	}
+
 	fn hostname_with_port (
 		& self,
 	) -> String {
@@ -471,28 +495,6 @@ impl HttpConnection {
 		} else {
 			80
 		}
-
-	}
-
-}
-
-impl TokioService for HttpConnector {
-
-	type Request = HyperUri;
-	type Response = HttpStream;
-	type Error = IoError;
-	type Future = FutureResult <HttpStream, IoError>;
-
-	fn call (
-		& self,
-		uri: HyperUri,
-	) -> Self::Future {
-
-		let mut stream =
-			self.stream.lock ().unwrap ();
-
-		future::ok (
-			stream.take ().unwrap ())
 
 	}
 

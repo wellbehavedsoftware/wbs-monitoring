@@ -174,24 +174,17 @@ pub fn http_simple_perform (
 			Some (http_request.port),
 			http_request.secure,
 			http_request.hostname.to_string (),
-		).map_err (
-			|error| HttpError::Unknown (error)
 		) ?;
-
-	let certificate_expiry =
-		get_certificate_validity (
-			http_connection.peer_certificates (),
-		).map (
-			|(_start, end)| end,
-		);
 
 	// perform request
 
 	let http_response =
 		http_connection.perform (
-			HttpMethod::Get,
-			& http_request.path,
-			& http_request.headers,
+			HttpRequest {
+				method: HttpMethod::Get,
+				path: http_request.path.to_string (),
+				headers: http_request.headers.clone (),
+			},
 			http_request.timeout,
 		) ?;
 
@@ -199,19 +192,19 @@ pub fn http_simple_perform (
 
 	Ok (HttpSimpleResponse {
 
-		status_code: http_response.status_code,
-		status_message: http_response.status_message,
+		status_code: http_response.status_code (),
+		status_message: http_response.status_message ().to_string (),
 
-		headers: http_response.headers,
+		headers: http_response.headers ().to_vec (),
 
-		body: http_response.body,
-		body_encoding: http_response.body_encoding,
+		body: http_response.body ().to_vec (),
+		body_encoding: http_response.body_encoding ().clone (),
 
 		connect_duration: http_connection.connect_duration (),
-		request_duration: http_response.request_duration,
-		response_duration: http_response.response_duration,
+		request_duration: http_response.request_duration (),
+		response_duration: http_response.response_duration (),
 
-		certificate_expiry: certificate_expiry,
+		certificate_expiry: http_connection.certificate_expiry (),
 
 	})
 
