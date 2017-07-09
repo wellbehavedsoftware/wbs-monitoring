@@ -28,9 +28,8 @@ use tokio_core::reactor::Timeout as TokioTimeout;
 
 use logic::*;
 
-use super::http_data::HttpMethod;
-use super::http_certificate::get_certificate_validity;
-use super::http_sni_connector::SniConnector;
+
+use super::*;
 
 #[ derive (Clone, Copy, Debug) ]
 pub struct HttpSimpleRequest <'a> {
@@ -59,7 +58,10 @@ pub struct HttpSimpleResponse {
 	body: Vec <u8>,
 	body_encoding: Option <String>,
 
-	duration: Duration,
+	connect_duration: Duration,
+	request_duration: Duration,
+	response_duration: Duration,
+
 	certificate_expiry: Option <NaiveDateTime>,
 
 }
@@ -67,7 +69,7 @@ pub struct HttpSimpleResponse {
 #[ derive (Debug) ]
 pub enum HttpSimpleResult {
 	Success (HttpSimpleResponse),
-	Timeout (Duration),
+	Timeout,
 	Failure (String),
 }
 
@@ -93,8 +95,22 @@ impl HttpSimpleResponse {
 		& self.body_encoding
 	}
 
+	pub fn connect_duration (& self) -> Duration {
+		self.connect_duration
+	}
+
+	pub fn request_duration (& self) -> Duration {
+		self.request_duration
+	}
+
+	pub fn response_duration (& self) -> Duration {
+		self.response_duration
+	}
+
 	pub fn duration (& self) -> Duration {
-		self.duration
+		self.connect_duration
+		+ self.request_duration
+		+ self.response_duration
 	}
 
 	pub fn certificate_expiry (& self) -> Option <NaiveDateTime> {
@@ -134,24 +150,7 @@ impl HttpSimpleResponse {
 
 pub fn http_simple_perform (
 	http_request: & HttpSimpleRequest,
-) -> HttpSimpleResult {
-
-	http_simple_perform_real (
-		http_request,
-	).unwrap_or_else (
-		|error|
-
-		HttpSimpleResult::Failure (
-			error.description ().to_owned (),
-		)
-
-	)
-
-}
-
-fn http_simple_perform_real (
-	http_request: & HttpSimpleRequest,
-) -> Result <HttpSimpleResult, Box <error::Error>> {
+) -> HttpResult <HttpSimpleResponse> {
 
 	let url =
 		format! (
@@ -163,242 +162,58 @@ fn http_simple_perform_real (
 
 	if http_request.method != HttpMethod::Get {
 
-		return Err (
-
-			Box::new (
-				SimpleError::from (
-					"TODO: only supports GET method so far"))
-
-		);
+		return Err (HttpError::InvalidUri);
 
 	}
 
-	// setup client
+	// connect
 
-	let mut tokio_core =
-		TokioCore::new () ?;
-
-	// setup client
-
-	let peer_certificates: Arc <Mutex <Option <Vec <RustTlsCertificate>>>> =
-		Arc::new (Mutex::new (None));
-
-	let sni_connector =
-		SniConnector::new (
-			1,
-			& tokio_core.handle (),
+	let mut http_connection =
+		HttpConnection::connect (
+			http_request.address.to_string (),
+			Some (http_request.port),
+			http_request.secure,
 			http_request.hostname.to_string (),
-			peer_certificates.clone (),
-		);
-
-	let hyper_client =
-		HyperClient::configure (
-		).connector (
-			sni_connector,
-		).build (
-			& tokio_core.handle (),
-		);
-
-	// setup request
-
-	let mut hyper_request =
-		HyperRequest::new (
-			HyperMethod::Get,
-			url.parse () ?);
-
-	{
-
-		let hyper_headers =
-			hyper_request.headers_mut ();
-
-		let mut got_host = false;
-
-		for & (ref header_name, ref header_value)
-			in http_request.headers.iter () {
-
-			let header_name =
-				header_name.to_lowercase ();
-
-			if header_name == "host" {
-				got_host = true;
-			}
-
-			hyper_headers.set_raw (
-				header_name.to_string (),
-				vec! [ header_value.as_bytes ().to_vec () ]);
-
-		}
-
-		if ! got_host {
-
-			if (
-				! http_request.secure
-				&& http_request.port == 80
-			) || (
-				http_request.secure
-				&& http_request.port == 443
-			) {
-
-				hyper_headers.set (
-					HyperHostHeader::new (
-						http_request.hostname.to_string (),
-						None));
-
-			} else {
-
-				hyper_headers.set (
-					HyperHostHeader::new (
-						http_request.hostname.to_string (),
-						http_request.port as u16));
-
-			}
-
-		}
-
-	}
-
-	// perform request
-
-	let start_time =
-		Instant::now ();
-
-	let timeout_time =
-		start_time + http_request.timeout;
-
-	let timeout =
-		TokioTimeout::new_at (
-			timeout_time,
-			& tokio_core.handle (),
-		).into_future ().flatten ();
-
-	let hyper_response =
-		match tokio_core.run (
-
-		hyper_client.request (
-			hyper_request,
-		).select2 (timeout)
-
-	) {
-
-		Ok (Either::A ((hyper_response, _))) =>
-			hyper_response,
-
-		Err (Either::A (_)) =>
-			return Ok (HttpSimpleResult::Failure (
-				format! (
-					"Unknown error performing request"))),
-
-		_ =>
-			return Ok (HttpSimpleResult::Timeout (
-				Instant::now () - start_time)),
-
-	};
+		).map_err (
+			|error| HttpError::Unknown (error)
+		) ?;
 
 	let certificate_expiry =
 		get_certificate_validity (
-			peer_certificates,
+			http_connection.peer_certificates (),
 		).map (
 			|(_start, end)| end,
 		);
 
-	// process response headers
+	// perform request
 
-	let response_status_code =
-		hyper_response.status_raw ().0 as u64;
-
-	let response_status_message =
-		hyper_response.status_raw ().1.to_string ();
-
-	let response_headers: Vec <(String, String)> =
-		hyper_response.headers ().iter ().map (
-			|header|
-			(
-				header.name ().to_string (),
-				header.value_string (),
-			)
-		).collect ();
-
-	let response_encoding =
-		if let Some (response_content_type) =
-			hyper_response.headers ().get::<HyperContentTypeHeader> () {
-
-		if let Some (response_charset) =
-			response_content_type.get_param (
-				"charset",
-			) {
-
-			Some (response_charset.to_string ())
-
-		} else {
-			None
-		}
-
-	} else {
-		None
-	};
-
-	// process response body
-
-	let mut response_body: Vec <u8> =
-		Vec::new ();
-
-	let timeout =
-		TokioTimeout::new_at (
-			timeout_time,
-			& tokio_core.handle (),
-		).into_future ().flatten ();
-
-	match tokio_core.run (
-
-		hyper_response.body ().for_each (
-			|chunk| {
-
-			response_body.extend_from_slice (
-				& chunk);
-
-			Ok (())
-
-		}).select2 (timeout)
-
-	) {
-
-		Ok (Either::A (_)) =>
-			(),
-
-		Err (Either::A (_)) =>
-			return Ok (HttpSimpleResult::Failure (
-				format! (
-					"Unknown error performing request"))),
-
-		_ =>
-			return Ok (HttpSimpleResult::Timeout (
-				Instant::now () - start_time)),
-
-	};
-
-	let end_time =
-		Instant::now ();
-
-	let duration =
-		end_time.duration_since (
-			start_time);
+	let http_response =
+		http_connection.perform (
+			HttpMethod::Get,
+			& http_request.path,
+			& http_request.headers,
+			http_request.timeout,
+		) ?;
 
 	// return
 
-	Ok (
-		HttpSimpleResult::Success (
+	Ok (HttpSimpleResponse {
 
-		HttpSimpleResponse {
-			status_code: response_status_code,
-			status_message: response_status_message,
-			headers: response_headers,
-			body: response_body,
-			body_encoding: response_encoding,
-			duration: duration,
-			certificate_expiry: certificate_expiry,
-		}
+		status_code: http_response.status_code,
+		status_message: http_response.status_message,
 
-	))
+		headers: http_response.headers,
+
+		body: http_response.body,
+		body_encoding: http_response.body_encoding,
+
+		connect_duration: http_connection.connect_duration (),
+		request_duration: http_response.request_duration,
+		response_duration: http_response.response_duration,
+
+		certificate_expiry: certificate_expiry,
+
+	})
 
 }
 

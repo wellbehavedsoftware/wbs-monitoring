@@ -140,28 +140,10 @@ impl CheckGenericInstance {
 
 		};
 
-		let http_response = match
-
+		let http_response =
 			http_simple_perform (
-				& http_request)
-
-		{
-
-			HttpSimpleResult::Success (http_response) =>
-				Ok (http_response),
-
-			HttpSimpleResult::Failure (reason) =>
-				Err (
-					format! (
-						"failed to connect: {}",
-						reason)),
-
-			HttpSimpleResult::Timeout (_duration) =>
-				Err (
-					format! (
-						"Request timed out")),
-
-		} ?;
+				& http_request,
+			) ?;
 
 		check_helper::check_duration_less_than (
 			check_result_builder,

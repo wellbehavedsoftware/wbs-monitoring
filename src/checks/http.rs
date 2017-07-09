@@ -565,11 +565,13 @@ impl CheckHttpInstance {
 		};
 
 		match (
+
 			http_simple_perform (
 				& http_request)
+
 		) {
 
-			HttpSimpleResult::Success (http_response) =>
+			Ok (http_response) =>
 				self.process_response (
 					& http_response,
 				).unwrap_or_else (
@@ -580,14 +582,19 @@ impl CheckHttpInstance {
 
 				),
 
-			HttpSimpleResult::Failure (reason) =>
+			Err (HttpError::InvalidUri) =>
+				RequestResult::OtherError (
+					format! (
+						"Invalid URI")),
+
+			Err (HttpError::Timeout) =>
+				RequestResult::Timeout,
+
+			Err (HttpError::Unknown (error)) =>
 				RequestResult::ConnectionError (
 					format! (
-						"failed to connect: {}",
-						reason)),
-
-			HttpSimpleResult::Timeout (_duration) =>
-				RequestResult::Timeout,
+						"connection error: {}",
+						error.description ())),
 
 		}
 

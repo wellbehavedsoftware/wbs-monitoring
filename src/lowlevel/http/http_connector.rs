@@ -1,3 +1,4 @@
+use std::error::Error;
 use std::fmt;
 use std::io::Error as IoError;
 use std::io::ErrorKind as IoErrorKind;
@@ -13,14 +14,15 @@ use hyper::client::HttpConnector as HyperHttpConnector;
 use futures::Async;
 use futures::Future;
 use futures::Poll;
+use futures::sync::oneshot;
 
 use rustls::Certificate as RustTlsCertificate;
-use rustls::ClientConfig;
-use rustls::ClientSession;
+use rustls::ClientConfig as RustTlsClientConfig;
+use rustls::ClientSession as RustTlsClientSession;
 use rustls::Session as RustTlsSession;
 
 use tokio_core::net::TcpStream as TokioTcpStream;
-use tokio_core::reactor::Handle;
+use tokio_core::reactor::Handle as TokioHandle;
 use tokio_io::AsyncRead;
 use tokio_io::AsyncWrite;
 use tokio_rustls::ClientConfigExt;
@@ -28,150 +30,6 @@ use tokio_rustls::TlsStream as TokioRustTlsStream;
 use tokio_service::Service;
 
 use webpki_roots;
-
-#[ derive (Clone) ]
-pub struct SniConnector {
-	http: HyperHttpConnector,
-	hostname: String,
-	peer_certificates: Arc <Mutex <Option <Vec <RustTlsCertificate>>>>,
-}
-
-impl SniConnector {
-
-	pub fn new (
-		threads: usize,
-		handle: & Handle,
-		hostname: String,
-		peer_certificates: Arc <Mutex <Option <Vec <RustTlsCertificate>>>>,
-	) -> SniConnector {
-
-		let mut http =
-			HyperHttpConnector::new (
-				threads,
-				handle,
-			);
-
-		http.enforce_http (false);
-
-		SniConnector {
-			http: http,
-			hostname: hostname,
-			peer_certificates: peer_certificates,
-		}
-
-	}
-
-}
-
-impl fmt::Debug for SniConnector {
-
-	fn fmt (
-		& self,
-		f: & mut fmt::Formatter,
-	) -> fmt::Result {
-
-		f.debug_struct (
-			"HttpsConnector",
-		).finish ()
-
-	}
-
-}
-
-impl Service for SniConnector {
-
-	type Request = HyperUri;
-	type Response = MaybeHttpsStream;
-	type Error = IoError;
-	type Future = HttpsConnecting;
-
-	fn call (
-		& self,
-		uri: HyperUri,
-	) -> Self::Future {
-
-		let is_https =
-			uri.scheme () == Some ("https");
-
-		let connecting =
-			self.http.call (
-				uri);
-
-		let hostname =
-			self.hostname.to_string ();
-
-		HttpsConnecting {
-
-			future: if is_https {
-
-				Box::new (
-					connecting.and_then (
-						move |tcp| {
-
-						let mut config =
-							ClientConfig::new ();
-
-						config.root_store.add_trust_anchors (
-							& webpki_roots::ROOTS,
-						);
-
-						Arc::new (
-							config,
-						).connect_async (
-							& hostname,
-							tcp,
-						).map_err (
-							|error|
-
-							IoError::new (
-								IoErrorKind::Other,
-								error,
-							)
-
-						)
-
-					}).map (
-						|tls|
-
-						MaybeHttpsStream::Https (
-							tls,
-						)
-
-					).map_err (
-						|error|
-
-						IoError::new (
-							IoErrorKind::Other,
-							error,
-						)
-
-					)
-
-				)
-
-			} else {
-
-				Box::new (
-					connecting.map (
-						|tcp|
-
-						MaybeHttpsStream::Http (
-							tcp,
-						)
-
-					)
-				)
-
-			},
-
-			peer_certificates:
-				self.peer_certificates.clone (),
-
-		}
-
-	}
-
-}
 
 pub struct HttpsConnecting {
 	future: Box <Future <
@@ -251,10 +109,10 @@ impl fmt::Debug for MaybeHttpsStream {
 		match * self {
 
 			MaybeHttpsStream::Http (..) =>
-				formatter.pad ("Http(..)"),
+				formatter.pad ("Http (..)"),
 
 			MaybeHttpsStream::Https (..) =>
-				formatter.pad ("Https(..)"),
+				formatter.pad ("Https (..)"),
 
 		}
 

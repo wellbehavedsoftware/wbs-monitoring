@@ -13,11 +13,8 @@ use der_parser::DerObjectContent;
 use rustls::Certificate as RustTlsCertificate;
 
 pub fn get_certificate_validity (
-	peer_certificates: Arc <Mutex <Option <Vec <RustTlsCertificate>>>>,
+	peer_certificates: & Option <Vec <RustTlsCertificate>>,
 ) -> Option <(NaiveDateTime, NaiveDateTime)> {
-
-	let peer_certificates =
-		peer_certificates.lock ().unwrap ();
 
 	if let Some (ref peer_certificates) =
 		* peer_certificates {
