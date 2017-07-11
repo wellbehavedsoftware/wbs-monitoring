@@ -627,24 +627,6 @@ impl CheckHttpInstance {
 		connection: & mut HttpConnection,
 	) -> HttpResult <HttpResponse> {
 
-println! ("HTTP 0");
-
-		let http_request =
-			HttpRequest {
-
-			method: self.method,
-			path: self.path.to_string (),
-			headers: self.send_headers.clone (),
-
-		};
-
-		connection.perform (
-			http_request,
-			self.timeout,
-		);
-
-println! ("HTTP 1");
-
 		let http_request =
 			HttpRequest {
 
@@ -678,17 +660,43 @@ println! ("HTTP 1");
 			http_connection.connect_duration ()
 			+ http_response.duration ();
 
-		success.messages.push (
-			format! (
-				"request took {} ({}, {}, {})",
-				check_helper::display_duration_long (
-					& total_duration),
-				check_helper::display_duration_short (
-					& http_connection.connect_duration ()),
-				check_helper::display_duration_short (
-					& http_response.request_duration ()),
-				check_helper::display_duration_short (
-					& http_response.response_duration ())));
+		if (self.secure) {
+
+			let tls_duration =
+				http_connection.tls_duration ().unwrap ();
+
+			let tcp_duration =
+				http_connection.connect_duration () - tls_duration;
+
+			success.messages.push (
+				format! (
+					"request took {} ({}, {}, {}, {})",
+					check_helper::display_duration_long (
+						& total_duration),
+					check_helper::display_duration_short (
+						& tcp_duration),
+					check_helper::display_duration_short (
+						& tls_duration),
+					check_helper::display_duration_short (
+						& http_response.request_duration ()),
+					check_helper::display_duration_short (
+						& http_response.response_duration ())));
+
+		} else {
+
+			success.messages.push (
+				format! (
+					"request took {} ({}, {}, {})",
+					check_helper::display_duration_long (
+						& total_duration),
+					check_helper::display_duration_short (
+						& http_connection.connect_duration ()),
+					check_helper::display_duration_short (
+						& http_response.request_duration ()),
+					check_helper::display_duration_short (
+						& http_response.response_duration ())));
+
+		}
 
 		self.check_response (
 			& mut success,

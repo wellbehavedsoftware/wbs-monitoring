@@ -190,7 +190,7 @@ fn display_duration_generic (
 
 		format! (
 			"{}.{:01}{}",
-			microseconds / 100,
+			microseconds / 1000,
 			(microseconds % 1000) / 100,
 			duration_format.milliseconds_plural)
 
@@ -198,7 +198,7 @@ fn display_duration_generic (
 
 		format! (
 			"{}.{:02}{}",
-			microseconds / 10,
+			microseconds / 1000,
 			(microseconds % 1000) / 10,
 			if microseconds == 1_000 {
 				duration_format.milliseconds_singular
@@ -206,7 +206,7 @@ fn display_duration_generic (
 				duration_format.milliseconds_plural
 			})
 
-	} else if microseconds >= 1{
+	} else if microseconds >= 1 {
 
 		format! (
 			"{}{}",

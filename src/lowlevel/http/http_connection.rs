@@ -11,6 +11,7 @@ pub struct HttpConnection {
 	hyper_client: HyperClient <HttpConnector>,
 
 	connect_duration: Duration,
+	tls_duration: Option <Duration>,
 
 	peer_certificates: Option <Vec <RustTlsCertificate>>,
 	certificate_expiry: Option <NaiveDateTime>,
@@ -62,7 +63,7 @@ impl HttpConnection {
 
 		let start_time = Instant::now ();
 
-		let (http_stream, peer_certificates) =
+		let (http_stream, tls_duration, peer_certificates) =
 			tokio_core.run ({
 
 			let hostname = hostname.to_string ();
@@ -73,6 +74,9 @@ impl HttpConnection {
 				move |tcp_stream| {
 
 				if secure {
+
+					let tls_start_time =
+						Instant::now ();
 
 					let mut rust_tls_client_config =
 						RustTlsClientConfig::new ();
@@ -95,7 +99,10 @@ impl HttpConnection {
 						)
 
 					).map (
-						|rust_tls_stream| {
+						move |rust_tls_stream| {
+
+						let tls_end_time =
+							Instant::now ();
 
 						let peer_certificates = {
 
@@ -109,6 +116,7 @@ impl HttpConnection {
 						(
 							HttpStream::Https (
 								rust_tls_stream),
+							Some (tls_end_time - tls_start_time),
 							peer_certificates,
 						)
 
@@ -127,6 +135,7 @@ impl HttpConnection {
 					future::ok ((
 						HttpStream::Http (
 							tcp_stream),
+						None,
 						None,
 					)).boxed ()
 
@@ -182,6 +191,7 @@ impl HttpConnection {
 			hyper_client: hyper_client,
 
 			connect_duration: end_time - start_time,
+			tls_duration: tls_duration,
 
 			peer_certificates: peer_certificates,
 			certificate_expiry: certificate_expiry,
@@ -415,6 +425,10 @@ impl HttpConnection {
 
 	pub fn connect_duration (& self) -> Duration {
 		self.connect_duration
+	}
+
+	pub fn tls_duration (& self) -> Option <Duration> {
+		self.tls_duration
 	}
 
 	pub fn peer_certificates (& self) -> & Option <Vec <RustTlsCertificate>> {

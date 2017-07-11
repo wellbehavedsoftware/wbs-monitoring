@@ -50,8 +50,6 @@ impl HttpSharedStream {
 		if let Some (http_stream) =
 			internal.http_stream.take () {
 
-println! ("ALREADY HAVE STREAM");
-
 			future_ok (
 				HttpBorrowedStream {
 
@@ -65,8 +63,6 @@ println! ("ALREADY HAVE STREAM");
 			).boxed ()
 
 		} else {
-
-println! ("WAIT FOR STREAM");
 
 			let (sender, receiver) =
 				oneshot_channel ();
@@ -122,16 +118,12 @@ println! ("WAIT FOR STREAM");
 
 					// not accepted, loop
 
-println! ("NOT ACCEPTED");
-
 					http_stream =
 						returned_http_stream;
 
 				} else {
 
 					// accepted, done
-
-println! ("ACCEPTED");
 
 					break;
 
@@ -140,8 +132,6 @@ println! ("ACCEPTED");
 			} else {
 
 				// no waiters, reclaim ownership
-
-println! ("RECLAIMED");
 
 				internal.http_stream =
 					Some (http_stream);
@@ -269,8 +259,6 @@ impl Drop for HttpBorrowedStream {
 	fn drop (
 		& mut self,
 	) {
-
-println! ("DROP");
 
 		let owned_stream =
 			self.owned_stream.take ().unwrap ();

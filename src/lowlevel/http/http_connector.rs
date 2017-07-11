@@ -30,8 +30,6 @@ impl TokioService for HttpConnector {
 		_uri: HyperUri,
 	) -> Self::Future {
 
-println! ("CONNECT");
-
 		self.http_shared_stream.borrow ().map_err (
 			|canceled|
 
