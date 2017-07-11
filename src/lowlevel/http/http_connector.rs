@@ -1,32 +1,17 @@
-use std::io::Error as IoError;
-use std::sync::Arc;
-use std::sync::Mutex;
-
-use hyper::Uri as HyperUri;
-
-use futures::future;
-use futures::future::FutureResult;
-
-use tokio_service::Service as TokioService;
-
-use super::*;
+use super::http_prelude::*;
 
 pub struct HttpConnector {
-	http_stream: Arc <Mutex <HttpSharedStream>>,
+	http_shared_stream: HttpSharedStream,
 }
 
 impl HttpConnector {
 
 	pub fn new (
-		http_stream: HttpSharedStream,
+		http_shared_stream: HttpSharedStream,
 	) -> HttpConnector {
 
 		HttpConnector {
-
-			http_stream:
-				Arc::new (Mutex::new (
-					http_stream)),
-
+			http_shared_stream: http_shared_stream,
 		}
 
 	}
@@ -38,18 +23,24 @@ impl TokioService for HttpConnector {
 	type Request = HyperUri;
 	type Response = HttpBorrowedStream;
 	type Error = IoError;
-	type Future = FutureResult <HttpBorrowedStream, IoError>;
+	type Future = BoxFuture <HttpBorrowedStream, IoError>;
 
 	fn call (
 		& self,
 		_uri: HyperUri,
 	) -> Self::Future {
 
-		let http_stream_lock =
-			self.http_stream.lock ().unwrap ();
+println! ("CONNECT");
 
-		future::ok (
-			http_stream_lock.borrow ())
+		self.http_shared_stream.borrow ().map_err (
+			|canceled|
+
+			IoError::new (
+				IoErrorKind::Other,
+				canceled,
+			)
+
+		).boxed ()
 
 	}
 

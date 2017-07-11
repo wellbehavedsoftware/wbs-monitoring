@@ -627,6 +627,24 @@ impl CheckHttpInstance {
 		connection: & mut HttpConnection,
 	) -> HttpResult <HttpResponse> {
 
+println! ("HTTP 0");
+
+		let http_request =
+			HttpRequest {
+
+			method: self.method,
+			path: self.path.to_string (),
+			headers: self.send_headers.clone (),
+
+		};
+
+		connection.perform (
+			http_request,
+			self.timeout,
+		);
+
+println! ("HTTP 1");
+
 		let http_request =
 			HttpRequest {
 

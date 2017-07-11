@@ -1,19 +1,4 @@
-use std::io::Error as IoError;
-use std::io::Read;
-use std::io::Result as IoResult;
-use std::io::Write;
-use std::sync::Arc;
-use std::sync::Mutex;
-
-use futures::Async as FuturesAsync;
-use futures::Poll as FuturesPoll;
-
-use rustls::ClientSession as RustTlsClientSession;
-
-use tokio_core::net::TcpStream as TokioTcpStream;
-use tokio_io::AsyncRead;
-use tokio_io::AsyncWrite;
-use tokio_rustls::TlsStream as TokioRustTlsStream;
+use super::http_prelude::*;
 
 pub enum HttpStream {
 	Http (TokioTcpStream),
@@ -22,12 +7,17 @@ pub enum HttpStream {
 
 #[ derive (Clone) ]
 pub struct HttpSharedStream {
-	http_stream: Arc <Mutex <Option <HttpStream>>>,
+	internal: Arc <Mutex <HttpSharedStreamInternal>>,
+}
+
+pub struct HttpSharedStreamInternal {
+	http_stream: Option <HttpStream>,
+	senders: LinkedList <OneshotSender <HttpStream>>,
 }
 
 pub struct HttpBorrowedStream {
+	shared_stream: HttpSharedStream,
 	owned_stream: Option <HttpStream>,
-	shared_stream: Arc <Mutex <Option <HttpStream>>>,
 }
 
 impl HttpSharedStream {
@@ -38,9 +28,13 @@ impl HttpSharedStream {
 
 		HttpSharedStream {
 
-			http_stream:
-				Arc::new (Mutex::new (
-					Some (http_stream))),
+			internal: Arc::new (Mutex::new (
+				HttpSharedStreamInternal {
+
+				http_stream: Some (http_stream),
+				senders: LinkedList::new (),
+
+			})),
 
 		}
 
@@ -48,21 +42,113 @@ impl HttpSharedStream {
 
 	pub fn borrow (
 		& self,
-	) -> HttpBorrowedStream {
+	) -> BoxFuture <HttpBorrowedStream, FuturesCanceled> {
 
-		let mut http_stream_lock =
-			self.http_stream.lock ().unwrap ();
+		let mut internal =
+			self.internal.lock ().unwrap ();
 
-		let http_stream =
-			http_stream_lock.take ().unwrap ();
+		if let Some (http_stream) =
+			internal.http_stream.take () {
 
-		HttpBorrowedStream {
+println! ("ALREADY HAVE STREAM");
 
-			owned_stream:
-				Some (http_stream),
+			future_ok (
+				HttpBorrowedStream {
 
-			shared_stream:
-				self.http_stream.clone (),
+					shared_stream:
+						self.clone (),
+
+					owned_stream:
+						Some (http_stream),
+
+				}
+			).boxed ()
+
+		} else {
+
+println! ("WAIT FOR STREAM");
+
+			let (sender, receiver) =
+				oneshot_channel ();
+
+			internal.senders.push_back (
+				sender);
+
+			let self_clone =
+				self.clone ();
+
+			receiver.map (
+				move |http_stream| {
+
+				HttpBorrowedStream {
+
+					shared_stream:
+						self_clone,
+
+					owned_stream:
+						Some (http_stream),
+
+				}
+
+			}).boxed ()
+
+		}
+
+	}
+
+	fn unborrow (
+		& self,
+		http_stream: HttpStream,
+	) {
+
+		let mut http_stream =
+			http_stream;
+
+		loop {
+
+			let mut internal =
+				self.internal.lock ().unwrap ();
+
+			if let Some (sender) =
+				internal.senders.pop_front () {
+
+				// send it to next in queue
+
+				drop (internal);
+
+				if let Err (returned_http_stream) =
+					sender.send (
+						http_stream) {
+
+					// not accepted, loop
+
+println! ("NOT ACCEPTED");
+
+					http_stream =
+						returned_http_stream;
+
+				} else {
+
+					// accepted, done
+
+println! ("ACCEPTED");
+
+					break;
+
+				}
+
+			} else {
+
+				// no waiters, reclaim ownership
+
+println! ("RECLAIMED");
+
+				internal.http_stream =
+					Some (http_stream);
+
+				break;
+
+			}
 
 		}
 
@@ -170,16 +256,7 @@ impl AsyncWrite for HttpBorrowedStream {
 		& mut self,
 	) -> FuturesPoll <(), IoError> {
 
-		let owned_stream =
-			self.owned_stream.take ().unwrap ();
-
-		let mut shared_stream_lock =
-			self.shared_stream.lock ().unwrap ();
-
-		assert! (shared_stream_lock.is_none ());
-
-		* shared_stream_lock =
-			Some (owned_stream);
+		// do nothing
 
 		Ok (FuturesAsync::Ready (()))
 
@@ -193,16 +270,13 @@ impl Drop for HttpBorrowedStream {
 		& mut self,
 	) {
 
+println! ("DROP");
+
 		let owned_stream =
 			self.owned_stream.take ().unwrap ();
 
-		let mut shared_stream_lock =
-			self.shared_stream.lock ().unwrap ();
-
-		assert! (shared_stream_lock.is_none ());
-
-		* shared_stream_lock =
-			Some (owned_stream);
+		self.shared_stream.unborrow (
+			owned_stream);
 
 	}
 

@@ -1,14 +1,10 @@
-use std::str;
-
-use chrono::NaiveDateTime;
+use super::http_prelude::*;
 
 use nom;
 
 use der_parser;
 use der_parser::DerObject;
 use der_parser::DerObjectContent;
-
-use rustls::Certificate as RustTlsCertificate;
 
 pub fn get_certificate_validity (
 	peer_certificates: & Option <Vec <RustTlsCertificate>>,

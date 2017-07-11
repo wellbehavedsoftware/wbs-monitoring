@@ -1,12 +1,4 @@
-use std::error::Error;
-use std::fmt::Debug;
-use std::fmt::Display;
-use std::fmt::Formatter;
-use std::fmt::Result as FormatResult;
-use std::time::Duration;
-
-use encoding::DecoderTrap;
-use encoding::label::encoding_from_whatwg_label;
+use super::http_prelude::*;
 
 #[ derive (Clone, Copy, Debug, PartialEq) ]
 pub enum HttpMethod {
@@ -105,7 +97,7 @@ impl HttpResponse {
 		Ok (
 			encoding.decode (
 				& self.body,
-				DecoderTrap::Strict,
+				EncodingDecoderTrap::Strict,
 			) ?.to_string ()
 		)
 

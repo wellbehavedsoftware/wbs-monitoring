@@ -1,12 +1,4 @@
-use std::str;
-use std::time::Duration;
-
-use chrono::NaiveDateTime;
-
-use encoding::DecoderTrap;
-use encoding::label::encoding_from_whatwg_label;
-
-use super::*;
+use super::http_prelude::*;
 
 #[ derive (Clone, Copy, Debug) ]
 pub struct HttpSimpleRequest <'a> {
@@ -117,7 +109,7 @@ impl HttpSimpleResponse {
 		Ok (
 			encoding.decode (
 				& self.body,
-				DecoderTrap::Strict,
+				EncodingDecoderTrap::Strict,
 			) ?.to_string ()
 		)
 

@@ -1,37 +1,4 @@
-use std::io::Error as IoError;
-use std::io::ErrorKind as IoErrorKind;
-use std::sync::Arc;
-use std::time::Duration;
-use std::time::Instant;
-
-use chrono::NaiveDateTime;
-
-use futures::Future;
-use futures::IntoFuture;
-use futures::Stream;
-use futures::future;
-use futures::future::Either as FutureEither;
-
-use hyper::Client as HyperClient;
-use hyper::Method as HyperMethod;
-use hyper::Uri as HyperUri;
-use hyper::client::HttpConnector as HyperHttpConnector;
-use hyper::client::Request as HyperRequest;
-use hyper::header::ContentType as HyperContentTypeHeader;
-use hyper::header::Host as HyperHostHeader;
-
-use rustls::Certificate as RustTlsCertificate;
-use rustls::ClientConfig as RustTlsClientConfig;
-use rustls::Session as RustTlsSession;
-
-use tokio_core::reactor::Core as TokioCore;
-use tokio_core::reactor::Timeout as TokioTimeout;
-use tokio_rustls::ClientConfigExt;
-use tokio_service::Service as TokioService;
-
-use webpki_roots;
-
-use super::*;
+use super::http_prelude::*;
 
 pub struct HttpConnection {
 
@@ -41,7 +8,7 @@ pub struct HttpConnection {
 	secure: bool,
 
 	tokio_core: TokioCore,
-	stream: HttpSharedStream,
+	hyper_client: HyperClient <HttpConnector>,
 
 	connect_duration: Duration,
 
@@ -175,7 +142,25 @@ impl HttpConnection {
 
 		) ?;
 
+		let http_shared_stream =
+			HttpSharedStream::new (
+				http_stream);
+
 		let end_time = Instant::now ();
+
+		// create client
+
+		let connector =
+			HttpConnector::new (
+				http_shared_stream);
+
+		let hyper_client =
+			HyperClient::configure (
+			).connector (
+				connector,
+			).build (
+				& tokio_core.handle (),
+			);
 
 		// create conection
 
@@ -194,7 +179,7 @@ impl HttpConnection {
 			secure: secure,
 
 			tokio_core: tokio_core,
-			stream: HttpSharedStream::new (http_stream),
+			hyper_client: hyper_client,
 
 			connect_duration: end_time - start_time,
 
@@ -298,22 +283,10 @@ impl HttpConnection {
 				& self.tokio_core.handle (),
 			).into_future ().flatten ();
 
-		let connector =
-			HttpConnector::new (
-				self.stream.clone ());
-
-		let hyper_client =
-			HyperClient::configure (
-			).connector (
-				connector,
-			).build (
-				& self.tokio_core.handle (),
-			);
-
 		let hyper_response =
 			match self.tokio_core.run (
 
-			hyper_client.request (
+			self.hyper_client.request (
 				hyper_request,
 			).select2 (timeout)
 

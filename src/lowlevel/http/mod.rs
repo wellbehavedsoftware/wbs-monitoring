@@ -3,6 +3,7 @@ mod http_connection;
 mod http_connector;
 mod http_data;
 mod http_perform;
+mod http_prelude;
 mod http_simple;
 mod http_stream;
 
